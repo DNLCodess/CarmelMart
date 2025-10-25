@@ -1,8 +1,8 @@
 "use client";
 
+import Card from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import { ShoppingBag, Store, Shield } from "lucide-react";
-import Card from "../UI/Card";
 
 export default function RoleSelector({ selectedRole, onSelectRole }) {
   const roles = [

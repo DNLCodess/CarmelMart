@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useUserStore } from "@/store/userStore";
 import { authHelpers, dbHelpers } from "@/lib/supabase";
 import AdminDashboard from "@/components/Dashboard/AdminDashboard";
-import Button from "@/components/UI/Button";
+import Button from "@/components/ui/button";
 import toast from "react-hot-toast";
 
 export default function AdminDashboardPage() {

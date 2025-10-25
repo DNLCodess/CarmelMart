@@ -19,9 +19,9 @@ export default function Button({
 
   const variants = {
     primary:
-      "bg-gradient-to-r from-[--color-primary] to-[--color-primary-dark] hover:shadow-lg hover:shadow-[--color-primary]/25 text-black active:scale-[0.98]",
+      "bg-gradient-to-r from-primary to-primary-dark hover:shadow-lg hover:shadow-primary/25 text-white active:scale-[0.98]",
     accent:
-      "bg-gradient-to-r from-[--color-accent] to-[--color-accent-dark] hover:shadow-lg hover:shadow-[--color-accent]/25 text-white active:scale-[0.98]",
+      "bg-gradient-to-r from-accent to-accent-dark hover:shadow-lg hover:shadow-accent/25 text-white active:scale-[0.98]",
     outline:
       "border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white active:scale-[0.98]",
     ghost: "text-gray-700 hover:bg-gray-100 active:scale-[0.98]",

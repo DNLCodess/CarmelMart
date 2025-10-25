@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import Button from "@/components/UI/Button";
+import Button from "@/components/ui/button";
 import { categories, featuredProducts, topVendors } from "@/lib/data";
 import HeroSection from "@/components/shared/home/hero";
 import CategoriesSection from "@/components/shared/home/categories";
