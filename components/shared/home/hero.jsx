@@ -241,7 +241,7 @@ export default function HeroSection() {
               </div>
 
               {/* Trust Indicators with Glass Effect */}
-              <div className="grid grid-cols-3 gap-6 p-6 bg-primary backdrop-blur-xl rounded-2xl border border-white/10">
+              <div className="grid grid-cols-3 gap-6 p-6 bg-primary/10 backdrop-blur-xl rounded-2xl border border-white/10">
                 <div>
                   <div className="text-3xl font-bold text-white mb-1">
                     {currentHero.stats.vendors}

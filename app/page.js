@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Search,
@@ -19,8 +19,32 @@ import CategoriesSection from "@/components/shared/home/categories";
 
 export default function LandingPage() {
   const [activeCategory, setActiveCategory] = useState(0);
-  const { scrollYProgress } = useScroll();
-  const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
+  const ctaRef = useRef(null);
+
+  // Parallax scroll effects for CTA section
+  const { scrollYProgress } = useScroll({
+    target: ctaRef,
+    offset: ["start end", "end start"],
+  });
+
+  // Different scroll speeds for parallax layers
+  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
+  const contentY = useTransform(scrollYProgress, [0, 1], ["0%", "-10%"]);
+  const overlayOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.5, 1],
+    [0.95, 0.9, 0.85]
+  );
+  const contentScale = useTransform(
+    scrollYProgress,
+    [0, 0.5, 1],
+    [0.95, 1, 0.95]
+  );
+  const contentOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.2, 0.8, 1],
+    [0, 1, 1, 0]
+  );
 
   return (
     <div className="min-h-screen bg-white">
@@ -30,7 +54,7 @@ export default function LandingPage() {
       <CategoriesSection />
 
       {/* Featured Products - Magazine Style */}
-      <section className="py-20 bg-accent-light">
+      <section className="py-20 bg-gradient-to-b from-accent-light/30 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between mb-12">
             <div>
@@ -74,21 +98,6 @@ export default function LandingPage() {
                           {product.badge}
                         </div>
                       )}
-                      {/* <button className="absolute top-3 right-3 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-white">
-                        <svg
-                          className="w-5 h-5 text-gray-700"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                          />
-                        </svg>
-                      </button> */}
                     </div>
 
                     {/* Product Info */}
@@ -96,9 +105,6 @@ export default function LandingPage() {
                       <p className="text-xs font-medium text-gray-500 mb-2">
                         {product.vendor}
                       </p>
-                      {/* <h3 className="font-semibold text-gray-900 mb-3 line-clamp-2 group-hover:text-primary transition-colors min-h-12">
-                        {product.name}
-                      </h3> */}
 
                       <div className="flex items-center gap-2 mb-3">
                         <div className="flex items-center gap-1">
@@ -141,7 +147,7 @@ export default function LandingPage() {
       </section>
 
       {/* Top Vendors - Premium Design */}
-      <section className="py-20 bg-linear-to-b from-gray-50 to-white">
+      <section className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -175,7 +181,7 @@ export default function LandingPage() {
                         fill
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
-                      <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                     </div>
 
                     {/* Vendor Info */}
@@ -245,101 +251,207 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section - Full Width Banner
+      {/* CTA Section - Parallax Scrolling Effect */}
+      <section ref={ctaRef} className="relative py-32 overflow-hidden">
+        {/* Parallax Background Layer */}
+        <motion.div className="absolute inset-0" style={{ y: backgroundY }}>
+          <div className="absolute inset-0 scale-110">
+            <Image
+              src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1920&q=80"
+              alt="Shopping"
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
+        </motion.div>
 
-      {/* CTA Section - Full Width Banner */}
-      <section className="relative py-32 overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1920&q=80"
-            alt="Shopping"
-            fill
-            className="object-cover"
+        {/* Animated Gradient Overlay */}
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-br from-primary via-primary-dark to-accent"
+          style={{ opacity: overlayOpacity }}
+        />
+
+        {/* Decorative Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div
+            className="absolute top-20 right-20 w-64 h-64 bg-accent/10 rounded-full blur-3xl"
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
           />
-          <div className="absolute inset-0 bg-linear-to-r from-primary/95 to-accent/95"></div>
+          <motion.div
+            className="absolute bottom-20 left-20 w-96 h-96 bg-primary-light/10 rounded-full blur-3xl"
+            animate={{
+              scale: [1.2, 1, 1.2],
+              opacity: [0.5, 0.3, 0.5],
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
         </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
+        {/* Parallax Content Layer */}
+        <motion.div
+          className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white"
+          style={{
+            y: contentY,
+            scale: contentScale,
+            opacity: contentOpacity,
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            {/* Badge */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-6"
+            >
+              <TrendingUp className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                Nigeria's #1 Marketplace
+              </span>
+            </motion.div>
+
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+              Start Your Shopping
+              <br />
+              <span className="bg-gradient-to-r from-accent-light to-white bg-clip-text text-transparent">
+                Journey Today
+              </span>
+            </h2>
+
+            <p className="text-lg md:text-xl mb-10 opacity-90 max-w-2xl mx-auto leading-relaxed">
+              Join thousands of satisfied customers and verified vendors on
+              Nigeria&apos;s most trusted marketplace
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link href="/auth/register">
+                  <Button
+                    variant="white"
+                    size="lg"
+                    className="w-full sm:w-auto text-primary hover:bg-gray-50 shadow-xl"
+                  >
+                    Create Free Account
+                    <ArrowRight className="w-5 h-5" />
+                  </Button>
+                </Link>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link href="/shop">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto border-2 border-white text-white hover:bg-white/10 backdrop-blur-sm"
+                  >
+                    Browse Products
+                  </Button>
+                </Link>
+              </motion.div>
+            </div>
+
+            {/* Mini Stats with Stagger Animation */}
+            <motion.div
+              className="grid grid-cols-3 gap-6 md:gap-8 pt-12 border-t border-white/20"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={{
+                visible: {
+                  transition: {
+                    staggerChildren: 0.1,
+                  },
+                },
+              }}
+            >
+              {[
+                { value: "850+", label: "Verified Vendors" },
+                { value: "12.5K", label: "Products Available" },
+                { value: "45K+", label: "Happy Customers" },
+              ].map((stat, index) => (
+                <motion.div
+                  key={index}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  className="backdrop-blur-sm bg-white/5 rounded-2xl p-4 border border-white/10"
+                >
+                  <div className="text-3xl md:text-4xl font-bold mb-1 bg-gradient-to-br from-white to-accent-light bg-clip-text text-transparent">
+                    {stat.value}
+                  </div>
+                  <div className="text-xs md:text-sm opacity-80">
+                    {stat.label}
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
+        </motion.div>
+
+        {/* Bottom Fade Effect */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none" />
+      </section>
+
+      {/* Newsletter Section */}
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Start Your Shopping Journey Today
-            </h2>
-            <p className="text-xl mb-10 opacity-90 max-w-2xl mx-auto leading-relaxed">
-              Join thousands of satisfied customers and verified vendors on
-              Nigeria&apos;s most trusted marketplace
+            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+              Get Exclusive Deals & Updates
+            </h3>
+            <p className="text-gray-600 mb-8">
+              Subscribe to our newsletter and never miss out on special offers
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/auth/register">
-                <Button
-                  variant="white"
-                  size="lg"
-                  className="w-full sm:w-auto text-[--color-primary] hover:bg-gray-50"
-                >
-                  Create Free Account
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-              </Link>
-              <Link href="/shop">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto border-white text-white hover:bg-white/10"
-                >
-                  Browse Products
-                </Button>
-              </Link>
-            </div>
-
-            {/* Mini Stats */}
-            <div className="grid grid-cols-3 gap-8 mt-16 pt-12 border-t border-white/20">
-              <div>
-                <div className="text-3xl font-bold mb-1">850+</div>
-                <div className="text-sm opacity-80">Verified Vendors</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold mb-1">12.5K</div>
-                <div className="text-sm opacity-80">Products Available</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold mb-1">45K+</div>
-                <div className="text-sm opacity-80">Happy Customers</div>
-              </div>
-            </div>
+            <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input
+                type="email"
+                placeholder="Enter your email address"
+                className="flex-1 px-6 py-3 rounded-full border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+              />
+              <Button
+                variant="primary"
+                size="lg"
+                type="submit"
+                className="sm:px-8"
+              >
+                Subscribe
+              </Button>
+            </form>
+            <p className="text-xs text-gray-500 mt-4">
+              We respect your privacy. Unsubscribe at any time.
+            </p>
           </motion.div>
-        </div>
-      </section>
-
-      {/* Newsletter Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-            Get Exclusive Deals & Updates
-          </h3>
-          <p className="text-gray-600 mb-8">
-            Subscribe to our newsletter and never miss out on special offers
-          </p>
-          <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="Enter your email address"
-              className="flex-1 px-6 py-3 rounded-full border border-gray-200 focus:border-[--color-primary] focus:ring-2 focus:ring-[--color-primary]/10 outline-none"
-            />
-            <Button
-              variant="primary"
-              size="lg"
-              type="submit"
-              className="sm:px-8 text-black"
-            >
-              Subscribe
-            </Button>
-          </form>
-          <p className="text-xs text-gray-500 mt-4">
-            We respect your privacy. Unsubscribe at any time.
-          </p>
         </div>
       </section>
     </div>
