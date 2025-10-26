@@ -91,8 +91,7 @@ export default function Footer() {
             </Link>
             <p className="text-sm leading-relaxed mb-6 text-gray-400">
               Nigeria&apos;s premier multi-vendor e-commerce platform connecting
-              verified sellers with customers nationwide. Shop with confidence,
-              sell with ease.
+              verified sellers with customers nationwide. Shop Smart Live Better
             </p>{" "}
             {/* Contact Info */}
             <div className="space-y-3">
@@ -104,7 +103,7 @@ export default function Footer() {
                 <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center group-hover:bg-[--color-primary] transition-colors">
                   <Phone className="w-5 h-5" />
                 </div>
-                <span>+234 123 456 7890</span>
+                <span>+2348076942904</span>
               </a>
               <a
                 href="mailto:support@carmelmart.ng"

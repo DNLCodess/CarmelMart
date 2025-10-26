@@ -50,7 +50,7 @@ const heroSlides = [
       "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1920&q=80",
     badge: "New Arrivals",
     title: "Shop Smart,",
-    titleAccent: "Shop Verified",
+    titleAccent: "Live Better",
     description:
       "Discover authentic products from Nigeria's most trusted vendors. Quality guaranteed, delivered nationwide.",
     stats: { vendors: "850+", products: "12K+", satisfaction: "98%" },
