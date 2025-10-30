@@ -323,19 +323,13 @@ export default function Navbar() {
 
               {/* Account */}
               <Link href="/register" className="hidden lg:block">
-                <motion.button
-                  className="relative p-2 lg:p-2.5 text-gray-700 rounded-full transition-all duration-300 group"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
+                <Button
+                  variant="primary"
+                  size="md"
+                  className="rounded-full shadow-md hover:shadow-primary/30"
                 >
-                  <motion.div
-                    className="absolute inset-0 bg-primary/5 rounded-full"
-                    initial={{ scale: 0 }}
-                    whileHover={{ scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  />
-                  <User className="relative z-10 w-5 h-5 lg:w-6 lg:h-6 group-hover:text-primary transition-colors duration-300" />
-                </motion.button>
+                  Register as a Vendor
+                </Button>
               </Link>
 
               {/* Mobile Menu Toggle */}
