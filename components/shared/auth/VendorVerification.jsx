@@ -5,13 +5,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import {
   CheckCircle2,
-  XCircle,
   Loader2,
   Building2,
   CreditCard,
   Shield,
   ArrowRight,
   AlertCircle,
+  Star,
+  Zap,
+  Check,
 } from "lucide-react";
 
 import { qoreIdHelpers } from "@/lib/qoreId";
@@ -24,6 +26,7 @@ import Card from "@/components/ui/Card";
 
 export default function VendorVerification({ userId, email, onComplete }) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [verificationType, setVerificationType] = useState(null); // 'nin' or 'nin_cac'
   const [verificationStatus, setVerificationStatus] = useState({
     nin: { verified: false, loading: false },
     cac: { verified: false, loading: false },
@@ -34,15 +37,28 @@ export default function VendorVerification({ userId, email, onComplete }) {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
+    reset,
   } = useForm();
 
-  const steps = [
-    { id: 1, title: "Business Details", icon: Building2 },
-    { id: 2, title: "NIN Verification", icon: Shield },
-    { id: 3, title: "CAC Verification", icon: Shield },
-    { id: 4, title: "Payment", icon: CreditCard },
-  ];
+  // Dynamic steps based on verification type
+  const getSteps = () => {
+    const baseSteps = [
+      { id: 1, title: "Business Details", icon: Building2 },
+      { id: 2, title: "Verification Method", icon: Shield },
+      { id: 3, title: "NIN Verification", icon: Shield },
+    ];
+
+    if (verificationType === "nin_cac") {
+      baseSteps.push({ id: 4, title: "CAC Verification", icon: Building2 });
+      baseSteps.push({ id: 5, title: "Payment", icon: CreditCard });
+    } else if (verificationType === "nin") {
+      baseSteps.push({ id: 4, title: "Payment", icon: CreditCard });
+    }
+
+    return baseSteps;
+  };
+
+  const steps = getSteps();
 
   // Step 1: Business Details
   const handleBusinessDetails = async (data) => {
@@ -60,6 +76,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
         nin_verified: false,
         cac_verified: false,
         payment_verified: false,
+        verification_type: null,
       });
 
       if (error) throw error;
@@ -72,7 +89,24 @@ export default function VendorVerification({ userId, email, onComplete }) {
     }
   };
 
-  // Step 2: NIN Verification
+  // Step 2: Choose Verification Method
+  const handleVerificationChoice = async (type) => {
+    setVerificationType(type);
+
+    // Update vendor profile with chosen verification type
+    await dbHelpers.updateVendorProfile(userId, {
+      verification_type: type,
+    });
+
+    toast.success(
+      type === "nin_cac"
+        ? "Premium verification selected!"
+        : "Standard verification selected!"
+    );
+    setCurrentStep(3);
+  };
+
+  // Step 3: NIN Verification
   const handleNINVerification = async (data) => {
     setVerificationStatus((prev) => ({
       ...prev,
@@ -80,10 +114,21 @@ export default function VendorVerification({ userId, email, onComplete }) {
     }));
 
     try {
-      const result = await qoreIdHelpers.verifyNIN(data.nin);
+      const result = await qoreIdHelpers.verifyNIN(
+        data.nin,
+        data.firstName,
+        data.lastName
+      );
 
       if (result.success) {
-        await dbHelpers.updateVendorProfile(userId, { nin_verified: true });
+        await dbHelpers.updateVendorProfile(userId, {
+          nin_verified: true,
+          nin_data: {
+            first_name: data.firstName,
+            last_name: data.lastName,
+            nin: data.nin,
+          },
+        });
 
         setVerificationStatus((prev) => ({
           ...prev,
@@ -91,7 +136,15 @@ export default function VendorVerification({ userId, email, onComplete }) {
         }));
 
         toast.success("NIN verified successfully!");
-        setTimeout(() => setCurrentStep(3), 1500);
+
+        // Proceed to next step based on verification type
+        setTimeout(() => {
+          if (verificationType === "nin_cac") {
+            setCurrentStep(4);
+          } else {
+            setCurrentStep(4); // Payment for NIN only
+          }
+        }, 1500);
       } else {
         throw new Error(result.error || "Verification failed");
       }
@@ -104,7 +157,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
     }
   };
 
-  // Step 3: CAC Verification
+  // Step 4: CAC Verification (only for nin_cac type)
   const handleCACVerification = async (data) => {
     setVerificationStatus((prev) => ({
       ...prev,
@@ -112,10 +165,13 @@ export default function VendorVerification({ userId, email, onComplete }) {
     }));
 
     try {
-      const result = await qoreIdHelpers.verifyCAC(data.cac);
+      const result = await qoreIdHelpers.verifyCAC(data.cacNumber);
 
       if (result.success) {
-        await dbHelpers.updateVendorProfile(userId, { cac_verified: true });
+        await dbHelpers.updateVendorProfile(userId, {
+          cac_verified: true,
+          cac_number: data.cacNumber,
+        });
 
         setVerificationStatus((prev) => ({
           ...prev,
@@ -123,7 +179,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
         }));
 
         toast.success("CAC verified successfully!");
-        setTimeout(() => setCurrentStep(4), 1500);
+        setTimeout(() => setCurrentStep(5), 1500);
       } else {
         throw new Error(result.error || "Verification failed");
       }
@@ -136,7 +192,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
     }
   };
 
-  // Step 4: Payment
+  // Final Step: Payment
   const handlePayment = async () => {
     const reference = paystackHelpers.generateReference();
 
@@ -170,6 +226,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
           });
           await dbHelpers.updateVendorProfile(userId, {
             payment_verified: true,
+            status: "active",
           });
 
           setVerificationStatus((prev) => ({
@@ -177,7 +234,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
             payment: { verified: true, loading: false },
           }));
 
-          toast.success("Payment successful!");
+          toast.success("Payment successful! Welcome to the platform!");
 
           setTimeout(() => {
             if (onComplete) onComplete();
@@ -196,10 +253,14 @@ export default function VendorVerification({ userId, email, onComplete }) {
     );
   };
 
+  const getPaymentStep = () => {
+    return verificationType === "nin_cac" ? 5 : 4;
+  };
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       {/* Progress Steps */}
-      <div className="mb-8">
+      <div className="mb-12">
         <div className="flex items-center justify-between mb-4">
           {steps.map((step, index) => {
             const Icon = step.icon;
@@ -219,10 +280,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                         ? "#560238"
                         : "#e5e7eb",
                     }}
-                    className={`
-                      w-12 h-12 rounded-full flex items-center justify-center
-                      transition-all duration-300 shadow-lg
-                    `}
+                    className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg relative"
                   >
                     {isCompleted ? (
                       <CheckCircle2 className="w-6 h-6 text-white" />
@@ -233,25 +291,35 @@ export default function VendorVerification({ userId, email, onComplete }) {
                         }`}
                       />
                     )}
+                    {isActive && (
+                      <motion.div
+                        className="absolute inset-0 rounded-full bg-primary opacity-20"
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    )}
                   </motion.div>
                   <p
-                    className={`
-                    mt-2 text-xs font-semibold text-center
-                    ${isActive ? "text-primary" : "text-gray-500"}
-                  `}
+                    className={`mt-2 text-xs font-semibold text-center transition-colors ${
+                      isActive ? "text-primary" : "text-gray-500"
+                    }`}
                   >
                     {step.title}
                   </p>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className="flex-1 h-1 mx-2 bg-gray-200 rounded">
+                  <div className="flex-1 h-1 mx-2 bg-gray-200 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{
                         width: currentStep > step.id ? "100%" : "0%",
                       }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full bg-primary rounded"
+                      transition={{ duration: 0.5, ease: "easeInOut" }}
+                      className="h-full gradient-primary"
                     />
                   </div>
                 )}
@@ -265,153 +333,378 @@ export default function VendorVerification({ userId, email, onComplete }) {
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.4 }}
         >
-          <Card className="p-8">
-            {/* Step 1: Business Details */}
-            {currentStep === 1 && (
+          {/* Step 1: Business Details */}
+          {currentStep === 1 && (
+            <Card className="p-8 border-2 border-gray-100 shadow-xl">
               <form
                 onSubmit={handleSubmit(handleBusinessDetails)}
                 className="space-y-6"
               >
-                <div className="text-center mb-6">
-                  <Building2 className="w-16 h-16 mx-auto mb-4 text-primary" />
-                  <h3 className="text-2xl font-bold text-gray-800">
+                <div className="text-center mb-8">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Building2 className="w-16 h-16 mx-auto mb-4 text-primary" />
+                  </motion.div>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-2">
                     Business Information
                   </h3>
-                  <p className="text-gray-600 mt-2">
-                    Tell us about your business
+                  <p className="text-gray-600">
+                    Let's start with your business details
                   </p>
                 </div>
 
-                <Input
-                  label="Business Name"
-                  placeholder="Enter your business name"
-                  {...register("businessName", {
-                    required: "Business name is required",
-                  })}
-                  error={errors.businessName?.message}
-                />
+                <div className="space-y-5">
+                  <Input
+                    label="Business Name"
+                    placeholder="Enter your business name"
+                    {...register("businessName", {
+                      required: "Business name is required",
+                    })}
+                    error={errors.businessName?.message}
+                  />
 
-                <Input
-                  label="Business Address"
-                  placeholder="Enter your business address"
-                  {...register("address", {
-                    required: "Address is required",
-                  })}
-                  error={errors.address?.message}
-                />
+                  <Input
+                    label="Business Address"
+                    placeholder="Enter your business address"
+                    {...register("address", {
+                      required: "Address is required",
+                    })}
+                    error={errors.address?.message}
+                  />
 
-                <Input
-                  label="Phone Number"
-                  placeholder="+234 XXX XXX XXXX"
-                  {...register("phone", {
-                    required: "Phone number is required",
-                    pattern: {
-                      value: /^(\+234|0)[789][01]\d{8}$/,
-                      message: "Invalid Nigerian phone number",
-                    },
-                  })}
-                  error={errors.phone?.message}
-                />
+                  <Input
+                    label="Phone Number"
+                    placeholder="+234 XXX XXX XXXX"
+                    {...register("phone", {
+                      required: "Phone number is required",
+                      pattern: {
+                        value: /^(\+234|0)[789][01]\d{8}$/,
+                        message: "Invalid Nigerian phone number",
+                      },
+                    })}
+                    error={errors.phone?.message}
+                  />
+                </div>
 
-                <div className="border-t pt-6">
-                  <h4 className="font-semibold text-gray-800 mb-4">
+                <div className="border-t pt-6 mt-6">
+                  <h4 className="font-semibold text-gray-900 mb-5 flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-primary" />
                     Bank Details
                   </h4>
 
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <Input
-                      label="Account Number"
-                      placeholder="Enter account number"
-                      {...register("accountNumber", {
-                        required: "Account number is required",
-                        pattern: {
-                          value: /^\d{10}$/,
-                          message: "Must be 10 digits",
-                        },
-                      })}
-                      error={errors.accountNumber?.message}
-                    />
+                  <div className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <Input
+                        label="Account Number"
+                        placeholder="Enter account number"
+                        maxLength={10}
+                        {...register("accountNumber", {
+                          required: "Account number is required",
+                          pattern: {
+                            value: /^\d{10}$/,
+                            message: "Must be 10 digits",
+                          },
+                        })}
+                        error={errors.accountNumber?.message}
+                      />
+
+                      <Input
+                        label="Bank Name"
+                        placeholder="Select your bank"
+                        {...register("bankName", {
+                          required: "Bank name is required",
+                        })}
+                        error={errors.bankName?.message}
+                      />
+                    </div>
 
                     <Input
-                      label="Bank Name"
-                      placeholder="Select your bank"
-                      {...register("bankName", {
-                        required: "Bank name is required",
+                      label="Account Name"
+                      placeholder="Enter account name"
+                      {...register("accountName", {
+                        required: "Account name is required",
                       })}
-                      error={errors.bankName?.message}
+                      error={errors.accountName?.message}
                     />
                   </div>
-
-                  <Input
-                    label="Account Name"
-                    placeholder="Enter account name"
-                    className="mt-4"
-                    {...register("accountName", {
-                      required: "Account name is required",
-                    })}
-                    error={errors.accountName?.message}
-                  />
                 </div>
 
                 <Button
                   type="submit"
                   variant="primary"
                   size="lg"
-                  className="w-full"
+                  className="w-full group"
                 >
-                  Continue
-                  <ArrowRight className="w-5 h-5" />
+                  Continue to Verification
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>
-            )}
+            </Card>
+          )}
 
-            {/* Step 2: NIN Verification */}
-            {currentStep === 2 && (
+          {/* Step 2: Choose Verification Method */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <Shield className="w-16 h-16 mx-auto mb-4 text-primary" />
+                </motion.div>
+                <h3 className="text-3xl font-bold text-gray-900 mb-2">
+                  Choose Your Verification Path
+                </h3>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Select how you'd like to verify your business identity
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Standard Verification */}
+                <motion.div
+                  whileHover={{ y: -8 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card
+                    className="p-8 cursor-pointer border-2 border-gray-200 hover:border-primary transition-all duration-300 h-full"
+                    onClick={() => handleVerificationChoice("nin")}
+                  >
+                    <div className="flex flex-col h-full">
+                      <div className="mb-6">
+                        <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                          <Shield className="w-7 h-7 text-gray-700" />
+                        </div>
+                        <h4 className="text-2xl font-bold text-gray-900 mb-2">
+                          Standard
+                        </h4>
+                        <p className="text-gray-600 text-sm">
+                          NIN Verification Only
+                        </p>
+                      </div>
+
+                      <div className="space-y-3 mb-6 flex-grow">
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-gray-700">
+                            Quick verification process
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-gray-700">
+                            Access to marketplace
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-gray-700">
+                            Start selling immediately
+                          </span>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full group"
+                        onClick={() => handleVerificationChoice("nin")}
+                      >
+                        Choose Standard
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </Button>
+                    </div>
+                  </Card>
+                </motion.div>
+
+                {/* Premium Verification */}
+                <motion.div
+                  whileHover={{ y: -8 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card className="p-8 cursor-pointer border-2 border-primary relative overflow-hidden h-full">
+                    {/* Premium Badge */}
+                    <div className="absolute top-0 right-0">
+                      <div className="gradient-primary text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        PRIORITY
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col h-full">
+                      <div className="mb-6">
+                        <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mb-4">
+                          <Zap className="w-7 h-7 text-white" />
+                        </div>
+                        <h4 className="text-2xl font-bold gradient-text mb-2">
+                          Premium
+                        </h4>
+                        <p className="text-gray-600 text-sm">
+                          NIN + CAC Verification
+                        </p>
+                      </div>
+
+                      <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6">
+                        <div className="flex items-start gap-2 mb-2">
+                          <Star className="w-5 h-5 text-primary flex-shrink-0 mt-0.5 fill-current" />
+                          <p className="text-sm font-semibold text-primary">
+                            Higher Priority in Marketplace
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-600 ml-7">
+                          Your products get boosted visibility and appear first
+                          in search results
+                        </p>
+                      </div>
+
+                      <div className="space-y-3 mb-6 flex-grow">
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-gray-700">
+                            Everything in Standard
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-gray-700">
+                            Enhanced credibility badge
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-gray-700">
+                            Priority customer support
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-gray-700">
+                            Featured vendor opportunities
+                          </span>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        className="w-full group"
+                        onClick={() => handleVerificationChoice("nin_cac")}
+                      >
+                        Choose Premium
+                        <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      </Button>
+                    </div>
+                  </Card>
+                </motion.div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 flex gap-3 max-w-3xl mx-auto">
+                <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-900">
+                  <p className="font-semibold mb-1">Why choose Premium?</p>
+                  <p className="text-blue-800">
+                    Vendors with both NIN and CAC verification receive
+                    significantly higher visibility in our marketplace, leading
+                    to more sales and customer trust. You can always upgrade
+                    later, but starting with Premium gives you an immediate
+                    advantage.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: NIN Verification */}
+          {currentStep === 3 && (
+            <Card className="p-8 border-2 border-gray-100 shadow-xl">
               <form
                 onSubmit={handleSubmit(handleNINVerification)}
                 className="space-y-6"
               >
-                <div className="text-center mb-6">
-                  <Shield className="w-16 h-16 mx-auto mb-4 text-primary" />
-                  <h3 className="text-2xl font-bold text-gray-800">
+                <div className="text-center mb-8">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Shield className="w-16 h-16 mx-auto mb-4 text-primary" />
+                  </motion.div>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-2">
                     NIN Verification
                   </h3>
-                  <p className="text-gray-600 mt-2">
-                    Verify your National Identity Number
+                  <p className="text-gray-600">
+                    Verify your identity with your National Identity Number
                   </p>
                 </div>
 
                 {!verificationStatus.nin.verified && (
                   <>
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 flex gap-3">
                       <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm text-blue-800">
-                        <p className="font-semibold mb-1">Why we need this:</p>
-                        <p>
-                          Your NIN helps us verify your identity and maintain a
-                          secure marketplace for all users.
+                      <div className="text-sm text-blue-900">
+                        <p className="font-semibold mb-1">
+                          Secure & Confidential
+                        </p>
+                        <p className="text-blue-800">
+                          Your NIN is used only for identity verification and is
+                          stored securely. This helps maintain a trusted
+                          marketplace for all users.
                         </p>
                       </div>
                     </div>
 
-                    <Input
-                      label="National Identity Number (NIN)"
-                      placeholder="Enter your 11-digit NIN"
-                      maxLength={11}
-                      {...register("nin", {
-                        required: "NIN is required",
-                        pattern: {
-                          value: /^\d{11}$/,
-                          message: "NIN must be 11 digits",
-                        },
-                      })}
-                      error={errors.nin?.message}
-                    />
+                    <div className="space-y-5">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <Input
+                          label="First Name"
+                          placeholder="As on your NIN"
+                          {...register("firstName", {
+                            required: "First name is required",
+                            minLength: {
+                              value: 2,
+                              message: "Must be at least 2 characters",
+                            },
+                          })}
+                          error={errors.firstName?.message}
+                        />
+
+                        <Input
+                          label="Last Name"
+                          placeholder="As on your NIN"
+                          {...register("lastName", {
+                            required: "Last name is required",
+                            minLength: {
+                              value: 2,
+                              message: "Must be at least 2 characters",
+                            },
+                          })}
+                          error={errors.lastName?.message}
+                        />
+                      </div>
+
+                      <Input
+                        label="National Identity Number (NIN)"
+                        placeholder="Enter your 11-digit NIN"
+                        maxLength={11}
+                        {...register("nin", {
+                          required: "NIN is required",
+                          pattern: {
+                            value: /^\d{11}$/,
+                            message: "NIN must be exactly 11 digits",
+                          },
+                        })}
+                        error={errors.nin?.message}
+                      />
+                    </div>
 
                     <Button
                       type="submit"
@@ -419,8 +712,11 @@ export default function VendorVerification({ userId, email, onComplete }) {
                       size="lg"
                       className="w-full"
                       isLoading={verificationStatus.nin.loading}
+                      disabled={verificationStatus.nin.loading}
                     >
-                      Verify NIN
+                      {verificationStatus.nin.loading
+                        ? "Verifying..."
+                        : "Verify NIN"}
                     </Button>
                   </>
                 )}
@@ -429,67 +725,101 @@ export default function VendorVerification({ userId, email, onComplete }) {
                   <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="text-center py-8"
+                    className="text-center py-12"
                   >
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.2, type: "spring" }}
                     >
-                      <CheckCircle2 className="w-24 h-24 mx-auto text-green-500 mb-4" />
+                      <CheckCircle2 className="w-24 h-24 mx-auto text-green-500 mb-6" />
                     </motion.div>
-                    <h4 className="text-2xl font-bold text-gray-800 mb-2">
-                      NIN Verified!
+                    <h4 className="text-2xl font-bold text-gray-900 mb-2">
+                      NIN Verified Successfully!
                     </h4>
                     <p className="text-gray-600">
-                      Proceeding to CAC verification...
+                      {verificationType === "nin_cac"
+                        ? "Proceeding to CAC verification..."
+                        : "Proceeding to payment..."}
                     </p>
                   </motion.div>
                 )}
               </form>
-            )}
+            </Card>
+          )}
 
-            {/* Step 3: CAC Verification */}
-            {currentStep === 3 && (
+          {/* Step 4: CAC Verification (only for nin_cac) */}
+          {currentStep === 4 && verificationType === "nin_cac" && (
+            <Card className="p-8 border-2 border-gray-100 shadow-xl">
               <form
                 onSubmit={handleSubmit(handleCACVerification)}
                 className="space-y-6"
               >
-                <div className="text-center mb-6">
-                  <Shield className="w-16 h-16 mx-auto mb-4 text-primary" />
-                  <h3 className="text-2xl font-bold text-gray-800">
+                <div className="text-center mb-8">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Building2 className="w-16 h-16 mx-auto mb-4 text-primary" />
+                  </motion.div>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-2">
                     CAC Verification
                   </h3>
-                  <p className="text-gray-600 mt-2">
+                  <p className="text-gray-600">
                     Verify your business registration
                   </p>
                 </div>
 
                 {!verificationStatus.cac.verified && (
                   <>
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
-                      <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm text-blue-800">
-                        <p className="font-semibold mb-1">Why we need this:</p>
-                        <p>
+                    <div className="bg-linear-to-br from-primary/5 to-accent/5 border border-primary/20 rounded-xl p-5 flex gap-3">
+                      <Star className="w-5 h-5 text-primary flex-shrink-0 mt-0.5 fill-current" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-primary mb-1">
+                          Premium Verification
+                        </p>
+                        <p className="text-gray-700">
                           CAC verification confirms your business is legally
-                          registered in Nigeria.
+                          registered and gives you priority placement in our
+                          marketplace.
                         </p>
                       </div>
                     </div>
 
                     <Input
                       label="CAC Registration Number"
-                      placeholder="Enter your CAC number"
-                      {...register("cac", {
+                      placeholder="e.g., BN1234567 or RC123456"
+                      {...register("cacNumber", {
                         required: "CAC number is required",
                         pattern: {
-                          value: /^[A-Z0-9]{7,}$/,
-                          message: "Invalid CAC format",
+                          value: /^(BN|RC|IT|LLP)[0-9]{6,}$/i,
+                          message:
+                            "Invalid CAC format (e.g., BN1234567 or RC123456)",
                         },
                       })}
-                      error={errors.cac?.message}
+                      error={errors.cacNumber?.message}
                     />
+
+                    <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
+                      <p className="font-semibold text-gray-900 mb-2">
+                        Where to find your CAC number:
+                      </p>
+                      <ul className="space-y-1 ml-4">
+                        <li className="list-disc">
+                          Business Name Registration Certificate (BN)
+                        </li>
+                        <li className="list-disc">
+                          Certificate of Incorporation (RC for companies)
+                        </li>
+                        <li className="list-disc">
+                          Limited Liability Partnership (LLP)
+                        </li>
+                        <li className="list-disc">
+                          Incorporated Trustees (IT)
+                        </li>
+                      </ul>
+                    </div>
 
                     <Button
                       type="submit"
@@ -497,8 +827,11 @@ export default function VendorVerification({ userId, email, onComplete }) {
                       size="lg"
                       className="w-full"
                       isLoading={verificationStatus.cac.loading}
+                      disabled={verificationStatus.cac.loading}
                     >
-                      Verify CAC
+                      {verificationStatus.cac.loading
+                        ? "Verifying..."
+                        : "Verify CAC"}
                     </Button>
                   </>
                 )}
@@ -507,89 +840,154 @@ export default function VendorVerification({ userId, email, onComplete }) {
                   <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="text-center py-8"
+                    className="text-center py-12"
                   >
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.2, type: "spring" }}
                     >
-                      <CheckCircle2 className="w-24 h-24 mx-auto text-green-500 mb-4" />
+                      <CheckCircle2 className="w-24 h-24 mx-auto text-green-500 mb-6" />
                     </motion.div>
-                    <h4 className="text-2xl font-bold text-gray-800 mb-2">
-                      CAC Verified!
+                    <h4 className="text-2xl font-bold text-gray-900 mb-2">
+                      CAC Verified Successfully!
                     </h4>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full font-semibold mb-4">
+                      <Star className="w-4 h-4 fill-current" />
+                      Premium Status Unlocked
+                    </div>
                     <p className="text-gray-600">Proceeding to payment...</p>
                   </motion.div>
                 )}
               </form>
-            )}
+            </Card>
+          )}
 
-            {/* Step 4: Payment */}
-            {currentStep === 4 && (
+          {/* Final Step: Payment */}
+          {currentStep === getPaymentStep() && (
+            <Card className="p-8 border-2 border-gray-100 shadow-xl">
               <div className="space-y-6">
-                <div className="text-center mb-6">
-                  <CreditCard className="w-16 h-16 mx-auto mb-4 text-primary" />
-                  <h3 className="text-2xl font-bold text-gray-800">
-                    Vendor Registration Fee
+                <div className="text-center mb-8">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <CreditCard className="w-16 h-16 mx-auto mb-4 text-primary" />
+                  </motion.div>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-2">
+                    Registration Fee
                   </h3>
-                  <p className="text-gray-600 mt-2">
-                    Complete your registration
+                  <p className="text-gray-600">
+                    Complete your vendor registration
                   </p>
                 </div>
 
                 {!verificationStatus.payment.verified && (
                   <>
-                    <Card className="p-6 bg-linear-to-br from-primary to-primary-dark text-white">
-                      <div className="text-center">
-                        <p className="text-sm opacity-90 mb-2">
-                          One-time Registration Fee
-                        </p>
-                        <p className="text-5xl font-bold mb-2">₦5,000</p>
-                        <p className="text-sm opacity-90">
-                          Unlock access to thousands of customers
-                        </p>
-                      </div>
-                    </Card>
+                    <div className="relative">
+                      <Card className="p-8 gradient-primary text-white relative overflow-hidden">
+                        <motion.div
+                          className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl"
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{
+                            duration: 4,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                        />
+                        <div className="relative text-center">
+                          <p className="text-sm opacity-90 mb-2">
+                            One-time Registration Fee
+                          </p>
+                          <p className="text-6xl font-bold mb-3">₦5,000</p>
+                          <p className="text-sm opacity-90">
+                            Unlock unlimited earning potential
+                          </p>
+                        </div>
+                      </Card>
 
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                      <h4 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                      {verificationType === "nin_cac" && (
+                        <div className="absolute -top-3 -right-3">
+                          <div className="gradient-accent text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg flex items-center gap-1">
+                            <Star className="w-3.5 h-3.5 fill-current" />
+                            PREMIUM
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                      <h4 className="font-bold text-green-900 mb-4 flex items-center gap-2 text-lg">
                         <CheckCircle2 className="w-5 h-5" />
                         What you get:
                       </h4>
-                      <ul className="space-y-2 text-sm text-green-800">
-                        <li className="flex items-start gap-2">
-                          <span className="text-green-600 mt-0.5">•</span>
-                          <span>Full access to vendor dashboard</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-green-600 mt-0.5">•</span>
-                          <span>List unlimited products</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-green-600 mt-0.5">•</span>
-                          <span>Access to verified customer base</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-green-600 mt-0.5">•</span>
-                          <span>Referral earnings program</span>
-                        </li>
-                      </ul>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-green-900">
+                            Full vendor dashboard access
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-green-900">
+                            Unlimited product listings
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-green-900">
+                            Verified customer base
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-green-900">
+                            Referral earnings program
+                          </span>
+                        </div>
+                        {verificationType === "nin_cac" && (
+                          <>
+                            <div className="flex items-start gap-2">
+                              <Star className="w-5 h-5 text-primary flex-shrink-0 mt-0.5 fill-current" />
+                              <span className="text-sm text-primary font-semibold">
+                                Priority marketplace placement
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <Star className="w-5 h-5 text-primary flex-shrink-0 mt-0.5 fill-current" />
+                              <span className="text-sm text-primary font-semibold">
+                                Enhanced credibility badge
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <Button
                       onClick={handlePayment}
                       variant="accent"
                       size="lg"
-                      className="w-full"
+                      className="w-full group"
                       isLoading={verificationStatus.payment.loading}
+                      disabled={verificationStatus.payment.loading}
                     >
-                      Pay ₦5,000 Now
+                      {verificationStatus.payment.loading ? (
+                        "Processing..."
+                      ) : (
+                        <>
+                          Pay ₦5,000 Now
+                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
                     </Button>
 
-                    <p className="text-xs text-center text-gray-500">
-                      Secure payment powered by Paystack
-                    </p>
+                    <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+                      <Shield className="w-4 h-4" />
+                      <span>Secure payment powered by Paystack</span>
+                    </div>
                   </>
                 )}
 
@@ -597,29 +995,35 @@ export default function VendorVerification({ userId, email, onComplete }) {
                   <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="text-center py-8"
+                    className="text-center py-12"
                   >
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.2, type: "spring" }}
                     >
-                      <CheckCircle2 className="w-24 h-24 mx-auto text-green-500 mb-4" />
+                      <CheckCircle2 className="w-24 h-24 mx-auto text-green-500 mb-6" />
                     </motion.div>
-                    <h4 className="text-2xl font-bold text-gray-800 mb-2">
+                    <h4 className="text-3xl font-bold text-gray-900 mb-3">
                       Payment Successful!
                     </h4>
-                    <p className="text-gray-600 mb-6">
-                      Your vendor account is now active
+                    {verificationType === "nin_cac" && (
+                      <div className="inline-flex items-center gap-2 px-5 py-2.5 gradient-primary text-white rounded-full font-semibold mb-4">
+                        <Star className="w-5 h-5 fill-current" />
+                        Premium Vendor Status Active
+                      </div>
+                    )}
+                    <p className="text-gray-600 mb-6 text-lg">
+                      Welcome to the marketplace!
                     </p>
-                    <div className="inline-block animate-pulse">
-                      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    <div className="inline-block">
+                      <Loader2 className="w-10 h-10 text-primary animate-spin" />
                     </div>
                   </motion.div>
                 )}
               </div>
-            )}
-          </Card>
+            </Card>
+          )}
         </motion.div>
       </AnimatePresence>
     </div>
