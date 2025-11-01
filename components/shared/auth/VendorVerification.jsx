@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import { qoreIdHelpers } from "@/lib/qoreId";
-import { paystackHelpers } from "@/lib/paystack";
+import { flutterwaveHelpers } from "@/lib/flutterwave";
 import { dbHelpers } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import Input from "@/components/ui/Input";
@@ -27,6 +27,7 @@ import Card from "@/components/ui/Card";
 export default function VendorVerification({ userId, email, onComplete }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [verificationType, setVerificationType] = useState(null); // 'nin' or 'nin_cac'
+  const [businessData, setBusinessData] = useState(null);
   const [verificationStatus, setVerificationStatus] = useState({
     nin: { verified: false, loading: false },
     cac: { verified: false, loading: false },
@@ -80,6 +81,9 @@ export default function VendorVerification({ userId, email, onComplete }) {
       });
 
       if (error) throw error;
+
+      // Store business data for payment initialization
+      setBusinessData(data);
 
       toast.success("Business details saved!");
       setCurrentStep(2);
@@ -194,7 +198,8 @@ export default function VendorVerification({ userId, email, onComplete }) {
 
   // Final Step: Payment
   const handlePayment = async () => {
-    const reference = paystackHelpers.generateReference();
+    const reference = flutterwaveHelpers.generateReference();
+    const customerName = businessData?.businessName || email.split("@")[0];
 
     setVerificationStatus((prev) => ({
       ...prev,
@@ -208,21 +213,25 @@ export default function VendorVerification({ userId, email, onComplete }) {
       reference,
       status: "pending",
       type: "vendor_fee",
+      payment_provider: "flutterwave",
     });
 
-    paystackHelpers.initializePayment(
+    flutterwaveHelpers.initializePayment(
       email,
       5000,
       reference,
+      customerName,
       async (response) => {
-        // Verify payment
-        const verifyResult = await paystackHelpers.verifyPayment(
-          response.reference
+        // Verify payment with Flutterwave
+        const verifyResult = await flutterwaveHelpers.verifyPayment(
+          response.transaction_id
         );
 
         if (verifyResult.success) {
-          await dbHelpers.updatePayment(response.reference, {
+          await dbHelpers.updatePayment(reference, {
             status: "success",
+            transaction_id: response.transaction_id,
+            flw_ref: response.flw_ref,
           });
           await dbHelpers.updateVendorProfile(userId, {
             payment_verified: true,
@@ -249,6 +258,11 @@ export default function VendorVerification({ userId, email, onComplete }) {
           payment: { verified: false, loading: false },
         }));
         toast.error("Payment cancelled");
+
+        // Update payment record as cancelled
+        dbHelpers.updatePayment(reference, {
+          status: "cancelled",
+        });
       }
     );
   };
@@ -258,7 +272,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Progress Steps */}
       <div className="mb-12">
         <div className="flex items-center justify-between mb-4">
@@ -986,7 +1000,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
 
                     <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                       <Shield className="w-4 h-4" />
-                      <span>Secure payment powered by Paystack</span>
+                      <span>Secure payment powered by Flutterwave</span>
                     </div>
                   </>
                 )}

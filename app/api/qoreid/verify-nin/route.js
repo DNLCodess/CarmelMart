@@ -38,14 +38,6 @@ export async function POST(request) {
     const clientSecret = process.env.QOREID_CLIENT_SECRET;
     const baseUrl = process.env.QOREID_BASE_URL || "https://api.qoreid.com";
 
-    console.log("Using client ID:", clientId, "| Type:", typeof clientId);
-    console.log(
-      "Using client Secret:",
-      clientSecret ? "****" : "undefined",
-      "| Type:",
-      typeof clientSecret
-    );
-
     if (!clientId || !clientSecret) {
       console.error("QoreID credentials missing");
       return Response.json(
@@ -59,13 +51,12 @@ export async function POST(request) {
       method: "POST",
       headers: { accept: "text/plain", "content-type": "application/json" },
       body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
+        clientId: String(clientId),
+        secret: String(clientSecret),
       }),
     });
 
     const tokenText = await tokenResponse.text();
-    console.log("Token response:", tokenResponse.status, tokenText);
 
     if (!tokenResponse.ok) {
       return Response.json(
