@@ -201,6 +201,9 @@ export default function VendorVerification({ userId, email, onComplete }) {
     const reference = flutterwaveHelpers.generateReference();
     const customerName = businessData?.businessName || email.split("@")[0];
 
+    // Dynamic pricing based on verification type
+    const amount = verificationType === "nin_cac" ? 10000 : 5000;
+
     setVerificationStatus((prev) => ({
       ...prev,
       payment: { verified: false, loading: true },
@@ -209,16 +212,17 @@ export default function VendorVerification({ userId, email, onComplete }) {
     // Create payment record
     await dbHelpers.createPayment({
       user_id: userId,
-      amount: 5000,
+      amount: amount,
       reference,
       status: "pending",
       type: "vendor_fee",
       payment_provider: "flutterwave",
+      verification_type: verificationType,
     });
 
     flutterwaveHelpers.initializePayment(
       email,
-      5000,
+      amount,
       reference,
       customerName,
       async (response) => {
@@ -501,9 +505,17 @@ export default function VendorVerification({ userId, email, onComplete }) {
                         <h4 className="text-2xl font-bold text-gray-900 mb-2">
                           Standard
                         </h4>
-                        <p className="text-gray-600 text-sm">
+                        <p className="text-gray-600 text-sm mb-3">
                           NIN Verification Only
                         </p>
+                        <div className="inline-flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-gray-900">
+                            ₦5,000
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            one-time
+                          </span>
+                        </div>
                       </div>
 
                       <div className="space-y-3 mb-6 flex-grow">
@@ -562,9 +574,17 @@ export default function VendorVerification({ userId, email, onComplete }) {
                         <h4 className="text-2xl font-bold gradient-text mb-2">
                           Premium
                         </h4>
-                        <p className="text-gray-600 text-sm">
+                        <p className="text-gray-600 text-sm mb-3">
                           NIN + CAC Verification
                         </p>
+                        <div className="inline-flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-primary">
+                            ₦10,000
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            one-time
+                          </span>
+                        </div>
                       </div>
 
                       <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6">
@@ -914,9 +934,16 @@ export default function VendorVerification({ userId, email, onComplete }) {
                           <p className="text-sm opacity-90 mb-2">
                             One-time Registration Fee
                           </p>
-                          <p className="text-6xl font-bold mb-3">₦5,000</p>
+                          <p className="text-6xl font-bold mb-3">
+                            ₦
+                            {verificationType === "nin_cac"
+                              ? "10,000"
+                              : "5,000"}
+                          </p>
                           <p className="text-sm opacity-90">
-                            Unlock unlimited earning potential
+                            {verificationType === "nin_cac"
+                              ? "Premium tier - Unlock priority placement"
+                              : "Unlock unlimited earning potential"}
                           </p>
                         </div>
                       </Card>
@@ -992,7 +1019,9 @@ export default function VendorVerification({ userId, email, onComplete }) {
                         "Processing..."
                       ) : (
                         <>
-                          Pay ₦5,000 Now
+                          Pay ₦
+                          {verificationType === "nin_cac" ? "10,000" : "5,000"}{" "}
+                          Now
                           <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                         </>
                       )}
