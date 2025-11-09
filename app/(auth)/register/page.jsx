@@ -642,7 +642,7 @@ export default function RegisterPage() {
             transition={{ delay: 0.2 }}
             className="mt-8 text-center"
           >
-            <div className="flex items-center justify-center gap-8 text-sm text-gray-600">
+            <div className=" hidden md:flex items-center justify-center gap-8 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-primary" />
                 <span>Secure & Verified</span>
