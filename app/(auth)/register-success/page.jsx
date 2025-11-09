@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -11,18 +12,18 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/button";
 
-export default function VendorSuccessPage() {
+function VendorSuccessContent() {
   const searchParams = useSearchParams();
 
   /**
    * Extract verification type from URL parameters
    *
    * Expected URL format from Flutterwave redirect:
-   * /register-success?verificationtype=nin_cac&status=completed&tx_ref=...
+   * /register-success?registrationtype=nin_cac&status=completed&tx_ref=...
    *
-   * The verificationType is passed as a key-value pair: verificationtype=nin or verificationtype=nin_cac
+   * The verificationType is passed as a key-value pair: registrationtype=nin or registrationtype=nin_cac
    */
-  const verificationType = searchParams.get("verificationtype") || "nin";
+  const verificationType = searchParams.get("registrationtype") || "nin";
 
   // Determine tier and pricing based on verification type
   const isPremium = verificationType === "nin_cac";
@@ -30,7 +31,7 @@ export default function VendorSuccessPage() {
   const amount = isPremium ? "₦10,000" : "₦5,000";
 
   // Telegram community link for vendor updates
-  const telegramLink = process.env.TG_LINK;
+  const telegramLink = "https://t.me/+dummyvendorgroup";
 
   const benefits = isPremium
     ? [
@@ -263,5 +264,26 @@ export default function VendorSuccessPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main export with Suspense boundary
+export default function VendorSuccessPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <VendorSuccessContent />
+    </Suspense>
   );
 }
