@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Package,
 } from "lucide-react";
+
 import toast from "react-hot-toast";
 import { authHelpers, dbHelpers } from "@/lib/supabase";
 import { generateReferralCode } from "@/lib/utils";
