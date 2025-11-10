@@ -723,7 +723,7 @@ export default function Navbar() {
 
                     {getUserRole() === "vendor" && (
                       <Link
-                        href="/vendor/dashboard"
+                        href="/my-account"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <motion.div

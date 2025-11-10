@@ -496,7 +496,7 @@ export default function MyAccountPage() {
                   <QuickAction
                     icon={Store}
                     label="Vendor Dashboard"
-                    onClick={() => (window.location.href = "/vendor/dashboard")}
+                    onClick={() => (window.location.href = "/my-account")}
                   />
                 )}
                 {profile.role === "customer" && (

@@ -14,6 +14,7 @@ import {
   Home,
 } from "lucide-react";
 import Button from "@/components/ui/button";
+import Link from "next/link";
 
 function VendorSuccessContent() {
   const searchParams = useSearchParams();
@@ -162,10 +163,10 @@ function VendorSuccessContent() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.4 }}
-            className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6 shadow-sm"
+            className="bg-linear-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6 shadow-sm"
           >
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+              <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-br from-amber-100 to-orange-100 flex items-center justify-center">
                 <Mail className="w-6 h-6 text-amber-600" strokeWidth={2} />
               </div>
               <div className="flex-1 min-w-0">
@@ -205,27 +206,21 @@ function VendorSuccessContent() {
             </h3>
             <div className="grid sm:grid-cols-2 gap-4">
               {/* Login Button */}
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => router.push("/login")}
-                className="w-full group"
-              >
-                <LogIn className="w-5 h-5" />
-                Go to Login
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
+              <Link href="/login">
+                <Button variant="primary" size="lg" className="w-full group">
+                  <LogIn className="w-5 h-5" />
+                  Go to Login
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
 
               {/* Homepage Button */}
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => router.push("/")}
-                className="w-full group"
-              >
-                <Home className="w-5 h-5" />
-                Back to Homepage
-              </Button>
+              <Link href="/">
+                <Button variant="outline" size="lg" className="w-full group">
+                  <Home className="w-5 h-5" />
+                  Back to Homepage
+                </Button>
+              </Link>
             </div>
             <p className="text-xs text-center text-gray-500 mt-4">
               Remember to verify your email before logging in
@@ -237,7 +232,7 @@ function VendorSuccessContent() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.4 }}
-            className="bg-gradient-to-br from-primary/5 to-accent/5 border-2 border-primary/20 rounded-2xl p-8 shadow-sm"
+            className="bg-linear-to-br from-primary/5 to-accent/5 border-2 border-primary/20 rounded-2xl p-8 shadow-sm"
           >
             <div className="text-center max-w-xl mx-auto">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent mb-4">
@@ -257,12 +252,7 @@ function VendorSuccessContent() {
                 community to receive launch updates, connect with other vendors,
                 and get early access to platform features.
               </p>
-              <a
-                href={telegramLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
+              <Link href={telegramLink}>
                 <Button
                   variant="primary"
                   size="lg"
@@ -271,7 +261,7 @@ function VendorSuccessContent() {
                   Join Telegram Community
                   <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </Button>
-              </a>
+              </Link>
               <p className="text-sm text-gray-500 mt-4">
                 You'll be notified when the platform launches
               </p>
