@@ -6,13 +6,17 @@ import {
   ArrowLeft,
   Mail,
   Lock,
-  ShoppingBag,
   Eye,
   EyeOff,
   CheckCircle,
   Shield,
   CreditCard,
 } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { authHelpers } from "@/lib/supabase";
+import { useAuthStore } from "@/store/authStore";
 
 const Input = ({
   label,
@@ -47,14 +51,14 @@ const Input = ({
           } py-3.5 rounded-xl border-2 ${
             error
               ? "border-red-300 focus:border-red-500"
-              : "border-gray-200 focus:border-[--color-primary]"
-          } focus:outline-none transition-all duration-300 text-gray-900 placeholder:text-gray-400 bg-white hover:border-gray-300`}
+              : "border-gray-200 focus:border-primary"
+          } focus:outline-none transition-all duration-300 bg-white`}
         />
         {type === "password" && (
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
             {showPassword ? (
               <EyeOff className="w-5 h-5" />
@@ -68,9 +72,8 @@ const Input = ({
         <motion.p
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-sm text-red-500 flex items-center gap-1"
+          className="text-sm text-red-500"
         >
-          <span className="w-1 h-1 bg-red-500 rounded-full" />
           {error}
         </motion.p>
       )}
@@ -85,26 +88,21 @@ const Button = ({
   isLoading,
   className = "",
   onClick,
-  type = "button",
 }) => {
-  const baseStyles =
-    "inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed";
+  const base =
+    "inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-300";
   const variants = {
     primary:
-      "bg-linear-to-br from-[#560238] to-[#f49238] text-white hover:shadow-xl hover:shadow-[--color-primary]/30 hover:-translate-y-0.5 active:translate-y-0",
-
+      "bg-linear-to-br from-primary to-accent text-white hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5",
     outline:
-      "border-2 border-[#560238] text-[#560238] hover:bg-[#560238] hover:text-white",
+      "border-2 border-primary text-primary hover:bg-primary hover:text-white",
   };
-  const sizes = {
-    lg: "px-8 py-3.5 text-base",
-  };
+  const sizes = { lg: "px-8 py-3.5 text-base" };
 
   return (
     <button
-      type={type}
       onClick={onClick}
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={isLoading}
     >
       {isLoading ? (
@@ -127,16 +125,8 @@ export default function LoginPage() {
     remember: false,
   });
   const [errors, setErrors] = useState({});
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setIsLoading(false);
-      console.log("Login submitted:", formData);
-    }, 2000);
-  };
+  const router = useRouter();
+  const { setUser, setSession } = useAuthStore();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -144,42 +134,56 @@ export default function LoginPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: null }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const { data, error } = await authHelpers.signIn(
+        formData.email,
+        formData.password
+      );
+      if (error) throw error;
+      setUser(data.user);
+      setSession(data.session);
+      toast.success("Welcome back!");
+      router.push("/");
+    } catch (err) {
+      toast.error(err.message || "Login failed");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 relative overflow-hidden bg-white">
-        {/* Subtle Background Gradients */}
-        <div className="absolute inset-0 -z-10">
+      {/* Left: Banner */}
+      <div className="hidden lg:block flex-1 relative overflow-hidden">
+        <Image
+          src="/auth-banner.jpg"
+          alt="Login to CarmelMart"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-tl from-black/70 via-black/30 to-transparent" />
+        <div className="absolute bottom-0 right-0 p-12 text-white">
           <motion.div
-            animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.05, 0.08, 0.05],
-            }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-[--color-primary] rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{
-              scale: [1.1, 1, 1.1],
-              opacity: [0.04, 0.06, 0.04],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1,
-            }}
-            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[--color-accent] rounded-full blur-3xl"
-          />
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <h1 className="text-5xl font-bold mb-4">Welcome Back</h1>
+            <p className="text-xl opacity-90">Continue your shopping journey</p>
+          </motion.div>
         </div>
+      </div>
 
+      {/* Right: Form */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-gradient-to-br from-gray-50 to-white">
         <div className="w-full max-w-md">
-          {/* Back Button */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -187,151 +191,113 @@ export default function LoginPage() {
           >
             <a
               href="/"
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-[--color-primary] transition-colors group"
+              className="inline-flex items-center gap-2 text-gray-600 hover:text-primary group"
             >
-              <div className="w-10 h-10 rounded-xl bg-white border-2 border-gray-200 flex items-center justify-center group-hover:border-[--color-primary] transition-all duration-300 group-hover:shadow-lg">
+              <div className="w-10 h-10 rounded-xl bg-white border-2 border-gray-200 flex items-center justify-center group-hover:border-primary">
                 <ArrowLeft className="w-5 h-5" />
               </div>
               <span className="font-semibold">Back to Home</span>
             </a>
           </motion.div>
 
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
             className="mb-10"
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
-                <ShoppingBag className="w-6 h-6 text-black" />
-              </div>
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-                  Welcome Back
-                </h1>
-              </div>
-            </div>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+              Welcome Back
+            </h1>
             <p className="text-lg text-gray-600">
               Sign in to continue your shopping journey
             </p>
           </motion.div>
 
-          {/* Form */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="space-y-6">
-              <Input
-                label="Email Address"
-                type="email"
-                name="email"
-                placeholder="you@example.com"
-                icon={Mail}
-                value={formData.email}
-                onChange={handleChange}
-                error={errors.email}
-              />
-
-              <div>
-                <Input
-                  label="Password"
-                  type="password"
-                  name="password"
-                  placeholder="Enter your password"
-                  icon={Lock}
-                  value={formData.password}
-                  onChange={handleChange}
-                  error={errors.password}
-                />
-                <div className="flex items-center justify-between mt-3">
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      name="remember"
-                      checked={formData.remember}
-                      onChange={handleChange}
-                      className="w-5 h-5 text-[--color-primary] border-2 border-gray-300 rounded focus:ring-2 focus:ring-[--color-primary]/20 transition-all cursor-pointer"
-                    />
-                    <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
-                      Remember me for 30 days
-                    </span>
-                  </label>
-                  <a
-                    href="#"
-                    className="text-sm font-semibold text-[--color-primary] hover:text-[--color-primary-dark] transition-colors"
-                  >
-                    Forgot Password?
-                  </a>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                variant="primary"
-                size="lg"
-                className="w-full"
-                isLoading={isLoading}
-              >
-                Sign In to Your Account
-              </Button>
-
-              <div className="relative my-8">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500 font-medium">
-                    New to CarmelMart?
-                  </span>
-                </div>
-              </div>
-
-              <a href="/register" className="block">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                >
-                  Create Free Account
-                </Button>
-              </a>
-            </div>
-
-            {/* Demo Credentials */}
-
-            {/* Trust Indicators */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email Verification Notice - Minimal Design */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="mt-8"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-blue-50 border border-blue-200 rounded-xl p-4"
             >
-              <p className="text-xs text-gray-500 text-center mb-4 font-medium">
-                Trusted by 45,000+ Nigerian shoppers
-              </p>
-              <div className="flex items-center justify-center gap-6">
-                {[
-                  { icon: CheckCircle, label: "Secure SSL" },
-                  { icon: Shield, label: "NIN Verified" },
-                  { icon: CreditCard, label: "Paystack Protected" },
-                ].map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 text-gray-600"
-                  >
-                    <item.icon className="w-4 h-4 text-green-500" />
-                    <span className="text-xs font-medium">{item.label}</span>
-                  </div>
-                ))}
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900 mb-1">
+                    New User?
+                  </p>
+                  <p className="text-xs text-blue-800 leading-relaxed">
+                    Please verify your email address before signing in. Check
+                    your inbox for the verification link.
+                  </p>
+                </div>
               </div>
             </motion.div>
-          </motion.div>
+
+            <Input
+              label="Email Address"
+              type="email"
+              name="email"
+              placeholder="you@example.com"
+              icon={Mail}
+              value={formData.email}
+              onChange={handleChange}
+              error={errors.email}
+            />
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                name="password"
+                placeholder="Enter your password"
+                icon={Lock}
+                value={formData.password}
+                onChange={handleChange}
+                error={errors.password}
+              />
+              <div className="flex items-center justify-between mt-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="remember"
+                    checked={formData.remember}
+                    onChange={handleChange}
+                    className="w-5 h-5"
+                  />
+                  <span className="text-sm text-gray-600">Remember me</span>
+                </label>
+                <a
+                  href="/forgot-password"
+                  className="text-sm font-semibold text-primary hover:underline"
+                >
+                  Forgot Password?
+                </a>
+              </div>
+            </div>
+            <Button
+              onClick={handleSubmit}
+              variant="primary"
+              size="lg"
+              className="w-full"
+              isLoading={isLoading}
+            >
+              Sign In
+            </Button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-600">
+              New to CarmelMart?{" "}
+              <a
+                href="/register"
+                className="text-primary font-semibold hover:underline"
+              >
+                Create Account
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </div>

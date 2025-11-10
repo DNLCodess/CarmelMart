@@ -65,9 +65,7 @@ export default function Footer() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3 px-4">
           <div>
             <h3 className="text-base font-semibold text-white">Stay Updated</h3>
-            <p className="text-xs text-gray-400">
-              Get deals and product updates.
-            </p>
+            <p className="text-xs text-white">Get deals and product updates.</p>
           </div>
           <form
             onSubmit={handleSubscribe}
@@ -81,7 +79,7 @@ export default function Footer() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
                 required
-                className="w-full md:w-64 pl-9 pr-4 py-2 text-xs rounded-full bg-gray-800/80 border border-gray-700 focus:ring-1 focus:ring-primary focus:outline-none"
+                className="w-full md:w-64 pl-9 pr-4 py-2 text-xs rounded-full bg-white text-black border border-gray-700 focus:ring-1 focus:ring-primary focus:outline-none"
               />
             </div>
             <Button
@@ -110,12 +108,12 @@ export default function Footer() {
               className="object-contain"
             />
           </Link>
-          <p className="text-xs text-gray-400 leading-relaxed mb-3">
+          <p className="text-xs text-white leading-relaxed mb-3">
             Nigeria’s trusted multi-vendor marketplace. Shop Smart, Live Better.
           </p>
 
           {/* Contact */}
-          <div className="flex flex-col gap-1 text-xs text-gray-400">
+          <div className="flex flex-col gap-1 text-xs text-white">
             <a
               href="tel:+2348076942904"
               className="flex items-center gap-2 hover:text-white"
@@ -162,7 +160,7 @@ export default function Footer() {
                 <li key={index}>
                   <Link
                     href={link.href}
-                    className="text-xs text-gray-400 hover:text-accent transition"
+                    className="text-xs text-white hover:text-accent transition"
                   >
                     {link.name}
                   </Link>
@@ -174,7 +172,7 @@ export default function Footer() {
       </div>
 
       {/* Payment + Bottom */}
-      <div className="border-t border-gray-800/70 py-4 px-4 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+      <div className="border-t border-gray-800/70 py-4 px-4 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white">
         <div className="flex items-center gap-2">
           <span>Payments:</span>
           <VisaIcon />
@@ -188,7 +186,7 @@ export default function Footer() {
             className="opacity-75"
           />
         </div>
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center text-white gap-4">
           <Link href="/privacy" className="hover:text-accent">
             Privacy
           </Link>
@@ -202,7 +200,7 @@ export default function Footer() {
             Sitemap
           </Link>
         </div>
-        <p className="text-gray-500 text-[11px] text-center">
+        <p className="text-white text-[11px] text-center">
           © 2025 CarmelMart. All rights reserved.
         </p>
       </div>

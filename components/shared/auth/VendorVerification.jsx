@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Star,
   Check,
+  Gift,
 } from "lucide-react";
 
 import { qoreIdHelpers } from "@/lib/qoreId";
@@ -23,7 +24,12 @@ import toast from "react-hot-toast";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/button";
 
-export default function VendorVerification({ userId, email, onComplete }) {
+export default function VendorVerification({
+  userId,
+  email,
+  referralCode, // User's own referral code
+  referredBy, // Code of person who referred them
+}) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [verificationType, setVerificationType] = useState(null);
@@ -64,23 +70,88 @@ export default function VendorVerification({ userId, email, onComplete }) {
   // Step 1: Business Details
   const handleBusinessDetails = async (data) => {
     try {
-      const { data: vendorData, error } = await dbHelpers.createVendorProfile({
-        user_id: userId,
-        business_name: data.businessName,
-        address: data.address,
-        phone: data.phone,
-        bank_details: {
-          account_number: data.accountNumber,
-          bank_name: data.bankName,
-          account_name: data.accountName,
-        },
-        nin_verified: false,
-        cac_verified: false,
-        payment_verified: false,
-        verification_type: null,
-      });
+      // Step 1: Create user profile with referral code
+      const { data: userProfile, error: userError } =
+        await dbHelpers.createUserProfile({
+          id: userId,
+          email: email,
+          phone: data.phone,
+          role: "vendor",
+          referral_code: referralCode, // User's own referral code (passed from registration)
+          referred_by: referredBy || null, // Code of person who referred them
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
 
-      if (error) throw error;
+      if (userError) {
+        // Check if user already exists (duplicate key error)
+        if (userError.code === "23505") {
+          console.log("User profile already exists, continuing...");
+
+          // Fetch existing user profile to get their referral code
+          const { data: existingProfile } = await dbHelpers.getUserProfile(
+            userId
+          );
+          if (existingProfile && !existingProfile.referral_code) {
+            // Update existing profile with referral code if it doesn't have one
+            await dbHelpers.updateUserProfile(userId, {
+              referral_code: referralCode,
+              referred_by: referredBy || null,
+            });
+          }
+        } else {
+          throw userError;
+        }
+      }
+
+      // Step 2: Process referral bonus if user was referred
+      if (referredBy) {
+        try {
+          // Find the referrer
+          const { data: referrer, error: referrerError } =
+            await dbHelpers.getUserByReferralCode(referredBy);
+
+          if (referrer && !referrerError) {
+            // Create referral record
+            await dbHelpers.createReferral({
+              referrer_id: referrer.id,
+              referred_id: userId,
+              referral_code: referredBy,
+              bonus_amount: 500, // ₦500 bonus
+              status: "pending", // Will be 'completed' after verification payment
+              created_at: new Date().toISOString(),
+            });
+
+            console.log(`✅ Referral created: ${referrer.id} → ${userId}`);
+          }
+        } catch (referralError) {
+          // Log but don't block registration if referral processing fails
+          console.error("Referral processing error:", referralError);
+        }
+      }
+
+      // Step 3: Create vendor profile
+      const { data: vendorData, error: vendorError } =
+        await dbHelpers.createVendorProfile({
+          id: userId,
+          business_name: data.businessName,
+          address: data.address,
+          phone: data.phone,
+          bank_details: {
+            account_number: data.accountNumber,
+            bank_name: data.bankName,
+            account_name: data.accountName,
+          },
+          nin_verified: false,
+          cac_verified: false,
+          payment_verified: false,
+          verification_type: null,
+          status: "pending",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (vendorError) throw vendorError;
 
       setBusinessData(data);
       toast.success("Business details saved!");
@@ -192,61 +263,96 @@ export default function VendorVerification({ userId, email, onComplete }) {
     }
   };
 
+  const handleVendorComplete = () => {
+    router.push(`/register-success?registrationtype=${verificationType}`);
+    toast.success("Vendor account active!");
+  };
   // Process successful payment
   const processSuccessfulPayment = async (transactionData) => {
     try {
+      console.log("🔄 Starting payment processing...");
+
       setVerificationStatus((prev) => ({
         ...prev,
         payment: { verified: false, loading: false, processing: true },
       }));
 
+      // Update payment record
+      console.log("💾 Updating payment record...");
       await dbHelpers.updatePayment(transactionData.reference, {
         status: "success",
         transaction_id: transactionData.transaction_id,
         flw_ref: transactionData.flw_ref,
       });
 
+      // Update vendor profile
+      console.log("👔 Activating vendor profile...");
       await dbHelpers.updateVendorProfile(userId, {
         payment_verified: true,
         status: "active",
       });
+
+      // Update user profile status to active
+      console.log("✅ Verifying user account...");
+      await dbHelpers.updateUserProfile(userId, {
+        verified: true,
+        updated_at: new Date().toISOString(),
+      });
+
+      // ✅ CRITICAL: Credit referral bonus if user was referred
+      if (referredBy) {
+        try {
+          console.log("🎁 Processing referral bonus...");
+          const result = await dbHelpers.creditReferralBonus(userId);
+          if (result?.success) {
+            console.log("✅ Referral bonus credited successfully");
+          }
+        } catch (referralError) {
+          // Log but don't block completion
+          console.error("Failed to credit referral bonus:", referralError);
+        }
+      }
 
       setVerificationStatus((prev) => ({
         ...prev,
         payment: { verified: true, loading: false, processing: false },
       }));
 
-      toast.success("Payment successful! Welcome to the platform!", {
-        duration: 3000,
+      // Show appropriate success message
+      const successMessage = referredBy
+        ? "Payment successful! Your referrer earned ₦500 bonus! 🎉"
+        : "Payment successful! Welcome to the platform!";
+
+      toast.success(successMessage, {
+        duration: 4000,
       });
 
-      const flwModal = document.querySelector(".flw-modal");
-      if (flwModal) flwModal.style.display = "none";
-      const modalBackdrop = document.querySelector(".flw-modal-backdrop");
-      if (modalBackdrop) modalBackdrop.style.display = "none";
+      console.log("🎉 Payment processing completed!");
 
+      // Wait a moment before redirecting
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
+      // Get updated vendor data
       const { data: vendorData } = await dbHelpers.getVendorProfile(userId);
 
-      router.push(`/register-success?registrationtype=${verificationType}`);
+      // Now redirect to success page
+      console.log("🚀 Redirecting to success page...");
 
-      if (onComplete) {
-        onComplete(vendorData);
-      }
+      handleVendorComplete();
     } catch (error) {
-      console.error("Payment processing error:", error);
+      console.error("❌ Payment processing error:", error);
 
       setVerificationStatus((prev) => ({
         ...prev,
         payment: { verified: false, loading: false, processing: false },
       }));
 
-      toast.error("Failed to complete registration. Please contact support.");
+      toast.error("Failed to complete registration. Please contact support.", {
+        duration: 5000,
+      });
     }
   };
 
-  // Final Step: Payment
   const handlePayment = async () => {
     const reference = flutterwaveHelpers.generateReference();
     const customerName = businessData?.businessName || email.split("@")[0];
@@ -258,6 +364,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
     }));
 
     try {
+      // Create payment record
       await dbHelpers.createPayment({
         user_id: userId,
         amount: amount,
@@ -268,14 +375,19 @@ export default function VendorVerification({ userId, email, onComplete }) {
         verification_type: verificationType,
       });
 
+      // Initialize Flutterwave payment with callbacks
       await flutterwaveHelpers.initializePayment(
         email,
         amount,
-        verificationType,
         reference,
         customerName,
+        verificationType,
+        // ✅ SUCCESS CALLBACK - This runs BEFORE redirect
         async (response) => {
+          console.log("💰 Payment successful, processing...", response);
+
           try {
+            // Verify payment with backend
             const verifyResult = await flutterwaveHelpers.verifyPayment(
               response.transaction_id
             );
@@ -305,7 +417,10 @@ export default function VendorVerification({ userId, email, onComplete }) {
             });
           }
         },
+        // ✅ CLOSE CALLBACK - User closed without paying
         () => {
+          console.log("❌ Payment modal closed");
+
           setVerificationStatus((prev) => ({
             ...prev,
             payment: { verified: false, loading: false, processing: false },
@@ -344,7 +459,31 @@ export default function VendorVerification({ userId, email, onComplete }) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Referral Bonus Banner */}
+      {referredBy && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shrink-0">
+              <Gift className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-green-900">
+                Referral Bonus Active! 🎉
+              </p>
+              <p className="text-sm text-green-700">
+                Complete verification to unlock ₦500 for both you and your
+                referrer
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Progress Steps - Clean Design */}
       <div className="mb-12">
         <div className="flex items-center justify-between">
@@ -528,190 +667,125 @@ export default function VendorVerification({ userId, email, onComplete }) {
 
           {/* Step 2: Choose Verification Tier */}
           {currentStep === 2 && (
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">
                   Choose Your Verification Tier
                 </h2>
-                <p className="text-gray-600">
-                  Select the verification level that fits your business needs
+                <p className="text-sm text-gray-600">
+                  Pick a verification level that suits your business
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid sm:grid-cols-2 gap-4">
                 {/* Standard Tier */}
                 <button
                   onClick={() => handleVerificationChoice("nin")}
-                  className="group text-left"
+                  className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all text-left flex flex-col justify-between"
                 >
-                  <div className="bg-white rounded-2xl border-2 border-gray-200 p-8 hover:border-gray-300 transition-all duration-300 h-full flex flex-col">
-                    <div className="mb-6">
-                      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
-                        <Shield className="w-6 h-6 text-gray-700" />
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <Shield className="w-5 h-5 text-gray-700" />
+                        </div>
+                        <h3 className="font-semibold text-gray-900">
+                          Standard
+                        </h3>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-1">
-                        Standard
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        NIN Verification
-                      </p>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-gray-900">
-                          ₦5,000
-                        </span>
-                        <span className="text-sm text-gray-500">one-time</span>
-                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        ₦5,000
+                      </span>
                     </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                      NIN Verification
+                    </p>
 
-                    <div className="space-y-3 mb-6 flex-grow">
-                      <div className="flex items-start gap-2">
-                        <Check
-                          className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5"
-                          strokeWidth={2}
-                        />
-                        <span className="text-sm text-gray-700">
-                          Quick verification process
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check
-                          className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5"
-                          strokeWidth={2}
-                        />
-                        <span className="text-sm text-gray-700">
-                          Unlimited product listings
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check
-                          className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5"
-                          strokeWidth={2}
-                        />
-                        <span className="text-sm text-gray-700">
-                          Access to verified customers
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check
-                          className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5"
-                          strokeWidth={2}
-                        />
-                        <span className="text-sm text-gray-700">
-                          Standard vendor badge
-                        </span>
-                      </div>
-                    </div>
+                    <ul className="text-sm text-gray-700 space-y-2">
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-gray-600 mt-0.5" />
+                        Quick verification
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-gray-600 mt-0.5" />
+                        Unlimited listings
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-gray-600 mt-0.5" />
+                        Verified customers
+                      </li>
+                    </ul>
+                  </div>
 
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg text-sm font-medium text-gray-700 group-hover:bg-gray-100 transition-colors w-full justify-center">
+                  <div className="mt-5">
+                    <span className="inline-flex items-center justify-center w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
                       Select Standard
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </div>
+                      <ArrowRight className="w-4 h-4 ml-1 text-gray-600" />
+                    </span>
                   </div>
                 </button>
 
                 {/* Premium Tier */}
                 <button
                   onClick={() => handleVerificationChoice("nin_cac")}
-                  className="group text-left relative"
+                  className="group bg-white border-2 border-gray-800 rounded-xl p-5 hover:shadow-md transition-all text-left flex flex-col justify-between relative"
                 >
-                  <div className="absolute -top-3 -right-3 z-10">
-                    <div className="gradient-primary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                      <Star className="w-3 h-3" fill="currentColor" />
-                      PRIORITY
-                    </div>
+                  <div className="absolute top-2 right-3">
+                    <span className="text-[10px] font-bold text-gray-800 uppercase bg-gray-100 px-2 py-1 rounded">
+                      Priority
+                    </span>
                   </div>
 
-                  <div className="bg-white rounded-2xl border-2 border-primary p-8 hover:shadow-lg transition-all duration-300 h-full flex flex-col">
-                    <div className="mb-6">
-                      <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-4">
-                        <Star
-                          className="w-6 h-6 text-white"
-                          fill="currentColor"
-                        />
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center">
+                          <Star className="w-5 h-5 text-white" />
+                        </div>
+                        <h3 className="font-semibold text-gray-900">Premium</h3>
                       </div>
-                      <h3 className="text-xl font-bold text-primary mb-1">
-                        Premium
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        NIN + CAC Verification
-                      </p>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-primary">
-                          ₦10,000
-                        </span>
-                        <span className="text-sm text-gray-500">one-time</span>
-                      </div>
+                      <span className="text-sm font-medium text-gray-800">
+                        ₦10,000
+                      </span>
                     </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                      NIN + CAC Verification
+                    </p>
 
-                    {/* Priority Highlight */}
-                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6">
-                      <p className="text-sm font-semibold text-primary mb-1">
-                        Priority Marketplace Placement
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        Your products appear first in search results and
-                        category pages
-                      </p>
-                    </div>
+                    <ul className="text-sm text-gray-700 space-y-2">
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-gray-800 mt-0.5" />
+                        All Standard benefits
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-gray-800 mt-0.5" />
+                        Enhanced credibility
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-gray-800 mt-0.5" />
+                        Priority visibility
+                      </li>
+                    </ul>
+                  </div>
 
-                    <div className="space-y-3 mb-6 flex-grow">
-                      <div className="flex items-start gap-2">
-                        <Check
-                          className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
-                          strokeWidth={2}
-                        />
-                        <span className="text-sm text-gray-700">
-                          All Standard tier benefits
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check
-                          className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
-                          strokeWidth={2}
-                        />
-                        <span className="text-sm text-gray-700">
-                          Enhanced credibility badge
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check
-                          className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
-                          strokeWidth={2}
-                        />
-                        <span className="text-sm text-gray-700">
-                          3x higher visibility
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check
-                          className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
-                          strokeWidth={2}
-                        />
-                        <span className="text-sm text-gray-700">
-                          Priority customer support
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="inline-flex items-center gap-2 px-4 py-2 gradient-primary text-white rounded-lg text-sm font-medium group-hover:shadow-md transition-all w-full justify-center">
+                  <div className="mt-5">
+                    <span className="inline-flex items-center justify-center w-full px-3 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
                       Select Premium
-                      <Star className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    </div>
+                      <Star className="w-4 h-4 ml-1 text-white" />
+                    </span>
                   </div>
                 </button>
               </div>
 
-              {/* Info Notice */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 flex gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-semibold text-blue-900 mb-1">
+              <div className="border border-gray-200 bg-gray-50 rounded-lg p-4 text-sm text-gray-700 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900 mb-1">
                     Why Premium?
                   </p>
-                  <p className="text-blue-800 leading-relaxed">
-                    Premium vendors with CAC verification receive significantly
-                    higher marketplace visibility, leading to more sales and
-                    customer trust.
+                  <p>
+                    Vendors verified with CAC gain more trust and better
+                    visibility across the marketplace.
                   </p>
                 </div>
               </div>
@@ -736,7 +810,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                   </div>
 
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                     <div className="text-sm text-blue-900">
                       <p className="font-medium mb-1">Secure & Confidential</p>
                       <p className="text-blue-800">
@@ -843,7 +917,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                   </div>
 
                   <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex gap-3">
-                    <Star className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                    <Star className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                     <div className="text-sm">
                       <p className="font-semibold text-primary mb-1">
                         Premium Verification
@@ -932,6 +1006,11 @@ export default function VendorVerification({ userId, email, onComplete }) {
                   <p className="text-gray-600">
                     Please wait while we verify your payment
                   </p>
+                  {referredBy && (
+                    <p className="text-sm text-green-600 mt-2">
+                      Preparing referral bonuses... 🎉
+                    </p>
+                  )}
                 </motion.div>
               ) : !verificationStatus.payment.verified ? (
                 <div className="space-y-6">
@@ -968,7 +1047,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                     <div className="grid sm:grid-cols-2 gap-3">
                       <div className="flex items-start gap-2">
                         <Check
-                          className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5"
+                          className="w-5 h-5 text-green-600 shrink-0 mt-0.5"
                           strokeWidth={2}
                         />
                         <span className="text-sm text-green-900">
@@ -977,7 +1056,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                       </div>
                       <div className="flex items-start gap-2">
                         <Check
-                          className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5"
+                          className="w-5 h-5 text-green-600 shrink-0 mt-0.5"
                           strokeWidth={2}
                         />
                         <span className="text-sm text-green-900">
@@ -986,7 +1065,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                       </div>
                       <div className="flex items-start gap-2">
                         <Check
-                          className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5"
+                          className="w-5 h-5 text-green-600 shrink-0 mt-0.5"
                           strokeWidth={2}
                         />
                         <span className="text-sm text-green-900">
@@ -995,7 +1074,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                       </div>
                       <div className="flex items-start gap-2">
                         <Check
-                          className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5"
+                          className="w-5 h-5 text-green-600 shrink-0 mt-0.5"
                           strokeWidth={2}
                         />
                         <span className="text-sm text-green-900">
@@ -1006,7 +1085,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                         <>
                           <div className="flex items-start gap-2">
                             <Star
-                              className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+                              className="w-5 h-5 text-primary shrink-0 mt-0.5"
                               fill="currentColor"
                             />
                             <span className="text-sm text-primary font-medium">
@@ -1015,7 +1094,7 @@ export default function VendorVerification({ userId, email, onComplete }) {
                           </div>
                           <div className="flex items-start gap-2">
                             <Star
-                              className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+                              className="w-5 h-5 text-primary shrink-0 mt-0.5"
                               fill="currentColor"
                             />
                             <span className="text-sm text-primary font-medium">
@@ -1026,6 +1105,24 @@ export default function VendorVerification({ userId, email, onComplete }) {
                       )}
                     </div>
                   </div>
+
+                  {/* Referral Bonus Reminder */}
+                  {referredBy && (
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-4">
+                      <div className="flex items-center gap-3">
+                        <Gift className="w-6 h-6 text-green-600" />
+                        <div>
+                          <p className="font-semibold text-green-900">
+                            Bonus Reminder
+                          </p>
+                          <p className="text-sm text-green-700">
+                            Your referrer will receive ₦500 when you complete
+                            this payment!
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <Button
                     onClick={handlePayment}
@@ -1067,6 +1164,12 @@ export default function VendorVerification({ userId, email, onComplete }) {
                     <div className="inline-flex items-center gap-2 px-4 py-2 gradient-primary text-white rounded-full font-semibold mb-4">
                       <Star className="w-4 h-4" fill="currentColor" />
                       Premium Vendor Active
+                    </div>
+                  )}
+                  {referredBy && (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-semibold mb-4">
+                      <Gift className="w-4 h-4" />
+                      Referral bonus credited! 🎉
                     </div>
                   )}
                   <p className="text-gray-600 mb-4">

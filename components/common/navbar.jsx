@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -13,33 +13,70 @@ import {
   TrendingUp,
   Sparkles,
   Tag,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import Button from "@/components/ui/button";
+
+import { useAuthStore } from "@/store/authStore";
+import { authHelpers, dbHelpers } from "@/lib/supabase";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [hoveredLink, setHoveredLink] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
+  // ---- Auth -------------------------------------------------
+  const { user, isAuthenticated, isLoading, logout } = useAuthStore();
+
+  // Initialize auth on mount and fetch user profile
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+    const initAuth = async () => {
+      const { session } = await authHelpers.getSession();
+      const { user: supabaseUser } = await authHelpers.getUser();
+      console.log(supabaseUser);
+
+      if (session && supabaseUser) {
+        useAuthStore.getState().setUser(supabaseUser);
+        useAuthStore.getState().setSession(session);
+
+        // Fetch user profile from database to get role
+        const { data: profile, error } = await dbHelpers.getUserProfile(
+          supabaseUser.id
+        );
+
+        if (!error && profile) {
+          setUserProfile(profile);
+        }
+      }
+      useAuthStore.getState().setLoading(false);
     };
+    initAuth();
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await authHelpers.signOut();
+    logout(); // clear Zustand
+    setUserProfile(null); // clear profile
+    setIsMobileMenuOpen(false);
+  }, [logout]);
+
+  // ---- Scroll ------------------------------------------------
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // ---- Body overflow for mobile menu -------------------------
   useEffect(() => {
-    if (isMobileMenuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "unset";
   }, [isMobileMenuOpen]);
 
+  // ---- Nav data ---------------------------------------------
   const categories = [
     { name: "Fashion", href: "/category/fashion" },
     { name: "Electronics", href: "/category/electronics" },
@@ -50,30 +87,111 @@ export default function Navbar() {
   ];
 
   const navLinks = [
-    {
-      name: "Categories",
-      items: categories,
-    },
-    {
-      name: "Deals",
-      href: "/products?category=deals",
-      icon: Tag,
-    },
-    {
-      name: "Trending",
-      href: "/trending",
-      icon: TrendingUp,
-    },
-    {
-      name: "New Arrivals",
-      href: "/new",
-      icon: Sparkles,
-    },
+    { name: "Categories", items: categories },
+    { name: "Deals", href: "/products?category=deals", icon: Tag },
   ];
+
+  // Get user role from database profile (primary source) or fallback to user metadata
+  const getUserRole = useCallback(() => {
+    // Priority 1: Database profile (most reliable)
+    if (userProfile?.role) {
+      return userProfile.role;
+    }
+
+    // Priority 2: User metadata (fallback)
+    if (user?.user_metadata?.role) {
+      return user.user_metadata.role;
+    }
+
+    // Priority 3: Direct role property (fallback)
+    if (user?.role) {
+      return user.role;
+    }
+
+    return null;
+  }, [userProfile, user]);
+
+  // ---- Conditional right-side buttons -----------------------
+  const renderAccountSection = () => {
+    if (isLoading) {
+      return (
+        <div className="hidden lg:flex items-center">
+          <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
+        </div>
+      );
+    }
+
+    if (!isAuthenticated) {
+      return (
+        <div className="hidden lg:flex items-center gap-3">
+          <Link href="/login">
+            <Button variant="outline" size="md" className="rounded-full">
+              Sign In
+            </Button>
+          </Link>
+          <Link href="/register">
+            <Button variant="primary" size="md" className="rounded-full">
+              Register
+            </Button>
+          </Link>
+        </div>
+      );
+    }
+
+    // ---- Logged-in -------------------------------------------------
+    const role = getUserRole();
+    const isCustomer = role === "customer";
+    const isVendor = role === "vendor";
+    console.log(userProfile);
+    return (
+      <div className="hidden lg:flex items-center gap-2">
+        {isCustomer && (
+          <Link href="/my-account">
+            <Button
+              variant="primary"
+              size="md"
+              className="rounded-full flex items-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              My Account
+            </Button>
+          </Link>
+        )}
+        {isVendor && (
+          <Link href="/my-account">
+            <Button
+              variant="outline"
+              size="md"
+              className="rounded-full flex items-center gap-2"
+            >
+              <TrendingUp className="w-4 h-4" />
+              My Dashboard
+            </Button>
+          </Link>
+        )}
+
+        <Button
+          variant="ghost"
+          size="md"
+          onClick={handleSignOut}
+          className="rounded-full flex items-center gap-2 text-red-600 hover:bg-red-50"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </Button>
+      </div>
+    );
+  };
+
+  // Get display role for mobile header
+  const getDisplayRole = () => {
+    const role = getUserRole();
+    return role ? role.charAt(0).toUpperCase() + role.slice(1) : "Customer";
+  };
 
   return (
     <>
-      {/* Main Navbar */}
+      {/* ==================== MAIN NAVBAR ==================== */}
       <motion.nav
         initial={false}
         animate={{
@@ -87,9 +205,8 @@ export default function Navbar() {
         className="sticky top-0 z-50 backdrop-blur-xl border-b border-gray-100 transition-all duration-300"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Main Navigation Row */}
           <div className="flex items-center justify-between h-16 lg:h-18">
-            {/* Left: Logo */}
+            {/* ---- Logo ---- */}
             <div className="flex items-center gap-8">
               <Link href="/" className="flex items-center gap-3 group">
                 <div className="relative w-32 h-32 lg:w-44 lg:h-44 transition-transform duration-300 group-hover:scale-105">
@@ -103,11 +220,12 @@ export default function Navbar() {
                 </div>
               </Link>
 
-              {/* Desktop Navigation Links */}
+              {/* ---- Desktop Nav Links ---- */}
               <div className="hidden lg:flex items-center gap-1">
-                {navLinks.map((link, index) => (
-                  <div key={index} className="relative">
+                {navLinks.map((link, idx) => (
+                  <div key={idx} className="relative">
                     {link.items ? (
+                      /* ==== Dropdown ==== */
                       <div
                         className="relative"
                         onMouseEnter={() => {
@@ -122,50 +240,34 @@ export default function Navbar() {
                         <motion.button
                           className="relative flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 rounded-lg overflow-hidden group"
                           whileHover={{ scale: 1.02 }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 400,
-                            damping: 17,
-                          }}
                         >
-                          {/* Hover background */}
                           <motion.div
                             className="absolute inset-0 bg-linear-to-r from-primary/5 to-primary/10 rounded-lg"
                             initial={{ x: "-100%" }}
                             animate={{
                               x: hoveredLink === link.name ? 0 : "-100%",
                             }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 300,
-                              damping: 30,
-                            }}
                           />
-
-                          {/* Content */}
                           <span
-                            className={`relative z-10 transition-colors duration-300 ${
+                            className={`relative z-10 ${
                               hoveredLink === link.name ? "text-primary" : ""
                             }`}
                           >
                             {link.name}
                           </span>
                           <ChevronDown
-                            className={`relative z-10 w-4 h-4 transition-all duration-300 ${
+                            className={`relative z-10 w-4 h-4 transition-all ${
                               activeDropdown === link.name ? "rotate-180" : ""
                             } ${
                               hoveredLink === link.name ? "text-primary" : ""
                             }`}
                           />
-
-                          {/* Bottom border animation */}
                           <motion.div
                             className="absolute bottom-0 left-0 right-0 h-0.5 bg-linear-to-r from-primary to-accent"
                             initial={{ scaleX: 0 }}
                             animate={{
                               scaleX: hoveredLink === link.name ? 1 : 0,
                             }}
-                            transition={{ duration: 0.3, ease: "easeInOut" }}
                           />
                         </motion.button>
 
@@ -175,31 +277,16 @@ export default function Navbar() {
                               initial={{ opacity: 0, y: 10, scale: 0.95 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                              transition={{
-                                duration: 0.2,
-                                ease: [0.4, 0, 0.2, 1],
-                              }}
                               className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden"
                             >
                               <div className="py-2">
-                                {link.items.map((item, idx) => (
+                                {link.items.map((item, i) => (
                                   <Link
-                                    key={idx}
+                                    key={i}
                                     href={item.href}
-                                    className="relative block px-4 py-2.5 text-sm text-gray-700 transition-all duration-200 group/item overflow-hidden"
+                                    className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-primary/5 hover:text-primary transition-all"
                                   >
-                                    <motion.div
-                                      className="absolute inset-0 bg-linear-to-r from-primary/5 to-accent/5"
-                                      initial={{ x: "-100%" }}
-                                      whileHover={{ x: 0 }}
-                                      transition={{
-                                        duration: 0.3,
-                                        ease: "easeOut",
-                                      }}
-                                    />
-                                    <span className="relative z-10 group-hover/item:text-primary transition-colors duration-200">
-                                      {item.name}
-                                    </span>
+                                    {item.name}
                                   </Link>
                                 ))}
                               </div>
@@ -208,6 +295,7 @@ export default function Navbar() {
                         </AnimatePresence>
                       </div>
                     ) : (
+                      /* ==== Simple Link ==== */
                       <Link
                         href={link.href}
                         onMouseEnter={() => setHoveredLink(link.name)}
@@ -216,50 +304,34 @@ export default function Navbar() {
                         <motion.div
                           className="relative flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 rounded-lg overflow-hidden group"
                           whileHover={{ scale: 1.02 }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 400,
-                            damping: 17,
-                          }}
                         >
-                          {/* Hover background */}
                           <motion.div
                             className="absolute inset-0 bg-linear-to-r from-primary/5 to-primary/10 rounded-lg"
                             initial={{ x: "-100%" }}
                             animate={{
                               x: hoveredLink === link.name ? 0 : "-100%",
                             }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 300,
-                              damping: 30,
-                            }}
                           />
-
-                          {/* Content */}
                           {link.icon && (
                             <link.icon
-                              className={`relative z-10 w-4 h-4 transition-colors duration-300 ${
+                              className={`relative z-10 w-4 h-4 ${
                                 hoveredLink === link.name ? "text-primary" : ""
                               }`}
                             />
                           )}
                           <span
-                            className={`relative z-10 transition-colors duration-300 ${
+                            className={`relative z-10 ${
                               hoveredLink === link.name ? "text-primary" : ""
                             }`}
                           >
                             {link.name}
                           </span>
-
-                          {/* Bottom border animation */}
                           <motion.div
                             className="absolute bottom-0 left-0 right-0 h-0.5 bg-linear-to-r from-primary to-accent"
                             initial={{ scaleX: 0 }}
                             animate={{
                               scaleX: hoveredLink === link.name ? 1 : 0,
                             }}
-                            transition={{ duration: 0.3, ease: "easeInOut" }}
                           />
                         </motion.div>
                       </Link>
@@ -269,42 +341,33 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Center: Search Bar (Desktop) */}
+            {/* ---- Search (Desktop) ---- */}
             <div className="hidden md:flex flex-1 max-w-2xl mx-8">
               <div className="relative w-full group">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors duration-300" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary" />
                 <input
                   type="text"
                   placeholder="Search products, brands, categories..."
-                  className="w-full pl-12 pr-4 py-2.5 lg:py-3 rounded-full border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all duration-300 text-sm bg-gray-50/50 focus:bg-white hover:bg-white"
+                  className="w-full pl-12 pr-4 py-2.5 lg:py-3 rounded-full border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none bg-gray-50/50 focus:bg-white hover:bg-white transition-all"
                 />
               </div>
             </div>
 
-            {/* Right: Actions */}
+            {/* ---- Right Actions ---- */}
             <div className="flex items-center gap-2 lg:gap-3">
               {/* Wishlist */}
               <Link href="/wishlist" className="hidden md:block">
-                <motion.button
-                  className="relative p-2 lg:p-2.5 text-gray-700 rounded-full transition-all duration-300 group"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <motion.div
-                    className="absolute inset-0 bg-primary/5 rounded-full"
-                    initial={{ scale: 0 }}
-                    whileHover={{ scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  />
-                  <Heart className="relative z-10 w-5 h-5 lg:w-6 lg:h-6 group-hover:text-primary transition-colors duration-300" />
-                  <span className="absolute top-0 right-0 w-2 h-2 bg-accent rounded-full ring-2 ring-white"></span>
+                <motion.button className="relative p-2 lg:p-2.5 text-gray-700 rounded-full cursor-pointer group">
+                  <motion.div className="absolute inset-0 bg-primary/5 rounded-full" />
+                  <Heart className="relative z-10 w-5 h-5 lg:w-6 lg:h-6 group-hover:text-primary" />
+                  <span className="absolute top-0 right-0 w-2 h-2 bg-accent rounded-full ring-2 ring-white" />
                 </motion.button>
               </Link>
 
               {/* Cart */}
               <Link href="/cart">
                 <motion.button
-                  className="relative p-2 lg:p-2.5 text-gray-700 rounded-full transition-all duration-300 group"
+                  className="relative p-2 lg:p-2.5 text-gray-700 rounded-full group cursor-pointer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -312,30 +375,21 @@ export default function Navbar() {
                     className="absolute inset-0 bg-primary/5 rounded-full"
                     initial={{ scale: 0 }}
                     whileHover={{ scale: 1 }}
-                    transition={{ duration: 0.2 }}
                   />
-                  <ShoppingBag className="relative z-10 w-5 h-5 lg:w-6 lg:h-6 group-hover:text-primary transition-colors duration-300" />
+                  <ShoppingBag className="relative z-10 w-5 h-5 lg:w-6 lg:h-6 group-hover:text-primary" />
                   <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 bg-linear-to-r from-primary to-accent text-white text-xs font-bold rounded-full flex items-center justify-center ring-2 ring-white">
                     3
                   </span>
                 </motion.button>
               </Link>
 
-              {/* Account */}
-              <Link href="/register" className="hidden lg:block">
-                <Button
-                  variant="primary"
-                  size="md"
-                  className="rounded-full shadow-md hover:shadow-primary/30"
-                >
-                  Register as a Vendor
-                </Button>
-              </Link>
+              {/* ---- Account / Auth Buttons (Desktop) ---- */}
+              {renderAccountSection()}
 
               {/* Mobile Menu Toggle */}
               <motion.button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="lg:hidden relative p-2 text-gray-700 rounded-lg transition-all duration-300 group"
+                className="lg:hidden p-2 text-gray-700 rounded-lg group"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -343,42 +397,38 @@ export default function Navbar() {
                   className="absolute inset-0 bg-primary/5 rounded-lg"
                   initial={{ scale: 0 }}
                   whileHover={{ scale: 1 }}
-                  transition={{ duration: 0.2 }}
                 />
-                <Menu className="relative z-10 w-6 h-6 group-hover:text-primary transition-colors duration-300" />
+                <Menu className="relative z-10 w-6 h-6 group-hover:text-primary" />
               </motion.button>
             </div>
           </div>
 
-          {/* Mobile Search Bar */}
+          {/* Mobile Search */}
           <div className="md:hidden pb-3">
             <div className="relative w-full group">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary transition-colors duration-300" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary" />
               <input
                 type="text"
                 placeholder="Search products..."
-                className="w-full pl-11 pr-4 py-2.5 rounded-full border border-primary focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all duration-300 text-sm bg-gray-50/50 focus:bg-white"
+                className="w-full pl-11 pr-4 py-2.5 rounded-full border border-primary focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none bg-gray-50/50 focus:bg-white"
               />
             </div>
           </div>
         </div>
       </motion.nav>
 
-      {/* Mobile Sidebar */}
+      {/* ==================== MOBILE SIDEBAR ==================== */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
 
-            {/* Sidebar */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -391,13 +441,12 @@ export default function Navbar() {
               }}
               className="fixed top-0 right-0 bottom-0 w-full max-w-sm bg-white z-50 overflow-y-auto lg:hidden shadow-2xl"
             >
-              {/* Sidebar Header */}
+              {/* Header */}
               <div className="sticky top-0 z-10 bg-linear-to-br from-primary via-primary-dark to-primary text-white">
-                {/* Close Button - Floating Style */}
                 <div className="absolute -left-14 top-6">
                   <motion.button
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="w-12 h-12 bg-white text-primary rounded-full shadow-2xl flex items-center justify-center hover:shadow-primary/20 transition-all duration-300"
+                    className="w-12 h-12 bg-white text-primary rounded-full shadow-2xl flex items-center justify-center hover:shadow-primary/20"
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
                   >
@@ -406,110 +455,104 @@ export default function Navbar() {
                 </div>
 
                 <div className="p-6 pb-5">
-                  <div className="flex items-center gap-3 mb-6">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{
-                        delay: 0.2,
-                        type: "spring",
-                        stiffness: 200,
-                      }}
-                      className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center ring-2 ring-white/30"
-                    >
-                      <User className="w-6 h-6" />
-                    </motion.div>
-                    <div>
-                      <motion.p
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="font-bold text-lg"
-                      >
-                        Welcome Back!
-                      </motion.p>
-                      <motion.p
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.35 }}
-                        className="text-sm opacity-90"
-                      >
-                        Sign in to access your account
-                      </motion.p>
-                    </div>
-                  </div>
+                  {/* Guest greeting */}
+                  {!isAuthenticated && (
+                    <>
+                      <div className="flex items-center gap-3 mb-6">
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center ring-2 ring-white/30"
+                        >
+                          <User className="w-6 h-6" />
+                        </motion.div>
+                        <div>
+                          <motion.p
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="font-bold text-lg"
+                          >
+                            Welcome Back!
+                          </motion.p>
+                          <motion.p
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="text-sm opacity-90"
+                          >
+                            Sign in to access your account
+                          </motion.p>
+                        </div>
+                      </div>
 
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="flex gap-3"
-                  >
-                    <Link
-                      href="/login"
-                      className="flex-1"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
                       <motion.div
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 17,
-                        }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex gap-3"
                       >
-                        <Button
-                          variant="white"
-                          size="sm"
-                          className="w-full text-primary font-semibold shadow-lg hover:shadow-xl transition-shadow duration-300"
+                        <Link
+                          href="/login"
+                          className="flex-1"
+                          onClick={() => setIsMobileMenuOpen(false)}
                         >
-                          Sign In
-                        </Button>
+                          <Button
+                            variant="white"
+                            size="sm"
+                            className="w-full font-semibold"
+                          >
+                            Sign In
+                          </Button>
+                        </Link>
+                        <Link
+                          href="/register"
+                          className="flex-1"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-2 border-white text-white"
+                          >
+                            Register
+                          </Button>
+                        </Link>
                       </motion.div>
-                    </Link>
-                    <Link
-                      href="/register"
-                      className="flex-1"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
+                    </>
+                  )}
+
+                  {/* Logged-in user header */}
+                  {isAuthenticated && (
+                    <div className="flex items-center gap-3 mb-4">
                       <motion.div
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 17,
-                        }}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center ring-2 ring-white/30"
                       >
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full border-2 border-white text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300"
-                        >
-                          Register
-                        </Button>
+                        <User className="w-6 h-6" />
                       </motion.div>
-                    </Link>
-                  </motion.div>
+                      <div>
+                        <p className="font-bold text-lg">
+                          {user?.email ?? "User"}
+                        </p>
+                        <p className="text-sm opacity-90 capitalize">
+                          {getDisplayRole()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Decorative wave */}
                 <div
                   className="h-4 bg-white"
-                  style={{
-                    clipPath: "ellipse(60% 100% at 50% 100%)",
-                  }}
-                ></div>
+                  style={{ clipPath: "ellipse(60% 100% at 50% 100%)" }}
+                />
               </div>
 
-              {/* Sidebar Content */}
+              {/* Content */}
               <div className="p-6 space-y-6">
-                {/* Quick Actions */}
+                {/* Quick actions */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
                   className="grid grid-cols-2 gap-3"
                 >
                   <Link
@@ -519,9 +562,9 @@ export default function Navbar() {
                     <motion.div
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-linear-to-br from-gray-50 to-gray-100 hover:from-primary/5 hover:to-primary/10 border border-gray-100 hover:border-primary/20 transition-all duration-300 group"
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-linear-to-br from-gray-50 to-gray-100 hover:from-primary/5 hover:to-primary/10 border border-gray-100 hover:border-primary/20 transition-all group"
                     >
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow duration-300">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md">
                         <Heart className="w-5 h-5 text-primary" />
                       </div>
                       <div className="text-center">
@@ -532,13 +575,14 @@ export default function Navbar() {
                       </div>
                     </motion.div>
                   </Link>
+
                   <Link href="/cart" onClick={() => setIsMobileMenuOpen(false)}>
                     <motion.div
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-linear-to-br from-gray-50 to-gray-100 hover:from-primary/5 hover:to-primary/10 border border-gray-100 hover:border-primary/20 transition-all duration-300 group"
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-linear-to-br from-gray-50 to-gray-100 hover:from-primary/5 hover:to-primary/10 border border-gray-100 hover:border-primary/20 transition-all group"
                     >
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow duration-300 relative">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md relative">
                         <ShoppingBag className="w-5 h-5 text-primary" />
                         <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full text-[10px] font-bold text-white flex items-center justify-center">
                           3
@@ -554,24 +598,24 @@ export default function Navbar() {
                   </Link>
                 </motion.div>
 
-                {/* Navigation Links */}
+                {/* Browse links */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
                   className="space-y-2"
                 >
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-4 flex items-center gap-2">
-                    <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent" />
                     <span>Browse</span>
-                    <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent" />
                   </h3>
-                  {navLinks.map((link, index) => (
+
+                  {navLinks.map((link, i) => (
                     <motion.div
-                      key={index}
+                      key={i}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.65 + index * 0.05 }}
+                      transition={{ delay: 0.05 * i }}
                     >
                       {link.items ? (
                         <div className="space-y-1">
@@ -583,40 +627,37 @@ export default function Navbar() {
                             }
                             whileHover={{ x: 4 }}
                             whileTap={{ scale: 0.98 }}
-                            className="w-full flex items-center justify-between p-3.5 text-gray-900 font-semibold rounded-xl hover:bg-linear-to-r hover:from-primary/5 hover:to-transparent transition-all duration-300 group"
+                            className="w-full flex items-center justify-between p-3.5 text-gray-900 font-semibold rounded-xl hover:bg-primary/5 transition-all group"
                           >
-                            <span className="group-hover:text-primary transition-colors duration-300">
+                            <span className="group-hover:text-primary">
                               {link.name}
                             </span>
                             <ChevronDown
-                              className={`w-5 h-5 transition-all duration-300 group-hover:text-primary ${
+                              className={`w-5 h-5 transition-all group-hover:text-primary ${
                                 activeDropdown === link.name ? "rotate-180" : ""
                               }`}
                             />
                           </motion.button>
+
                           <AnimatePresence>
                             {activeDropdown === link.name && (
                               <motion.div
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: "auto", opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
-                                transition={{
-                                  duration: 0.3,
-                                  ease: "easeInOut",
-                                }}
                                 className="overflow-hidden"
                               >
                                 <div className="pl-4 pr-2 space-y-1 pt-1">
-                                  {link.items.map((item, idx) => (
+                                  {link.items.map((item, j) => (
                                     <Link
-                                      key={idx}
+                                      key={j}
                                       href={item.href}
                                       onClick={() => setIsMobileMenuOpen(false)}
                                     >
                                       <motion.div
                                         whileHover={{ x: 4 }}
                                         whileTap={{ scale: 0.98 }}
-                                        className="block p-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-200 text-sm font-medium"
+                                        className="block p-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-xl text-sm font-medium"
                                       >
                                         {item.name}
                                       </motion.div>
@@ -635,14 +676,14 @@ export default function Navbar() {
                           <motion.div
                             whileHover={{ x: 4 }}
                             whileTap={{ scale: 0.98 }}
-                            className="flex items-center gap-3 p-3.5 text-gray-900 font-semibold rounded-xl hover:bg-linear-to-r hover:from-primary/5 hover:to-transparent transition-all duration-300 group"
+                            className="flex items-center gap-3 p-3.5 text-gray-900 font-semibold rounded-xl hover:bg-primary/5 transition-all group"
                           >
                             {link.icon && (
-                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20">
                                 <link.icon className="w-4 h-4 text-primary" />
                               </div>
                             )}
-                            <span className="group-hover:text-primary transition-colors duration-300">
+                            <span className="group-hover:text-primary">
                               {link.name}
                             </span>
                           </motion.div>
@@ -652,18 +693,75 @@ export default function Navbar() {
                   ))}
                 </motion.div>
 
-                {/* Additional Links */}
+                {/* Auth / Account links (mobile) */}
+                {isAuthenticated && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-2 pt-6 border-t border-gray-200"
+                  >
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-4 flex items-center gap-2">
+                      <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent" />
+                      <span>Account</span>
+                      <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent" />
+                    </h3>
+
+                    {getUserRole() === "customer" && (
+                      <Link
+                        href="/account"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <motion.div
+                          whileHover={{ x: 4 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="block p-3.5 text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl font-medium"
+                        >
+                          My Account
+                        </motion.div>
+                      </Link>
+                    )}
+
+                    {getUserRole() === "vendor" && (
+                      <Link
+                        href="/vendor/dashboard"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <motion.div
+                          whileHover={{ x: 4 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="block p-3.5 text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl font-medium"
+                        >
+                          My Dashboard
+                        </motion.div>
+                      </Link>
+                    )}
+
+                    <motion.div
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleSignOut}
+                      className="block p-3.5 text-red-600 hover:bg-red-50 rounded-xl font-medium cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </span>
+                    </motion.div>
+                  </motion.div>
+                )}
+
+                {/* Extra links */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.85 }}
                   className="space-y-2 pt-6 border-t border-gray-200"
                 >
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-4 flex items-center gap-2">
-                    <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent" />
                     <span>More</span>
-                    <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent" />
                   </h3>
+
                   <Link
                     href="/orders"
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -671,20 +769,22 @@ export default function Navbar() {
                     <motion.div
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
-                      className="block p-3.5 text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-300 font-medium"
+                      className="block p-3.5 text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl font-medium"
                     >
                       My Orders
                     </motion.div>
                   </Link>
+
                   <Link href="/help" onClick={() => setIsMobileMenuOpen(false)}>
                     <motion.div
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
-                      className="block p-3.5 text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-300 font-medium"
+                      className="block p-3.5 text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl font-medium"
                     >
                       Help Center
                     </motion.div>
                   </Link>
+
                   <Link
                     href="/register"
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -692,7 +792,7 @@ export default function Navbar() {
                     <motion.div
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
-                      className="block p-3.5 text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-300 font-medium"
+                      className="block p-3.5 text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl font-medium"
                     >
                       Become a Vendor
                     </motion.div>
