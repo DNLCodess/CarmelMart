@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const FLW_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
 
 export async function POST(request) {
   try {
+    // Require authentication — prevents unauthenticated transaction probing
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const { transaction_id } = await request.json();
 
     if (!transaction_id) {

@@ -1,115 +1,63 @@
-// "use client";
+import { requireAdmin } from "@/lib/session";
+import { createAdminClient } from "@/lib/supabase/admin";
+import AdminDashboardClient from "./AdminDashboardClient";
 
-// import { useEffect, useState } from "react";
-// import { useRouter } from "next/navigation";
-// import { motion } from "framer-motion";
-// import { LogOut, Shield, Settings } from "lucide-react";
-// import { useAuthStore } from "@/store/authStore";
-// import { useUserStore } from "@/store/userStore";
-// import { authHelpers, dbHelpers } from "@/lib/supabase";
-// import AdminDashboard from "@/components/Dashboard/AdminDashboard";
-// import Button from "@/components/ui/button";
-// import toast from "react-hot-toast";
+export const metadata = { title: "Admin Dashboard — CarmelMart" };
 
-// export default function AdminDashboardPage() {
-//   const router = useRouter();
-//   const { user, isAuthenticated, logout } = useAuthStore();
-//   const { profile, setProfile } = useUserStore();
-//   const [isLoading, setIsLoading] = useState(true);
+async function getAdminStats() {
+  const admin = createAdminClient();
 
-//   useEffect(() => {
-//     checkAuth();
-//   }, []);
+  const [
+    { count: totalUsers },
+    { count: totalVendors },
+    { count: pendingKyc },
+    { count: totalProducts },
+    { count: totalOrders },
+    { count: pendingOrders },
+    { data: revenueData },
+    { data: recentUsers },
+    { data: recentVendors },
+  ] = await Promise.all([
+    admin.from("users").select("*", { count: "exact", head: true }),
+    admin.from("users").select("*", { count: "exact", head: true }).eq("role", "vendor"),
+    admin.from("vendors").select("*", { count: "exact", head: true }).eq("verification_status", "pending"),
+    admin.from("products").select("*", { count: "exact", head: true }).eq("status", "active"),
+    admin.from("orders").select("*", { count: "exact", head: true }),
+    admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
+    admin.from("payments").select("amount").eq("status", "completed"),
+    admin.from("users")
+      .select("id, email, role, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5),
+    admin.from("vendors")
+      .select("id, business_name, verification_status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ]);
 
-//   const checkAuth = async () => {
-//     try {
-//       const { user: currentUser } = await authHelpers.getUser();
+  const gmv = (revenueData || []).reduce((s, p) => s + (p.amount || 0), 0);
 
-//       if (!currentUser) {
-//         router.push("/auth/login");
-//         return;
-//       }
+  return {
+    totalUsers:    totalUsers ?? 0,
+    totalVendors:  totalVendors ?? 0,
+    pendingKyc:    pendingKyc ?? 0,
+    totalProducts: totalProducts ?? 0,
+    totalOrders:   totalOrders ?? 0,
+    pendingOrders: pendingOrders ?? 0,
+    gmv,
+    recentUsers:   recentUsers ?? [],
+    recentVendors: recentVendors ?? [],
+  };
+}
 
-//       const { data: profileData } = await dbHelpers.getUserProfile(
-//         currentUser.id
-//       );
+export default async function AdminDashboardPage() {
+  const admin = await requireAdmin();
 
-//       if (!profileData || profileData.role !== "admin") {
-//         toast.error("Access denied - Admin only");
-//         router.push("/");
-//         return;
-//       }
+  const adminName = admin.user_metadata?.first_name
+    ? `${admin.user_metadata.first_name} ${admin.user_metadata.last_name ?? ""}`.trim()
+    : admin.email?.split("@")[0] ?? "Admin";
 
-//       setProfile(profileData);
-//     } catch (error) {
-//       console.error("Auth check failed:", error);
-//       router.push("/auth/login");
-//     } finally {
-//       setIsLoading(false);
-//     }
-//     RetryADContinuejavascript;
-//   };
+  const stats = await getAdminStats();
 
-//   const handleLogout = async () => {
-//     await authHelpers.signOut();
-//     logout();
-//     toast.success("Logged out successfully");
-//     router.push("/");
-//   };
-
-//   if (isLoading) {
-//     return (
-//       <div className="min-h-screen flex items-center justify-center">
-//         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[--color-primary]"></div>
-//       </div>
-//     );
-//   }
-
-//   if (!user || !profile) {
-//     return null;
-//   }
-
-//   return (
-//     <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-purple-50">
-//       {/* Header */}
-//       <header className="glass border-b border-white/20 sticky top-0 z-40 backdrop-blur-xl">
-//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-//           <div className="flex items-center justify-between h-20">
-//             <div className="flex items-center gap-3">
-//               <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
-//                 <Shield className="w-6 h-6 text-white" />
-//               </div>
-//               <div>
-//                 <h1 className="text-xl font-bold gradient-text">CarmelMart</h1>
-//                 <p className="text-xs text-gray-600">Admin Dashboard</p>
-//               </div>
-//             </div>
-
-//             <div className="flex items-center gap-4">
-//               <Button variant="ghost" size="sm">
-//                 <Settings className="w-5 h-5" />
-//                 <span className="hidden sm:inline">Settings</span>
-//               </Button>
-//               <Button variant="outline" size="sm" onClick={handleLogout}>
-//                 <LogOut className="w-5 h-5" />
-//                 <span className="hidden sm:inline">Logout</span>
-//               </Button>
-//             </div>
-//           </div>
-//         </div>
-//       </header>
-
-//       {/* Main Content */}
-//       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-//         <AdminDashboard user={user} />
-//       </main>
-//     </div>
-//   );
-// }
-import React from "react";
-
-const page = () => {
-  return <div></div>;
-};
-
-export default page;
+  return <AdminDashboardClient stats={stats} adminName={adminName} />;
+}

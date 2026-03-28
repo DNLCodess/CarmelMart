@@ -1,25 +1,34 @@
 @import "tailwindcss";
 
-/* --- Define theme colors and fonts --- */
+/* Enable class-based dark mode — dark: utilities activate when an ancestor has class="dark" */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Theme ──────────────────────────────────────────────────────────────────── */
 @theme {
-  /* Colors */
-  --color-primary: #560238;
-  --color-accent: #f49238;
-  --color-primary-dark: #3d0127;
-  --color-primary-light: #7a0350;
+  /* Brand colors */
+  --color-primary: #560238; /* Deep maroon — primary actions, nav */
+  --color-primary-dark: #3d0127; /* Hover state for primary */
+  --color-primary-light: #7a0350; /* Light variant */
+  --color-accent: #f49238; /* Amber orange — highlights, badges */
   --color-accent-light: #ffa659;
   --color-accent-dark: #d67620;
 
-  /* Font family */
+  /* Font */
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 }
 
-/* --- Base styles --- */
+/* ── Typography scale ────────────────────────────────────────────────────────
+   Hierarchy: gray-900 (headings/strong) → gray-700 (body) → gray-500 (meta)
+              → gray-400 (placeholder/disabled only)
+   Rule: NEVER use text-accent (#f49238) on white/light backgrounds for readable
+         text — contrast ratio is 2.9:1, failing WCAG AA. Use it only for icons,
+         decorative elements, or on dark backgrounds.
+──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
 @layer base {
-  input,
-  textarea,
-  select {
-    @apply border-gray-200;
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
@@ -27,12 +36,11 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-size: 15px; /* base — slightly larger than default 14px */
+    line-height: 1.6;
   }
 
-  html {
-    scroll-behavior: smooth;
-  }
-
+  /* Headings — tight tracking, bold weight */
   h1,
   h2,
   h3,
@@ -40,54 +48,189 @@
   h5,
   h6 {
     @apply font-bold;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+  h2 {
+    font-size: 1.5rem;
+  }
+  h3 {
+    font-size: 1.25rem;
+  }
+  h4 {
+    font-size: 1.125rem;
+  }
+
+  /* Paragraph rhythm */
+  p {
+    line-height: 1.65;
+  }
+
+  /* Form elements — consistent baseline */
+  input,
+  textarea,
+  select {
+    @apply border-gray-200;
+    font-size: 0.9375rem; /* 15px */
+  }
+
+  /* Links — primary color, no underline by default */
+  a {
+    @apply no-underline;
+    transition: opacity 0.15s;
+  }
+  a:hover {
+    opacity: 0.85;
   }
 }
 
-/* --- Utilities --- */
+/* ── Utility classes ─────────────────────────────────────────────────────── */
 @layer utilities {
+  /* Gradients */
   .gradient-primary {
     @apply bg-linear-to-br from-primary to-primary-dark;
   }
-
   .gradient-accent {
     @apply bg-linear-to-br from-accent to-accent-dark;
   }
-
+  /* Gradient text — for hero/display text only */
   .gradient-text {
-    @apply bg-linear-to-r from-primary via-primary-light to-accent bg-clip-text text-transparent;
+    background: linear-gradient(
+      135deg,
+      var(--color-primary) 0%,
+      var(--color-primary-light) 50%,
+      var(--color-accent) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Typography shortcuts */
+  .text-body {
+    @apply text-gray-700 text-[0.9375rem] leading-relaxed;
+  }
+  .text-meta {
+    @apply text-gray-500 text-xs;
+  }
+  .text-label {
+    @apply text-xs font-bold text-gray-500 uppercase tracking-widest;
+  }
+
+  /* Surface / elevation */
+  .surface {
+    @apply bg-white rounded-2xl border border-gray-100;
+  }
+  .surface-sm {
+    @apply bg-white rounded-xl border border-gray-100;
+  }
+
+  /* Thin scrollbar for sidebars */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #e5e7eb transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 4px;
   }
 }
 
-/* --- Scrollbar --- */
+/* ── Scrollbar (global) ──────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
-
 ::-webkit-scrollbar-track {
-  @apply bg-gray-50;
+  background: #f9fafb;
 }
-
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
-  transition: background-color 0.2s;
+  background: #d1d5db;
+  border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  background: #9ca3af;
 }
 
-/* --- Selection --- */
+/* ── Selection ───────────────────────────────────────────────────────────── */
 ::selection {
-  @apply bg-primary/10 text-primary;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
 }
-
 ::-moz-selection {
-  @apply bg-primary/10 text-primary;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
 }
 
-/* --- Focus --- */
+/* ── Focus ring ──────────────────────────────────────────────────────────── */
+/* Improved contrast: /40 opacity instead of /20 */
 *:focus-visible {
-  @apply outline-none ring-2 ring-primary/20 ring-offset-2;
+  outline: none;
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+/* ── Button base reset ───────────────────────────────────────────────────── */
+button {
+  cursor: pointer;
+}
+
+/* ── Recharts tooltip override ───────────────────────────────────────────── */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  border-radius: 12px !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.1) !important;
+  font-size: 12px !important;
+}
+
+/* ── Product image placeholder ───────────────────────────────────────────── */
+.img-placeholder {
+  @apply bg-gray-100 animate-pulse;
+}
+
+/* ── Float animations (replaces Framer Motion repeat:Infinity) ───────────── */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+@keyframes float-reverse {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(15px);
+  }
+}
+@keyframes float-sm {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+.animate-float-reverse {
+  animation: float-reverse 5s ease-in-out 0.5s infinite;
+}
+.animate-float-sm {
+  animation: float-sm 4s ease-in-out infinite;
 }

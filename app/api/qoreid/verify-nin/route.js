@@ -1,5 +1,24 @@
+import { createClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rateLimiter";
+
 export async function POST(request) {
   try {
+    // Require authentication — prevents unauthenticated credit consumption
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limit: 5 NIN verifications per user per hour
+    const { allowed, retryAfter } = rateLimit(`nin:${user.id}`, { limit: 5, windowMs: 60 * 60 * 1000 });
+    if (!allowed) {
+      return Response.json(
+        { success: false, error: "Too many verification attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } }
+      );
+    }
+
     // Parse request body
     const { nin, firstName, lastName } = await request.json();
 

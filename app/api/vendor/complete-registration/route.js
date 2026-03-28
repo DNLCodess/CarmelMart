@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const REFERRAL_BONUS = 500;
 const VERIFICATION_FEE = 5000;
@@ -10,11 +11,18 @@ const VERIFICATION_FEE = 5000;
  */
 export async function POST(request) {
   try {
-    const { userId, transactionId, verificationData, referralCode } =
-      await request.json();
+    // Authenticate via session — never trust userId from the request body
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.id;
+
+    const { transactionId, verificationData, referralCode } = await request.json();
 
     // Validate required fields
-    if (!userId || !transactionId || !verificationData) {
+    if (!transactionId || !verificationData) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
         { status: 400 }

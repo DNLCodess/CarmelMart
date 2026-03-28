@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * API Route: POST /api/vendor/verify-nin
@@ -6,10 +7,18 @@ import { NextResponse } from "next/server";
  */
 export async function POST(request) {
   try {
-    const { userId, ninNumber, firstName, lastName } = await request.json();
+    // Authenticate via session — never trust userId from the request body
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.id;
+
+    const { ninNumber, firstName, lastName } = await request.json();
 
     // Validate required fields
-    if (!userId || !ninNumber || !firstName || !lastName) {
+    if (!ninNumber || !firstName || !lastName) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
         { status: 400 }

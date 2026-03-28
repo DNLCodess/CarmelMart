@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import {
-  TrendingUp,
   ArrowRight,
   Star,
   ChevronLeft,
@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 const Button = ({
   children,
@@ -23,11 +24,11 @@ const Button = ({
     "inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
     primary:
-      "gradient-primary text-white hover:shadow-xl hover:shadow-[--color-primary]/40 hover:-translate-y-0.5",
+      "gradient-primary text-white hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5",
     outline:
-      "border-2 border-white text-white hover:bg-white hover:text-[--color-primary] backdrop-blur-sm",
+      "border-2 border-white text-white hover:bg-white hover:text-primary backdrop-blur-sm",
     white:
-      "bg-accent 5text-[--color-primary] hover:bg-white shadow-lg hover:shadow-xl backdrop-blur-sm",
+      "bg-accent text-white hover:bg-white hover:text-primary shadow-lg hover:shadow-xl backdrop-blur-sm",
   };
   const sizes = {
     lg: "px-8 py-4 text-base",
@@ -64,7 +65,8 @@ const heroSlides = [
     titleAccent: "Affordability",
     description:
       "Experience premium quality without breaking the bank. Curated selections from top-rated vendors.",
-    stats: { vendors: "850+", products: "12K+", satisfaction: "98%" },
+    stats: { vendors: "320+", products: "4.5K+", satisfaction: "99%" },
+    statLabels: { vendors: "Premium Vendors", products: "Luxury Items", satisfaction: "Satisfaction" },
   },
   {
     id: 3,
@@ -75,7 +77,8 @@ const heroSlides = [
     titleAccent: "Your Choice",
     description:
       "From fashion to electronics, find everything you need in one trusted marketplace.",
-    stats: { vendors: "850+", products: "12K+", satisfaction: "98%" },
+    stats: { vendors: "45K+", products: "8K+", satisfaction: "4.9★" },
+    statLabels: { vendors: "Happy Customers", products: "Products", satisfaction: "Avg Rating" },
   },
 ];
 
@@ -104,15 +107,39 @@ export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
+  // Fetch DB banners — fall back to static slides if empty/unavailable
+  const { data: bannerData } = useQuery({
+    queryKey: ["hero-banners"],
+    queryFn: () => fetch("/api/banners").then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const slides = useMemo(() => {
+    const db = bannerData?.banners ?? [];
+    if (db.length > 0) {
+      return db.map((b) => ({
+        id:           b.id,
+        image:        b.image_url,
+        badge:        b.badge_text || "Featured",
+        title:        b.title,
+        titleAccent:  b.subtitle || "",
+        description:  b.description || "",
+        ctaLabel:     b.cta_label || "Shop Now",
+        ctaHref:      b.cta_href  || "/shop",
+        stats:        { vendors: "850+", products: "12K+", satisfaction: "98%" },
+      }));
+    }
+    return heroSlides.map((s) => ({ ...s, ctaLabel: "Explore Products", ctaHref: "/shop" }));
+  }, [bannerData]);
+
   useEffect(() => {
     if (!isAutoPlaying) return;
-
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
-
     return () => clearInterval(interval);
-  }, [isAutoPlaying]);
+  }, [isAutoPlaying, slides.length]);
 
   const goToSlide = (index) => {
     setCurrentSlide(index);
@@ -120,18 +147,16 @@ export default function HeroSection() {
   };
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
     setIsAutoPlaying(false);
   };
 
   const prevSlide = () => {
-    setCurrentSlide(
-      (prev) => (prev - 1 + heroSlides.length) % heroSlides.length
-    );
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
     setIsAutoPlaying(false);
   };
 
-  const currentHero = heroSlides[currentSlide];
+  const currentHero = slides[Math.min(currentSlide, slides.length - 1)] ?? slides[0];
 
   return (
     <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -147,10 +172,12 @@ export default function HeroSection() {
         >
           <Image
             src={currentHero.image}
-            alt="Hero Background"
+            alt={`${currentHero.title} ${currentHero.titleAccent}`}
             fill
             className="object-cover"
             priority
+            placeholder="blur"
+            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
           />
           {/* Multi-layer Gradient Overlay for Perfect Text Visibility */}
           <div className="absolute inset-0 bg-linear-to-r from-slate-900/95 via-slate-900/85 to-slate-900/70" />
@@ -160,8 +187,8 @@ export default function HeroSection() {
       </AnimatePresence>
 
       {/* Ambient Glow Effects */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[--color-primary]/20 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[--color-accent]/20 rounded-full blur-3xl animate-pulse delay-1000" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse delay-1000" />
 
       {/* Navigation Arrows */}
       <button
@@ -198,7 +225,7 @@ export default function HeroSection() {
                 transition={{ delay: 0.2 }}
                 className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full mb-8 border border-white/20"
               >
-                <Sparkles className="w-4 h-4 text-[--color-accent]" />
+                <Sparkles className="w-4 h-4 text-accent" />
                 <span className="text-sm font-semibold text-white">
                   {currentHero.badge}
                 </span>
@@ -223,21 +250,17 @@ export default function HeroSection() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col items-center sm:flex-row gap-4 mb-16">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className=" w-[75%] md:w-full  sm:w-auto"
-                >
-                  Explore Products
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-                <Button
-                  variant="white"
-                  size="lg"
-                  className="w-[75%] md:w-full sm:w-auto"
-                >
-                  Browse Vendors
-                </Button>
+                <Link href={currentHero.ctaHref} className="w-[75%] sm:w-auto">
+                  <Button variant="primary" size="lg" className="w-full">
+                    {currentHero.ctaLabel}
+                    <ArrowRight className="w-5 h-5" />
+                  </Button>
+                </Link>
+                <Link href="/vendors" className="w-[75%] sm:w-auto">
+                  <Button variant="white" size="lg" className="w-full">
+                    Browse Vendors
+                  </Button>
+                </Link>
               </div>
 
               {/* Trust Indicators with Glass Effect */}
@@ -246,19 +269,25 @@ export default function HeroSection() {
                   <div className="text-3xl font-bold text-white mb-1">
                     {currentHero.stats.vendors}
                   </div>
-                  <div className="text-sm text-gray-400">Verified Vendors</div>
+                  <div className="text-sm text-gray-400">
+                    {currentHero.statLabels?.vendors ?? "Verified Vendors"}
+                  </div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-white mb-1">
                     {currentHero.stats.products}
                   </div>
-                  <div className="text-sm text-gray-400">Products</div>
+                  <div className="text-sm text-gray-400">
+                    {currentHero.statLabels?.products ?? "Products"}
+                  </div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-white mb-1">
                     {currentHero.stats.satisfaction}
                   </div>
-                  <div className="text-sm text-gray-400">Satisfaction</div>
+                  <div className="text-sm text-gray-400">
+                    {currentHero.statLabels?.satisfaction ?? "Satisfaction"}
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -272,16 +301,14 @@ export default function HeroSection() {
             className="hidden lg:block relative h-[600px]"
           >
             {/* Main Product Card */}
-            <motion.div
-              animate={{ y: [0, -20, 0] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-0 right-0 w-80 h-96 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm border border-white/10 transform rotate-3 hover:rotate-0 transition-transform duration-500 group"
-            >
+            <div className="animate-float absolute top-0 right-0 w-80 h-96 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm border border-white/10 transform rotate-3 hover:rotate-0 transition-transform duration-500 group">
               <Image
                 src={featuredProducts[0].image}
                 alt={featuredProducts[0].name}
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-700"
+                placeholder="blur"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
@@ -303,24 +330,17 @@ export default function HeroSection() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Secondary Product Card */}
-            <motion.div
-              animate={{ y: [0, 15, 0] }}
-              transition={{
-                duration: 5,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 0.5,
-              }}
-              className="absolute bottom-0 left-0 w-64 h-80 rounded-3xl overflow-hidden shadow-xl backdrop-blur-sm border border-white/10 transform -rotate-6 hover:rotate-0 transition-transform duration-500 group"
-            >
+            <div className="animate-float-reverse absolute bottom-0 left-0 w-64 h-80 rounded-3xl overflow-hidden shadow-xl backdrop-blur-sm border border-white/10 transform -rotate-6 hover:rotate-0 transition-transform duration-500 group">
               <Image
                 src={featuredProducts[1].image}
                 alt={featuredProducts[1].name}
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-700"
+                placeholder="blur"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
@@ -334,14 +354,10 @@ export default function HeroSection() {
                   ₦{featuredProducts[1].price.toLocaleString()}
                 </span>
               </div>
-            </motion.div>
+            </div>
 
             {/* Floating Stats Card */}
-            <motion.div
-              animate={{ y: [0, -15, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-1/2 left-0 bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-52 border border-white/20"
-            >
+            <div className="animate-float-sm absolute top-1/2 left-0 bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-52 border border-white/20">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full gradient-accent flex items-center justify-center shadow-lg">
                   <span className="text-2xl text-white">✓</span>
@@ -351,19 +367,22 @@ export default function HeroSection() {
                   <div className="text-xs text-gray-400">Happy Customers</div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </motion.div>
         </div>
       </div>
 
       {/* Slide Indicators */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3">
-        {heroSlides.map((_, index) => (
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3" role="tablist" aria-label="Hero slides">
+        {slides.map((_, index) => (
           <button
             key={index}
+            role="tab"
             onClick={() => goToSlide(index)}
-            className="group relative"
+            aria-selected={index === currentSlide}
+            aria-current={index === currentSlide ? "true" : undefined}
             aria-label={`Go to slide ${index + 1}`}
+            className="group relative focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-full"
           >
             <div
               className={`h-1.5 rounded-full transition-all duration-300 ${

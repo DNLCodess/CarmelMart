@@ -98,7 +98,7 @@ const Input = ({
     <div className="space-y-2">
       <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
         {label}
-        {required && <span className="text-accent">*</span>}
+        {required && <span className="text-red-600">*</span>}
       </label>
       <div className="relative">
         {Icon && (

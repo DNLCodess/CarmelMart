@@ -39,8 +39,8 @@ const Input = forwardRef(
             ${Icon ? "pl-12" : ""}
             ${
               error
-                ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                : "border-gray-200 focus:border-[--color-primary] focus:ring-[--color-primary]/20"
+                ? "border-red-300 focus:border-red-500 focus:ring-red-500/40"
+                : "border-gray-200 focus:border-primary focus:ring-primary/50"
             }
             focus:outline-none focus:ring-4
             placeholder:text-gray-400

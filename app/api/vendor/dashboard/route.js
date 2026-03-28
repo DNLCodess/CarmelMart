@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * API Route: GET /api/vendor/dashboard
@@ -8,7 +9,7 @@ export async function GET(request) {
   try {
     // Get vendor ID from session/auth
     // Replace with your actual auth implementation
-    const vendorId = await getVendorIdFromSession(request);
+    const vendorId = await getVendorIdFromSession();
 
     if (!vendorId) {
       return NextResponse.json(
@@ -65,17 +66,28 @@ export async function GET(request) {
 }
 
 /**
- * Get vendor ID from session
+ * Get vendor ID from session — reads HttpOnly cookie via Supabase SSR client.
+ * Returns null if unauthenticated or user is not a vendor.
  */
-async function getVendorIdFromSession(request) {
-  // Implement your auth logic here
-  // Example using next-auth:
-  // const session = await getServerSession(authOptions);
-  // if (!session?.user?.id) return null;
-  // return session.user.id;
+async function getVendorIdFromSession() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  // For now, return mock ID
-  return "vendor_123";
+  if (error || !user) return null;
+
+  // Confirm the user has the vendor role in the DB
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "vendor") return null;
+
+  return user.id;
 }
 
 /**

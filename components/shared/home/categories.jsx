@@ -183,15 +183,14 @@ export default function CategoriesSection() {
           transition={{ delay: 0.4, duration: 0.5 }}
           className="text-center mt-12"
         >
-          <Link href="/categories">
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-8 py-3.5 bg-gradient-to-r from-primary to-primary-dark text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 ring-2 ring-primary/10 hover:ring-primary/30"
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.98 }} className="inline-block">
+            <Link
+              href="/categories"
+              className="inline-block px-8 py-3.5 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 ring-2 ring-primary/10 hover:ring-primary/30"
             >
               View All Categories
-            </motion.button>
-          </Link>
+            </Link>
+          </motion.div>
         </motion.div>
       </div>
     </section>

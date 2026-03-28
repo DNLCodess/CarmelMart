@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -11,7 +12,6 @@ import {
   X,
   ChevronDown,
   TrendingUp,
-  Sparkles,
   Tag,
   LogOut,
 } from "lucide-react";
@@ -19,50 +19,42 @@ import Link from "next/link";
 import Image from "next/image";
 import Button from "@/components/ui/button";
 
-import { useAuthStore } from "@/store/authStore";
-import { authHelpers, dbHelpers } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
+import { useCartStore } from "@/store/authStore";
+import { useUIStore } from "@/store/userStore";
+import { logoutAction } from "@/app/actions/auth";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [hoveredLink, setHoveredLink] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
 
-  // ---- Auth -------------------------------------------------
-  const { user, isAuthenticated, isLoading, logout } = useAuthStore();
+  // ---- Auth — from AuthProvider via React Query ---------------
+  const router = useRouter();
+  const desktopSearchRef = useRef(null);
+  const mobileSearchRef  = useRef(null);
 
-  // Initialize auth on mount and fetch user profile
-  useEffect(() => {
-    const initAuth = async () => {
-      const { session } = await authHelpers.getSession();
-      const { user: supabaseUser } = await authHelpers.getUser();
-      console.log(supabaseUser);
+  const handleSearchSubmit = useCallback((e) => {
+    e.preventDefault();
+    const q = (e.currentTarget.querySelector("input[type='search']")?.value ?? "").trim();
+    if (q) router.push(`/search?q=${encodeURIComponent(q)}`);
+    else   router.push("/search");
+    setIsMobileMenuOpen(false);
+  }, [router]);
 
-      if (session && supabaseUser) {
-        useAuthStore.getState().setUser(supabaseUser);
-        useAuthStore.getState().setSession(session);
-
-        // Fetch user profile from database to get role
-        const { data: profile, error } = await dbHelpers.getUserProfile(
-          supabaseUser.id
-        );
-
-        if (!error && profile) {
-          setUserProfile(profile);
-        }
-      }
-      useAuthStore.getState().setLoading(false);
-    };
-    initAuth();
-  }, []);
+  const { user, role, isAuthenticated, isLoading, isVendor, isCustomer } = useAuth();
+  const queryClient = useQueryClient();
+  const cartCount = useCartStore((s) => s.itemCount);
+  const wishlistCount = useUIStore((s) => s.wishlist.length);
+  const displayRole = role ? role.charAt(0).toUpperCase() + role.slice(1) : "Customer";
 
   const handleSignOut = useCallback(async () => {
-    await authHelpers.signOut();
-    logout(); // clear Zustand
-    setUserProfile(null); // clear profile
+    await logoutAction();
+    queryClient.invalidateQueries({ queryKey: ["auth-user"] });
     setIsMobileMenuOpen(false);
-  }, [logout]);
+  }, [queryClient]);
 
   // ---- Scroll ------------------------------------------------
   useEffect(() => {
@@ -71,9 +63,15 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ---- Body overflow for mobile menu -------------------------
+  // ---- Body overflow + Escape key for mobile menu ------------
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? "hidden" : "unset";
+
+    const handleEscape = (e) => {
+      if (e.key === "Escape") setIsMobileMenuOpen(false);
+    };
+    if (isMobileMenuOpen) window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
   }, [isMobileMenuOpen]);
 
   // ---- Nav data ---------------------------------------------
@@ -90,26 +88,6 @@ export default function Navbar() {
     { name: "Categories", items: categories },
     { name: "Deals", href: "/products?category=deals", icon: Tag },
   ];
-
-  // Get user role from database profile (primary source) or fallback to user metadata
-  const getUserRole = useCallback(() => {
-    // Priority 1: Database profile (most reliable)
-    if (userProfile?.role) {
-      return userProfile.role;
-    }
-
-    // Priority 2: User metadata (fallback)
-    if (user?.user_metadata?.role) {
-      return user.user_metadata.role;
-    }
-
-    // Priority 3: Direct role property (fallback)
-    if (user?.role) {
-      return user.role;
-    }
-
-    return null;
-  }, [userProfile, user]);
 
   // ---- Conditional right-side buttons -----------------------
   const renderAccountSection = () => {
@@ -139,10 +117,6 @@ export default function Navbar() {
     }
 
     // ---- Logged-in -------------------------------------------------
-    const role = getUserRole();
-    const isCustomer = role === "customer";
-    const isVendor = role === "vendor";
-    console.log(userProfile);
     return (
       <div className="hidden lg:flex items-center gap-2">
         {isCustomer && (
@@ -158,7 +132,7 @@ export default function Navbar() {
           </Link>
         )}
         {isVendor && (
-          <Link href="/my-account">
+          <Link href="/vendor/dashboard">
             <Button
               variant="outline"
               size="md"
@@ -183,12 +157,6 @@ export default function Navbar() {
     );
   };
 
-  // Get display role for mobile header
-  const getDisplayRole = () => {
-    const role = getUserRole();
-    return role ? role.charAt(0).toUpperCase() + role.slice(1) : "Customer";
-  };
-
   return (
     <>
       {/* ==================== MAIN NAVBAR ==================== */}
@@ -209,7 +177,7 @@ export default function Navbar() {
             {/* ---- Logo ---- */}
             <div className="flex items-center gap-8">
               <Link href="/" className="flex items-center gap-3 group">
-                <div className="relative w-32 h-32 lg:w-44 lg:h-44 transition-transform duration-300 group-hover:scale-105">
+                <div className="relative w-32 h-10 transition-transform duration-300 group-hover:scale-105">
                   <Image
                     src="/logo-black.png"
                     alt="CarmelMart"
@@ -342,31 +310,40 @@ export default function Navbar() {
             </div>
 
             {/* ---- Search (Desktop) ---- */}
-            <div className="hidden md:flex flex-1 max-w-2xl mx-8">
+            <form onSubmit={handleSearchSubmit} className="hidden md:flex flex-1 max-w-2xl mx-8">
               <div className="relative w-full group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary pointer-events-none" />
                 <input
-                  type="text"
+                  ref={desktopSearchRef}
+                  type="search"
                   placeholder="Search products, brands, categories..."
                   className="w-full pl-12 pr-4 py-2.5 lg:py-3 rounded-full border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none bg-gray-50/50 focus:bg-white hover:bg-white transition-all"
                 />
               </div>
-            </div>
+            </form>
 
             {/* ---- Right Actions ---- */}
             <div className="flex items-center gap-2 lg:gap-3">
               {/* Wishlist */}
-              <Link href="/wishlist" className="hidden md:block">
-                <motion.button className="relative p-2 lg:p-2.5 text-gray-700 rounded-full cursor-pointer group">
+              <Link href="/wishlist" className="hidden md:block" aria-label={`Wishlist${wishlistCount > 0 ? `, ${wishlistCount} items` : ""}`}>
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="relative p-2 lg:p-2.5 text-gray-700 rounded-full cursor-pointer group"
+                >
                   <motion.div className="absolute inset-0 bg-primary/5 rounded-full" />
                   <Heart className="relative z-10 w-5 h-5 lg:w-6 lg:h-6 group-hover:text-primary" />
-                  <span className="absolute top-0 right-0 w-2 h-2 bg-accent rounded-full ring-2 ring-white" />
-                </motion.button>
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 bg-accent text-white text-xs font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </motion.div>
               </Link>
 
               {/* Cart */}
-              <Link href="/cart">
-                <motion.button
+              <Link href="/cart" aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ""}`}>
+                <motion.div
                   className="relative p-2 lg:p-2.5 text-gray-700 rounded-full group cursor-pointer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
@@ -377,10 +354,12 @@ export default function Navbar() {
                     whileHover={{ scale: 1 }}
                   />
                   <ShoppingBag className="relative z-10 w-5 h-5 lg:w-6 lg:h-6 group-hover:text-primary" />
-                  <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 bg-linear-to-r from-primary to-accent text-white text-xs font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-                    3
-                  </span>
-                </motion.button>
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 bg-linear-to-r from-primary to-accent text-white text-xs font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                      {cartCount}
+                    </span>
+                  )}
+                </motion.div>
               </Link>
 
               {/* ---- Account / Auth Buttons (Desktop) ---- */}
@@ -404,16 +383,17 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Search */}
-          <div className="md:hidden pb-3">
+          <form onSubmit={handleSearchSubmit} className="md:hidden pb-3">
             <div className="relative w-full group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary pointer-events-none" />
               <input
-                type="text"
+                ref={mobileSearchRef}
+                type="search"
                 placeholder="Search products..."
                 className="w-full pl-11 pr-4 py-2.5 rounded-full border border-primary focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none bg-gray-50/50 focus:bg-white"
               />
             </div>
-          </div>
+          </form>
         </div>
       </motion.nav>
 
@@ -430,6 +410,9 @@ export default function Navbar() {
             />
 
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation menu"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -531,10 +514,10 @@ export default function Navbar() {
                       </motion.div>
                       <div>
                         <p className="font-bold text-lg">
-                          {user?.email ?? "User"}
+                          {user?.first_name ? `${user.first_name} ${user.last_name ?? ""}`.trim() : (user?.email ?? "User")}
                         </p>
                         <p className="text-sm opacity-90 capitalize">
-                          {getDisplayRole()}
+                          {displayRole}
                         </p>
                       </div>
                     </div>
@@ -571,7 +554,7 @@ export default function Navbar() {
                         <p className="text-sm font-semibold text-gray-900">
                           Wishlist
                         </p>
-                        <p className="text-xs text-gray-500">0 items</p>
+                        <p className="text-xs text-gray-500">{wishlistCount} {wishlistCount === 1 ? "item" : "items"}</p>
                       </div>
                     </motion.div>
                   </Link>
@@ -584,15 +567,17 @@ export default function Navbar() {
                     >
                       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md relative">
                         <ShoppingBag className="w-5 h-5 text-primary" />
-                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full text-[10px] font-bold text-white flex items-center justify-center">
-                          3
-                        </span>
+                        {cartCount > 0 && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                            {cartCount}
+                          </span>
+                        )}
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-semibold text-gray-900">
                           Cart
                         </p>
-                        <p className="text-xs text-gray-500">3 items</p>
+                        <p className="text-xs text-gray-500">{cartCount} {cartCount === 1 ? "item" : "items"}</p>
                       </div>
                     </motion.div>
                   </Link>
@@ -706,9 +691,9 @@ export default function Navbar() {
                       <div className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 to-transparent" />
                     </h3>
 
-                    {getUserRole() === "customer" && (
+                    {isCustomer && (
                       <Link
-                        href="/account"
+                        href="/my-account"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <motion.div
@@ -721,9 +706,9 @@ export default function Navbar() {
                       </Link>
                     )}
 
-                    {getUserRole() === "vendor" && (
+                    {isVendor && (
                       <Link
-                        href="/my-account"
+                        href="/vendor/dashboard"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <motion.div
