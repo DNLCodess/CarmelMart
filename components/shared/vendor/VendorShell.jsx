@@ -240,7 +240,7 @@ export default function VendorShell({ children }) {
       </aside>
 
       {/* ── Main area ────────────────────────────────────────────────────── */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
+      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen min-w-0">
 
         {/* Top bar */}
         <header className="sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-5 sm:px-8 py-4 flex items-center gap-4">

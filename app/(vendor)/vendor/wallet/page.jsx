@@ -163,7 +163,7 @@ export default function VendorWalletPage() {
       )}
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
           { label: "Total Earned",    value: `₦${(balance * 1.8).toLocaleString()}`, color: "text-green-600"          },
           { label: "Total Withdrawn", value: `₦${(balance * 0.8).toLocaleString()}`, color: "text-primary"  },

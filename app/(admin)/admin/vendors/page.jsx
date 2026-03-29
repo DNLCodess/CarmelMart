@@ -113,14 +113,14 @@ export default function AdminVendorsPage() {
           <h2 className="font-bold text-gray-900 dark:text-gray-100 text-xl">Vendor Management</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{total.toLocaleString()} vendors registered</p>
         </div>
-        <div className="sm:ml-auto relative">
+        <div className="sm:ml-auto relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder="Search by business name…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl w-64 focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+            className="pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
         </div>
       </div>

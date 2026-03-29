@@ -150,10 +150,10 @@ export default function AdminPayoutsPage() {
                 <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
                   <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Vendor</th>
                   <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Bank Account</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reference</th>
+                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Bank Account</th>
+                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Reference</th>
                   <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Requested</th>
+                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Requested</th>
                   {tab === "pending" && (
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Action</th>
                   )}
@@ -167,12 +167,12 @@ export default function AdminPayoutsPage() {
                       <p className="text-xs text-gray-500 dark:text-gray-400">{p.vendor.email}</p>
                     </td>
                     <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">₦{p.amount.toLocaleString()}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-gray-600 dark:text-gray-400">
+                    <td className="px-5 py-4 font-mono text-xs text-gray-600 dark:text-gray-400 hidden md:table-cell">
                       {p.vendor.bankAccount || <span className="text-red-500">No account</span>}
                     </td>
-                    <td className="px-5 py-4 font-mono text-xs text-gray-500 dark:text-gray-400">{p.reference}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-gray-500 dark:text-gray-400 hidden lg:table-cell">{p.reference}</td>
                     <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
-                    <td className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500">{p.createdAt}</td>
+                    <td className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500 hidden lg:table-cell">{p.createdAt}</td>
                     {tab === "pending" && (
                       <td className="px-5 py-4">
                         <button
