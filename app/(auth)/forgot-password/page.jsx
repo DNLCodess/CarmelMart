@@ -5,7 +5,9 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Mail, Lock, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { authHelpers } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
+
+const supabase = createClient();
 
 const Input = ({
   label,
@@ -89,7 +91,9 @@ export default function ForgotPassword() {
     if (!email.includes("@")) return setError("Valid email required");
     setIsLoading(true);
     try {
-      const { error } = await authHelpers.signIn(email, null, {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: null,
         options: { emailRedirectTo: window.location.origin },
       });
       if (error) throw error;
@@ -126,7 +130,7 @@ export default function ForgotPassword() {
       });
       if (error) throw error;
       toast.success("Password reset successfully!");
-      window.location.href = "/auth/login";
+      window.location.href = "/login";
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -161,7 +165,7 @@ export default function ForgotPassword() {
             className="mb-8"
           >
             <a
-              href="/auth/login"
+              href="/login"
               className="inline-flex items-center gap-2 text-gray-600 hover:text-primary"
             >
               <div className="w-10 h-10 rounded-xl bg-white border-2 border-gray-200 flex items-center justify-center">

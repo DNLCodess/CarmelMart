@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button";
-import { useCartStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 
 async function fetchFeatured() {
   const r = await fetch("/api/products?featured=true&limit=8");

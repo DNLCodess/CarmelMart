@@ -7,13 +7,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, SlidersHorizontal, X, Star, ShoppingCart, Heart,
   ChevronDown, Grid3X3, List, ChevronLeft, ChevronRight,
-  CheckCircle, Flame, Tag, Zap, LayoutGrid, Filter,
+  CheckCircle, Flame, Tag, Zap, LayoutGrid, Filter, Eye,
+  Truck, BadgeCheck, Package, Home, ChevronRight as Chevron,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { useCartStore } from "@/store/authStore";
-import { useUIStore } from "@/store/userStore";
+import { useCartStore } from "@/store/cartStore";
+import { useUIStore } from "@/store/uiStore";
 
 // ── Fetchers ─────────────────────────────────────────────────────────────────
 async function fetchProducts(params) {
@@ -31,16 +32,10 @@ async function fetchCategories() {
   return res.json();
 }
 
-async function fetchFeaturedVendors() {
-  const res = await fetch("/api/vendors/featured");
-  if (!res.ok) throw new Error("Failed to fetch vendors");
-  return res.json();
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const SORT_OPTIONS = [
-  { label: "Newest",          value: "newest"     },
   { label: "Most Popular",    value: "popular"    },
+  { label: "Newest",          value: "newest"     },
   { label: "Price: Low–High", value: "price_asc"  },
   { label: "Price: High–Low", value: "price_desc" },
   { label: "Top Rated",       value: "rating"     },
@@ -62,6 +57,9 @@ const RATING_OPTIONS = [
   { label: "3.0 & above", value: 3.0 },
 ];
 
+const CONDITION_OPTIONS = ["All", "New", "Used", "Refurbished"];
+const DELIVERY_OPTIONS  = ["All", "Express (24hrs)", "Standard (2-5 days)", "Free Delivery"];
+
 const PER_PAGE = 12;
 
 function Stars({ rating }) {
@@ -74,8 +72,131 @@ function Stars({ rating }) {
   );
 }
 
+// ── Quick View Modal ──────────────────────────────────────────────────────────
+function QuickViewModal({ product, onClose, onAddToCart, onToggleWishlist, inWishlist }) {
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  const discount = product.salePrice
+    ? Math.round((1 - product.salePrice / product.price) * 100)
+    : null;
+  const price = product.salePrice ?? product.price;
+  const inStock = (product.stock ?? 1) > 0;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ y: "100%", opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: "100%", opacity: 0 }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto"
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 z-10 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors">
+          <X className="w-4 h-4 text-gray-600" />
+        </button>
+
+        <div className="flex flex-col sm:flex-row">
+          {/* Image */}
+          <div className="relative h-64 sm:h-auto sm:w-56 sm:shrink-0 bg-gray-50">
+            {product.image ? (
+              <Image src={product.image} alt={product.name} fill className="object-cover" sizes="(max-width:640px) 100vw, 224px" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Package className="w-12 h-12 text-gray-300" />
+              </div>
+            )}
+            {discount && (
+              <div className="absolute top-3 left-3 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                -{discount}%
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="p-5 flex-1">
+            {product.category && (
+              <p className="text-xs text-primary font-semibold mb-1">{product.category.name}</p>
+            )}
+            <h3 className="text-base font-bold text-gray-900 mb-2 leading-snug">{product.name}</h3>
+
+            {product.vendor && (
+              <div className="flex items-center gap-1 mb-3">
+                <p className="text-xs text-gray-500">{product.vendor.name}</p>
+                {product.vendor.verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-3">
+              <Stars rating={product.avgRating} />
+              <span className="text-xs text-gray-500">({product.reviewCount})</span>
+              {product.soldCount > 0 && <span className="text-xs text-gray-400">· {product.soldCount} sold</span>}
+            </div>
+
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-xl font-bold text-gray-900">₦{price.toLocaleString()}</span>
+              {product.salePrice && (
+                <span className="text-sm text-gray-400 line-through">₦{product.price.toLocaleString()}</span>
+              )}
+            </div>
+
+            {/* Delivery */}
+            <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-1">
+              <Truck className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span>Estimated delivery: <span className="font-semibold text-gray-900">Tomorrow</span></span>
+            </div>
+
+            {/* Stock */}
+            {product.stock > 0 && product.stock <= 10 && (
+              <p className="text-xs text-amber-600 font-semibold mb-3">Only {product.stock} left in stock!</p>
+            )}
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => { onAddToCart(product); onClose(); }}
+                disabled={!inStock}
+                className="flex-1 flex items-center justify-center gap-2 bg-primary text-white text-sm font-bold py-2.5 rounded-full hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+              >
+                <ShoppingCart className="w-4 h-4" /> Add to Cart
+              </button>
+              <button
+                onClick={() => onToggleWishlist(product)}
+                className={`p-2.5 rounded-full border-2 transition-colors ${inWishlist ? "border-red-400 bg-red-50 text-red-500" : "border-gray-200 text-gray-400 hover:text-red-500"}`}
+              >
+                <Heart className={`w-4 h-4 ${inWishlist ? "fill-current" : ""}`} />
+              </button>
+            </div>
+
+            <Link
+              href={`/product/${product.id}`}
+              onClick={onClose}
+              className="block text-center text-xs text-primary font-semibold mt-3 hover:underline"
+            >
+              View full details →
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ── Product Card ──────────────────────────────────────────────────────────────
-function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist }) {
+function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist, onQuickView }) {
   const discount = product.salePrice
     ? Math.round((1 - product.salePrice / product.price) * 100)
     : null;
@@ -100,12 +221,24 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist 
           {product.vendor && (
             <div className="flex items-center gap-1 mb-2">
               <p className="text-xs text-gray-500">{product.vendor.name}</p>
-              {product.vendor.verified && <CheckCircle className="w-3 h-3 text-blue-500" />}
+              {product.vendor.verified && <BadgeCheck className="w-3 h-3 text-blue-500" />}
             </div>
           )}
-          <div className="flex items-center gap-1.5 mb-3">
+          <div className="flex items-center gap-1.5 mb-2">
             <Stars rating={product.avgRating} />
             <span className="text-xs text-gray-500">({product.reviewCount})</span>
+            {product.soldCount > 0 && <span className="text-xs text-gray-400">· {product.soldCount} sold</span>}
+          </div>
+          {/* Delivery badge */}
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Truck className="w-3 h-3" /> Free Delivery
+            </span>
+            {product.stock > 0 && product.stock <= 5 && (
+              <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                Only {product.stock} left
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-lg font-bold text-gray-900">
@@ -120,6 +253,9 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist 
         <div className="flex flex-col gap-2 shrink-0">
           <button onClick={() => onToggleWishlist(product)} className={`p-2 rounded-full border transition-colors ${inWishlist ? "bg-red-50 border-red-200 text-red-500" : "border-gray-200 text-gray-400 hover:text-red-500"}`}>
             <Heart className={`w-4 h-4 ${inWishlist ? "fill-current" : ""}`} />
+          </button>
+          <button onClick={() => onQuickView(product)} className="p-2 rounded-full border border-gray-200 text-gray-400 hover:text-primary hover:border-primary transition-colors">
+            <Eye className="w-4 h-4" />
           </button>
           <button
             onClick={() => onAddToCart(product)}
@@ -144,23 +280,39 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist 
             <Image src={product.image} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
           )}
           {/* Badges */}
-          {product.badge && (
-            <span className={`absolute top-3 left-3 text-xs font-bold px-2.5 py-1 rounded-full ${
-              product.badge.includes("OFF") || product.badge === "Sale"
-                ? "bg-green-500 text-white"
-                : product.badge === "Hot" || product.badge === "Trending"
-                ? "bg-red-500 text-white"
-                : product.badge === "New"
-                ? "bg-blue-500 text-white"
-                : "bg-primary text-white"
-            }`}>
-              {product.badge}
-            </span>
-          )}
+          <div className="absolute top-3 left-3 flex flex-col gap-1">
+            {product.badge && (
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                product.badge.includes("OFF") || product.badge === "Sale" ? "bg-orange-500 text-white"
+                  : product.badge === "Hot" || product.badge === "Trending" ? "bg-red-500 text-white"
+                  : product.badge === "New" ? "bg-blue-500 text-white"
+                  : "bg-primary text-white"
+              }`}>
+                {product.badge}
+              </span>
+            )}
+            {discount && !product.badge && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white">-{discount}%</span>
+            )}
+          </div>
+          {/* Express delivery badge */}
+          <div className="absolute top-3 right-10">
+            {product.price >= 10000 && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500 text-white">FREE</span>
+            )}
+          </div>
           {/* Out of stock overlay */}
           {product.stock === 0 && (
             <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
               <span className="text-sm font-bold text-gray-500">Out of Stock</span>
+            </div>
+          )}
+          {/* Low stock */}
+          {product.stock > 0 && product.stock <= 5 && (
+            <div className="absolute bottom-10 left-3">
+              <span className="text-xs font-semibold bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                Only {product.stock} left
+              </span>
             </div>
           )}
           {/* Wishlist button */}
@@ -170,14 +322,21 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist 
           >
             <Heart className={`w-4 h-4 ${inWishlist ? "fill-current" : ""}`} />
           </button>
-          {/* Add to cart hover overlay */}
-          <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+          {/* Hover overlay with Add to Cart + Quick View */}
+          <div className="absolute inset-x-0 bottom-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex gap-1.5">
             <button
               onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
               disabled={product.stock === 0}
-              className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white text-xs font-bold py-2.5 rounded-full hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-1.5 bg-gray-900 text-white text-xs font-bold py-2 rounded-full hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ShoppingCart className="w-3.5 h-3.5" /> Add to Cart
+              <ShoppingCart className="w-3.5 h-3.5" /> Add
+            </button>
+            <button
+              onClick={(e) => { e.preventDefault(); onQuickView(product); }}
+              className="w-8 h-8 flex items-center justify-center bg-white text-gray-700 rounded-full hover:bg-gray-100 transition-colors shrink-0"
+              title="Quick view"
+            >
+              <Eye className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -192,14 +351,25 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist 
           </h3>
         </Link>
         {product.vendor && (
-          <div className="flex items-center gap-1 mb-2">
+          <div className="flex items-center gap-1 mb-1.5">
             <p className="text-xs text-gray-500 truncate">{product.vendor.name}</p>
-            {product.vendor.verified && <CheckCircle className="w-3 h-3 text-blue-500 shrink-0" />}
+            {product.vendor.verified && <BadgeCheck className="w-3 h-3 text-blue-500 shrink-0" />}
           </div>
         )}
-        <div className="flex items-center gap-1.5 mb-3">
+        <div className="flex items-center gap-1.5 mb-2">
           <Stars rating={product.avgRating} />
           <span className="text-xs text-gray-500">({product.reviewCount})</span>
+        </div>
+        {/* Delivery + sold */}
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          {product.price >= 10000 && (
+            <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+              <Truck className="w-2.5 h-2.5" /> Free delivery
+            </span>
+          )}
+          {product.soldCount > 0 && (
+            <span className="text-[10px] text-gray-400">{product.soldCount} sold</span>
+          )}
         </div>
         <div className="mt-auto">
           <div className="flex items-baseline gap-2">
@@ -219,9 +389,11 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist 
 
 // ── Filter Sidebar ────────────────────────────────────────────────────────────
 function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
+  const [minPriceInput, setMinPriceInput] = useState(filters.minPrice ?? "");
+  const [maxPriceInput, setMaxPriceInput] = useState(filters.maxPrice ?? "");
+
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={onClose} />}
 
       <aside className={`
@@ -234,7 +406,7 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
         ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
         <div className="p-5 lg:p-0 space-y-6">
-          {/* Close button (mobile) */}
+          {/* Close (mobile) */}
           <div className="flex items-center justify-between lg:hidden">
             <h2 className="font-bold text-gray-900">Filters</h2>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
@@ -267,16 +439,16 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Price Range */}
+          {/* Price Range — presets + custom inputs */}
           <div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Price Range</h3>
-            <div className="space-y-1">
+            <div className="space-y-1 mb-3">
               {PRICE_PRESETS.map((preset) => {
                 const active = filters.minPrice === preset.min && filters.maxPrice === preset.max;
                 return (
                   <button
                     key={preset.label}
-                    onClick={() => { setFilter("minPrice", preset.min); setFilter("maxPrice", preset.max); }}
+                    onClick={() => { setFilter("minPrice", preset.min); setFilter("maxPrice", preset.max); setMinPriceInput(""); setMaxPriceInput(""); }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${active ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"}`}
                   >
                     {preset.label}
@@ -284,9 +456,29 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 );
               })}
             </div>
+            {/* Custom range inputs */}
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                placeholder="Min"
+                value={minPriceInput}
+                onChange={(e) => setMinPriceInput(e.target.value)}
+                onBlur={() => setFilter("minPrice", minPriceInput ? Number(minPriceInput) : null)}
+                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30"
+              />
+              <span className="text-gray-400 text-xs shrink-0">to</span>
+              <input
+                type="number"
+                placeholder="Max"
+                value={maxPriceInput}
+                onChange={(e) => setMaxPriceInput(e.target.value)}
+                onBlur={() => setFilter("maxPrice", maxPriceInput ? Number(maxPriceInput) : null)}
+                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30"
+              />
+            </div>
           </div>
 
-          {/* Rating */}
+          {/* Customer Rating */}
           <div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Customer Rating</h3>
             <div className="space-y-1">
@@ -306,73 +498,119 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
               ))}
             </div>
           </div>
+
+          {/* Condition */}
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Condition</h3>
+            <div className="space-y-1">
+              {CONDITION_OPTIONS.map((cond) => (
+                <button
+                  key={cond}
+                  onClick={() => setFilter("condition", cond === "All" ? null : cond.toLowerCase())}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    (cond === "All" && !filters.condition) || filters.condition === cond.toLowerCase()
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {cond}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Delivery */}
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Delivery</h3>
+            <div className="space-y-1">
+              {DELIVERY_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setFilter("delivery", opt === "All" ? null : opt)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${
+                    (opt === "All" && !filters.delivery) || filters.delivery === opt
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {opt !== "All" && <Truck className="w-3.5 h-3.5 shrink-0" />}
+                  <span>{opt}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </aside>
     </>
   );
 }
 
-// ── Featured Vendors Strip ─────────────────────────────────────────────────────
-function VendorsStrip({ vendors }) {
-  if (!vendors?.length) return null;
+// ── Pagination ────────────────────────────────────────────────────────────────
+function PaginationRow({ pagination, currentPage, onPageChange }) {
+  if (pagination.pages <= 1) return null;
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <CheckCircle className="w-4 h-4 text-blue-500" />
-        <h2 className="text-sm font-bold text-gray-900">Verified Vendors</h2>
-      </div>
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-        {vendors.map((v) => (
-          <Link
-            key={v.id}
-            href={`/vendor/${v.slug}`}
-            className="flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-xl border border-gray-100 hover:border-primary hover:shadow-sm transition-all text-sm font-semibold text-gray-800"
+    <div className="flex justify-center items-center gap-2">
+      <button
+        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+        disabled={currentPage <= 1}
+        className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      {Array.from({ length: Math.min(7, pagination.pages) }, (_, i) => {
+        const p = pagination.pages <= 7 ? i + 1 : i + Math.max(1, Math.min(currentPage - 3, pagination.pages - 6));
+        if (p < 1 || p > pagination.pages) return null;
+        return (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-semibold transition-colors ${currentPage === p ? "bg-primary text-white shadow-sm" : "border border-gray-200 text-gray-700 hover:border-primary hover:text-primary bg-white"}`}
           >
-            {v.image ? (
-              <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-gray-100">
-                <Image src={v.image} alt={v.name} fill className="object-cover" />
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <span className="text-primary text-xs font-bold">{v.name[0]}</span>
-              </div>
-            )}
-            <span>{v.name}</span>
-            {v.verified && <CheckCircle className="w-3.5 h-3.5 text-blue-500" />}
-          </Link>
-        ))}
-      </div>
+            {p}
+          </button>
+        );
+      })}
+      <button
+        onClick={() => onPageChange(Math.min(pagination.pages, currentPage + 1))}
+        disabled={currentPage >= pagination.pages}
+        className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
     </div>
   );
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function ShopContent() {
-  const router      = useRouter();
-  const pathname    = usePathname();
-  const sp          = useSearchParams();
-  const addItem     = useCartStore((s) => s.addItem);
-  const wishlist    = useUIStore((s) => s.wishlist);
+  const router   = useRouter();
+  const pathname = usePathname();
+  const sp       = useSearchParams();
+  const addItem  = useCartStore((s) => s.addItem);
+  const wishlist = useUIStore((s) => s.wishlist);
   const addToWishlist    = useUIStore((s) => s.addToWishlist);
   const removeFromWishlist = useUIStore((s) => s.removeFromWishlist);
 
-  // URL-synced filters
+  const [quickViewProduct, setQuickViewProduct] = useState(null);
+
   const [filters, setFiltersState] = useState({
     category:  sp.get("category")   || null,
     search:    sp.get("q")          || "",
     minPrice:  sp.get("min_price") ? Number(sp.get("min_price")) : null,
     maxPrice:  sp.get("max_price") ? Number(sp.get("max_price")) : null,
     minRating: sp.get("min_rating") ? Number(sp.get("min_rating")) : null,
-    sort:      sp.get("sort")       || "newest",
+    condition: sp.get("condition")  || null,
+    delivery:  sp.get("delivery")   || null,
+    sort:      sp.get("sort")       || "popular",   // default: Most Popular
     page:      sp.get("page") ? Number(sp.get("page")) : 1,
   });
-  const [view, setView]            = useState("grid");
+  const [view, setView]               = useState("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const setFilter = useCallback((key, value) => {
     setFiltersState((prev) => {
       const next = { ...prev, [key]: value };
-      if (key !== "page") next.page = 1; // reset page on filter change
+      if (key !== "page") next.page = 1;
       return next;
     });
   }, []);
@@ -385,12 +623,13 @@ function ShopContent() {
     if (filters.minPrice)  params.set("min_price",   filters.minPrice);
     if (filters.maxPrice)  params.set("max_price",   filters.maxPrice);
     if (filters.minRating) params.set("min_rating",  filters.minRating);
-    if (filters.sort !== "newest") params.set("sort", filters.sort);
+    if (filters.condition) params.set("condition",   filters.condition);
+    if (filters.delivery)  params.set("delivery",    filters.delivery);
+    if (filters.sort !== "popular") params.set("sort", filters.sort);
     if (filters.page > 1)  params.set("page",        filters.page);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [filters, pathname, router]);
 
-  // Queries
   const { data: productsData, isLoading, isError } = useQuery({
     queryKey: ["products", filters],
     queryFn: () => fetchProducts({
@@ -399,6 +638,7 @@ function ShopContent() {
       min_price:  filters.minPrice,
       max_price:  filters.maxPrice,
       min_rating: filters.minRating,
+      condition:  filters.condition,
       sort:       filters.sort,
       page:       filters.page,
       per_page:   PER_PAGE,
@@ -412,18 +652,10 @@ function ShopContent() {
     staleTime: 60_000,
   });
 
-  const { data: vendorsData } = useQuery({
-    queryKey: ["vendors-featured"],
-    queryFn: fetchFeaturedVendors,
-    staleTime: 60_000,
-  });
-
   const products   = productsData?.products ?? [];
   const pagination = productsData?.pagination ?? { total: 0, pages: 1, page: 1 };
   const categories = categoriesData?.categories ?? [];
-  const vendors    = vendorsData?.vendors ?? [];
 
-  // Active filter chips
   const activeFilters = [
     filters.category  && { key: "category",  label: categories.find((c) => c.slug === filters.category)?.name ?? filters.category },
     filters.search    && { key: "search",    label: `"${filters.search}"` },
@@ -435,11 +667,13 @@ function ShopContent() {
         : `Under ₦${filters.maxPrice?.toLocaleString()}`,
     },
     filters.minRating && { key: "minRating", label: `${filters.minRating}+ stars` },
+    filters.condition && { key: "condition", label: filters.condition },
+    filters.delivery  && { key: "delivery",  label: filters.delivery },
   ].filter(Boolean);
 
   const clearFilter = (key) => {
     if (key === "price") { setFilter("minPrice", null); setFilter("maxPrice", null); }
-    else setFilter(key, key === "minRating" ? null : null);
+    else setFilter(key, null);
   };
 
   const handleAddToCart = (product) => {
@@ -448,28 +682,58 @@ function ShopContent() {
   };
 
   const handleToggleWishlist = (product) => {
-    const inWishlist = wishlist.some((w) => w.id === product.id);
+    const inWishlist = wishlist.some((w) => w === product.id || w?.id === product.id);
     if (inWishlist) { removeFromWishlist(product.id); toast.success("Removed from wishlist"); }
     else { addToWishlist(product); toast.success("Added to wishlist"); }
   };
 
+  const currentCategory = categories.find((c) => c.slug === filters.category);
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Quick View */}
+      <AnimatePresence>
+        {quickViewProduct && (
+          <QuickViewModal
+            product={quickViewProduct}
+            onClose={() => setQuickViewProduct(null)}
+            onAddToCart={handleAddToCart}
+            onToggleWishlist={handleToggleWishlist}
+            inWishlist={wishlist.some((w) => w === quickViewProduct.id || w?.id === quickViewProduct.id)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ── Shop header banner ───────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+            <Link href="/" className="hover:text-primary transition-colors flex items-center gap-1">
+              <Home className="w-3.5 h-3.5" /> Home
+            </Link>
+            <Chevron className="w-3 h-3" />
+            <Link href="/shop" className={`hover:text-primary transition-colors ${!filters.category ? "text-gray-900 font-medium" : ""}`}>
+              Shop
+            </Link>
+            {currentCategory && (
+              <>
+                <Chevron className="w-3 h-3" />
+                <span className="text-gray-900 font-medium">{currentCategory.name}</span>
+              </>
+            )}
+          </nav>
+
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
               <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-                {filters.category
-                  ? categories.find((c) => c.slug === filters.category)?.name ?? "Shop"
-                  : "Shop All Products"}
+                {currentCategory?.name ?? "Shop All Products"}
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
                 {isLoading ? "Loading…" : `${pagination.total.toLocaleString()} products found`}
               </p>
             </div>
-            {/* Search bar */}
+            {/* Search */}
             <div className="relative max-w-xs w-full sm:w-auto">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -502,9 +766,6 @@ function ShopContent() {
 
           {/* Main */}
           <div className="flex-1 min-w-0">
-            {/* Vendors strip */}
-            <VendorsStrip vendors={vendors} />
-
             {/* Toolbar */}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               {/* Mobile filter toggle */}
@@ -522,10 +783,7 @@ function ShopContent() {
 
               {/* Active filter chips */}
               {activeFilters.map((f) => (
-                <span
-                  key={f.key}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-primary/10 text-primary rounded-full"
-                >
+                <span key={f.key} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-primary/10 text-primary rounded-full">
                   {f.label}
                   <button onClick={() => clearFilter(f.key)} className="hover:opacity-70">
                     <X className="w-3 h-3" />
@@ -535,7 +793,7 @@ function ShopContent() {
 
               {activeFilters.length > 1 && (
                 <button
-                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, sort: "newest", page: 1 })}
+                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, sort: "popular", page: 1 })}
                   className="text-xs font-semibold text-gray-500 hover:text-red-500 underline"
                 >
                   Clear all
@@ -567,6 +825,16 @@ function ShopContent() {
               </div>
             </div>
 
+            {/* Top pagination (desktop only, when enough products) */}
+            {!isLoading && pagination.pages > 1 && (
+              <div className="hidden lg:flex justify-between items-center mb-4">
+                <p className="text-sm text-gray-500">
+                  Showing {((filters.page - 1) * PER_PAGE) + 1}–{Math.min(filters.page * PER_PAGE, pagination.total)} of {pagination.total.toLocaleString()} products
+                </p>
+                <PaginationRow pagination={pagination} currentPage={filters.page} onPageChange={(p) => setFilter("page", p)} />
+              </div>
+            )}
+
             {/* Loading skeleton */}
             {isLoading && (
               <div className={view === "grid" ? "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" : "space-y-4"}>
@@ -583,7 +851,7 @@ function ShopContent() {
               </div>
             )}
 
-            {/* Error state */}
+            {/* Error */}
             {isError && (
               <div className="text-center py-16">
                 <p className="text-gray-500 mb-4">Failed to load products.</p>
@@ -591,14 +859,14 @@ function ShopContent() {
               </div>
             )}
 
-            {/* Empty state */}
+            {/* Empty */}
             {!isLoading && !isError && products.length === 0 && (
               <div className="text-center py-20">
                 <ShoppingCart className="w-12 h-12 text-gray-200 mx-auto mb-4" />
                 <h3 className="font-bold text-gray-900 mb-1">No products found</h3>
                 <p className="text-sm text-gray-500 mb-5">Try adjusting your filters or search term.</p>
                 <button
-                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, sort: "newest", page: 1 })}
+                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, sort: "popular", page: 1 })}
                   className="px-6 py-2.5 bg-primary text-white rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
                 >
                   Clear Filters
@@ -626,45 +894,18 @@ function ShopContent() {
                       view={view}
                       onAddToCart={handleAddToCart}
                       onToggleWishlist={handleToggleWishlist}
-                      inWishlist={wishlist.some((w) => w.id === product.id)}
+                      inWishlist={wishlist.some((w) => w === product.id || w?.id === product.id)}
+                      onQuickView={setQuickViewProduct}
                     />
                   ))}
                 </motion.div>
               </AnimatePresence>
             )}
 
-            {/* Pagination */}
+            {/* Bottom Pagination */}
             {!isLoading && pagination.pages > 1 && (
-              <div className="flex justify-center items-center gap-2 mt-10">
-                <button
-                  onClick={() => setFilter("page", Math.max(1, filters.page - 1))}
-                  disabled={filters.page <= 1}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-
-                {Array.from({ length: Math.min(7, pagination.pages) }, (_, i) => {
-                  const p = pagination.pages <= 7 ? i + 1 : i + Math.max(1, Math.min(filters.page - 3, pagination.pages - 6));
-                  if (p < 1 || p > pagination.pages) return null;
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => setFilter("page", p)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-semibold transition-colors ${filters.page === p ? "bg-primary text-white shadow-sm" : "border border-gray-200 text-gray-700 hover:border-primary hover:text-primary bg-white"}`}
-                    >
-                      {p}
-                    </button>
-                  );
-                })}
-
-                <button
-                  onClick={() => setFilter("page", Math.min(pagination.pages, filters.page + 1))}
-                  disabled={filters.page >= pagination.pages}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+              <div className="mt-10">
+                <PaginationRow pagination={pagination} currentPage={filters.page} onPageChange={(p) => setFilter("page", p)} />
               </div>
             )}
           </div>

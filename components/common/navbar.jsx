@@ -14,41 +14,97 @@ import {
   TrendingUp,
   Tag,
   LogOut,
+  Bell,
+  MapPin,
+  ChevronRight,
+  Zap,
+  Laptop,
+  Shirt,
+  Home as HomeIcon,
+  Sparkles,
+  Dumbbell,
+  BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import Button from "@/components/ui/button";
 
 import { useAuth } from "@/lib/auth-context";
-import { useCartStore } from "@/store/authStore";
-import { useUIStore } from "@/store/userStore";
+import { useCartStore } from "@/store/cartStore";
+import { useUIStore } from "@/store/uiStore";
 import { logoutAction } from "@/app/actions/auth";
 import { useQueryClient } from "@tanstack/react-query";
+
+// Suggested search terms for autocomplete (replace with API in production)
+const SEARCH_SUGGESTIONS = [
+  { label: "Nike Sneakers",         category: "Fashion"     },
+  { label: "iPhone 15 Pro",         category: "Electronics" },
+  { label: "Standing Desk",         category: "Home"        },
+  { label: "Face Serum",            category: "Beauty"      },
+  { label: "Gaming Chair",          category: "Home"        },
+  { label: "Wireless Earbuds",      category: "Electronics" },
+  { label: "African Print Dress",   category: "Fashion"     },
+  { label: "Protein Supplement",    category: "Sports"      },
+  { label: "Laptop Backpack",       category: "Electronics" },
+  { label: "Skincare Bundle",       category: "Beauty"      },
+];
+
+const CATEGORY_ICONS = {
+  Fashion:     Shirt,
+  Electronics: Laptop,
+  "Home & Living": HomeIcon,
+  Beauty:      Sparkles,
+  Sports:      Dumbbell,
+  Books:       BookOpen,
+};
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [hoveredLink, setHoveredLink] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [deliveryLocation, setDeliveryLocation] = useState("Lagos");
+  const searchRef = useRef(null);
 
   // ---- Auth — from AuthProvider via React Query ---------------
   const router = useRouter();
   const desktopSearchRef = useRef(null);
-  const mobileSearchRef  = useRef(null);
+  const mobileSearchRef = useRef(null);
 
-  const handleSearchSubmit = useCallback((e) => {
-    e.preventDefault();
-    const q = (e.currentTarget.querySelector("input[type='search']")?.value ?? "").trim();
-    if (q) router.push(`/search?q=${encodeURIComponent(q)}`);
-    else   router.push("/search");
-    setIsMobileMenuOpen(false);
+  const filteredSuggestions = searchQuery.length >= 2
+    ? SEARCH_SUGGESTIONS.filter((s) =>
+        s.label.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 6)
+    : SEARCH_SUGGESTIONS.slice(0, 5);
+
+  const handleSearchSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      const q = searchQuery.trim();
+      setShowSuggestions(false);
+      if (q) router.push(`/shop?q=${encodeURIComponent(q)}`);
+      else router.push("/shop");
+      setIsMobileMenuOpen(false);
+    },
+    [router, searchQuery],
+  );
+
+  const handleSuggestionClick = useCallback((label) => {
+    setSearchQuery(label);
+    setShowSuggestions(false);
+    router.push(`/shop?q=${encodeURIComponent(label)}`);
   }, [router]);
 
-  const { user, role, isAuthenticated, isLoading, isVendor, isCustomer } = useAuth();
+  const { user, role, isAuthenticated, isLoading, isVendor, isCustomer } =
+    useAuth();
   const queryClient = useQueryClient();
   const cartCount = useCartStore((s) => s.itemCount);
   const wishlistCount = useUIStore((s) => s.wishlist.length);
-  const displayRole = role ? role.charAt(0).toUpperCase() + role.slice(1) : "Customer";
+  const displayRole = role
+    ? role.charAt(0).toUpperCase() + role.slice(1)
+    : "Customer";
 
   const handleSignOut = useCallback(async () => {
     await logoutAction();
@@ -76,17 +132,18 @@ export default function Navbar() {
 
   // ---- Nav data ---------------------------------------------
   const categories = [
-    { name: "Fashion", href: "/category/fashion" },
-    { name: "Electronics", href: "/category/electronics" },
-    { name: "Home & Living", href: "/category/home-living" },
-    { name: "Beauty", href: "/category/beauty" },
-    { name: "Sports", href: "/category/sports" },
-    { name: "Books", href: "/category/books" },
+    { name: "Fashion",      href: "/shop?category=fashion",      icon: Shirt,    sub: ["Men's Wear", "Women's Wear", "Shoes", "Accessories"] },
+    { name: "Electronics",  href: "/shop?category=electronics",  icon: Laptop,   sub: ["Phones", "Laptops", "TVs", "Audio"] },
+    { name: "Home & Living",href: "/shop?category=home-living",  icon: HomeIcon, sub: ["Furniture", "Kitchen", "Bedding", "Decor"] },
+    { name: "Beauty",       href: "/shop?category=beauty",       icon: Sparkles, sub: ["Skincare", "Makeup", "Hair", "Fragrances"] },
+    { name: "Sports",       href: "/shop?category=sports",       icon: Dumbbell, sub: ["Gym Equipment", "Sports Wear", "Supplements", "Outdoor"] },
+    { name: "Books",        href: "/shop?category=books",        icon: BookOpen, sub: ["Fiction", "Non-Fiction", "Academic", "Children's"] },
   ];
 
   const navLinks = [
     { name: "Categories", items: categories },
-    { name: "Deals", href: "/products?category=deals", icon: Tag },
+    { name: "Flash Sale", href: "/shop?sort=flash_sale", icon: Zap },
+    { name: "Deals", href: "/shop?sort=popular", icon: Tag },
   ];
 
   // ---- Conditional right-side buttons -----------------------
@@ -177,7 +234,7 @@ export default function Navbar() {
             {/* ---- Logo ---- */}
             <div className="flex items-center gap-8">
               <Link href="/" className="flex items-center gap-3 group">
-                <div className="relative w-32 h-10 transition-transform duration-300 group-hover:scale-105">
+                <div className="relative w-32 h-10 transition-transform duration-300">
                   <Image
                     src="/logo-black.png"
                     alt="CarmelMart"
@@ -245,19 +302,57 @@ export default function Navbar() {
                               initial={{ opacity: 0, y: 10, scale: 0.95 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                              className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden"
+                              className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+                              style={{ width: link.items?.[0]?.sub ? "680px" : "220px" }}
                             >
-                              <div className="py-2">
-                                {link.items.map((item, i) => (
-                                  <Link
-                                    key={i}
-                                    href={item.href}
-                                    className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-primary/5 hover:text-primary transition-all"
-                                  >
-                                    {item.name}
-                                  </Link>
-                                ))}
-                              </div>
+                              {link.items?.[0]?.sub ? (
+                                // Mega-menu with sub-categories
+                                <div className="p-4 grid grid-cols-3 gap-1">
+                                  {link.items.map((item, i) => {
+                                    const IconComp = item.icon ?? null;
+                                    return (
+                                      <div key={i} className="p-2">
+                                        <Link
+                                          href={item.href}
+                                          className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-primary/5 group/cat transition-colors"
+                                        >
+                                          {IconComp && (
+                                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover/cat:bg-primary/20 transition-colors">
+                                              <IconComp className="w-4 h-4 text-primary" />
+                                            </div>
+                                          )}
+                                          <span className="text-sm font-semibold text-gray-900 group-hover/cat:text-primary transition-colors">{item.name}</span>
+                                        </Link>
+                                        {item.sub?.length > 0 && (
+                                          <div className="ml-10 mt-1 space-y-0.5">
+                                            {item.sub.map((s) => (
+                                              <Link
+                                                key={s}
+                                                href={`${item.href}&sub=${encodeURIComponent(s.toLowerCase())}`}
+                                                className="block text-xs text-gray-500 hover:text-primary py-0.5 transition-colors"
+                                              >
+                                                {s}
+                                              </Link>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="py-2">
+                                  {link.items.map((item, i) => (
+                                    <Link
+                                      key={i}
+                                      href={item.href}
+                                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-primary/5 hover:text-primary transition-all"
+                                    >
+                                      {item.name}
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -310,22 +405,86 @@ export default function Navbar() {
             </div>
 
             {/* ---- Search (Desktop) ---- */}
-            <form onSubmit={handleSearchSubmit} className="hidden md:flex flex-1 max-w-2xl mx-8">
+            <form
+              onSubmit={handleSearchSubmit}
+              ref={searchRef}
+              className="hidden md:flex flex-1 max-w-2xl mx-8 relative"
+            >
               <div className="relative w-full group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary pointer-events-none" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary pointer-events-none z-10" />
                 <input
                   ref={desktopSearchRef}
                   type="search"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                   placeholder="Search products, brands, categories..."
-                  className="w-full pl-12 pr-4 py-2.5 lg:py-3 rounded-full border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none bg-gray-50/50 focus:bg-white hover:bg-white transition-all"
+                  className="w-full pl-12 pr-4 py-2.5 lg:py-3 rounded-full border border-gray-200 focus:border-primary focus:ring-1 focus:ring-primary/10 outline-none bg-gray-50/50 focus:bg-white hover:bg-white transition-all"
+                  autoComplete="off"
                 />
               </div>
+
+              {/* Autocomplete dropdown */}
+              <AnimatePresence>
+                {showSuggestions && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
+                  >
+                    {searchQuery.length >= 2 && filteredSuggestions.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-400">No suggestions</div>
+                    ) : (
+                      <>
+                        <div className="px-4 py-2 border-b border-gray-50">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            {searchQuery.length >= 2 ? "Suggestions" : "Trending Searches"}
+                          </p>
+                        </div>
+                        {filteredSuggestions.map((s) => (
+                          <button
+                            key={s.label}
+                            type="button"
+                            onMouseDown={() => handleSuggestionClick(s.label)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                          >
+                            <Search className="w-4 h-4 text-gray-300 shrink-0" />
+                            <span className="text-sm text-gray-900 flex-1">{s.label}</span>
+                            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{s.category}</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </form>
 
             {/* ---- Right Actions ---- */}
             <div className="flex items-center gap-2 lg:gap-3">
+              {/* Delivery location (desktop) */}
+              <button className="hidden xl:flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary transition-colors whitespace-nowrap">
+                <MapPin className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-xs">Deliver to:</span>
+                <span className="font-semibold text-gray-900">{deliveryLocation}</span>
+              </button>
+
+              {/* Notification bell (logged-in only) */}
+              {isAuthenticated && (
+                <button className="hidden md:flex relative p-2 text-gray-600 hover:text-primary rounded-full transition-colors">
+                  <Bell className="w-5 h-5 lg:w-6 lg:h-6" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+                </button>
+              )}
+
               {/* Wishlist */}
-              <Link href="/wishlist" className="hidden md:block" aria-label={`Wishlist${wishlistCount > 0 ? `, ${wishlistCount} items` : ""}`}>
+              <Link
+                href="/wishlist"
+                className="hidden md:block"
+                aria-label={`Wishlist${wishlistCount > 0 ? `, ${wishlistCount} items` : ""}`}
+              >
                 <motion.div
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
@@ -342,7 +501,10 @@ export default function Navbar() {
               </Link>
 
               {/* Cart */}
-              <Link href="/cart" aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ""}`}>
+              <Link
+                href="/cart"
+                aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ""}`}
+              >
                 <motion.div
                   className="relative p-2 lg:p-2.5 text-gray-700 rounded-full group cursor-pointer"
                   whileHover={{ scale: 1.1 }}
@@ -383,16 +545,43 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Search */}
-          <form onSubmit={handleSearchSubmit} className="md:hidden pb-3">
+          <form onSubmit={handleSearchSubmit} className="md:hidden pb-3 relative">
             <div className="relative w-full group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary pointer-events-none" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary pointer-events-none z-10" />
               <input
                 ref={mobileSearchRef}
                 type="search"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 placeholder="Search products..."
                 className="w-full pl-11 pr-4 py-2.5 rounded-full border border-primary focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none bg-gray-50/50 focus:bg-white"
+                autoComplete="off"
               />
             </div>
+            <AnimatePresence>
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                >
+                  {filteredSuggestions.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onMouseDown={() => handleSuggestionClick(s.label)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                    >
+                      <Search className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                      <span className="text-sm text-gray-900">{s.label}</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </form>
         </div>
       </motion.nav>
@@ -514,7 +703,9 @@ export default function Navbar() {
                       </motion.div>
                       <div>
                         <p className="font-bold text-lg">
-                          {user?.first_name ? `${user.first_name} ${user.last_name ?? ""}`.trim() : (user?.email ?? "User")}
+                          {user?.first_name
+                            ? `${user.first_name} ${user.last_name ?? ""}`.trim()
+                            : (user?.email ?? "User")}
                         </p>
                         <p className="text-sm opacity-90 capitalize">
                           {displayRole}
@@ -554,7 +745,10 @@ export default function Navbar() {
                         <p className="text-sm font-semibold text-gray-900">
                           Wishlist
                         </p>
-                        <p className="text-xs text-gray-500">{wishlistCount} {wishlistCount === 1 ? "item" : "items"}</p>
+                        <p className="text-xs text-gray-500">
+                          {wishlistCount}{" "}
+                          {wishlistCount === 1 ? "item" : "items"}
+                        </p>
                       </div>
                     </motion.div>
                   </Link>
@@ -577,7 +771,9 @@ export default function Navbar() {
                         <p className="text-sm font-semibold text-gray-900">
                           Cart
                         </p>
-                        <p className="text-xs text-gray-500">{cartCount} {cartCount === 1 ? "item" : "items"}</p>
+                        <p className="text-xs text-gray-500">
+                          {cartCount} {cartCount === 1 ? "item" : "items"}
+                        </p>
                       </div>
                     </motion.div>
                   </Link>
@@ -607,7 +803,7 @@ export default function Navbar() {
                           <motion.button
                             onClick={() =>
                               setActiveDropdown(
-                                activeDropdown === link.name ? null : link.name
+                                activeDropdown === link.name ? null : link.name,
                               )
                             }
                             whileHover={{ x: 4 }}

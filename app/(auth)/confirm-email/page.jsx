@@ -4,7 +4,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
+
+const supabase = createClient();
 import toast from "react-hot-toast";
 
 function ConfirmEmailContent() {
@@ -20,7 +22,7 @@ function ConfirmEmailContent() {
       if (!token_hash || !type) {
         setStatus("error");
         toast.error("Invalid verification link");
-        setTimeout(() => router.push("/auth/login"), 2000);
+        setTimeout(() => router.push("/login"), 2000);
         return;
       }
 
@@ -36,14 +38,14 @@ function ConfirmEmailContent() {
         toast.success("Email verified successfully!");
 
         // Redirect after 2 seconds
-        setTimeout(() => router.push("/auth/login"), 2000);
+        setTimeout(() => router.push("/login"), 2000);
       } catch (error) {
         console.error("Email verification error:", error);
         setStatus("error");
         toast.error("Email verification failed");
 
         // Redirect after 2 seconds
-        setTimeout(() => router.push("/auth/login"), 2000);
+        setTimeout(() => router.push("/login"), 2000);
       }
     };
 

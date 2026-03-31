@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, Phone, MapPin, Send, ChevronUp } from "lucide-react";
+import { Mail, Phone, MapPin, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import Button from "@/components/ui/button";
 import { footerLinks, socialLinks } from "@/lib/data";
 
 // === Payment Icons ===
@@ -43,58 +41,10 @@ const VerveIcon = () => (
 
 // === Footer ===
 export default function Footer() {
-  const [email, setEmail] = useState("");
-  const [isSubscribing, setIsSubscribing] = useState(false);
-
-  const handleSubscribe = async (e) => {
-    e.preventDefault();
-    setIsSubscribing(true);
-    setTimeout(() => {
-      setIsSubscribing(false);
-      setEmail("");
-      alert("Thanks for subscribing!");
-    }, 1000);
-  };
-
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
     <footer className="bg-primary text-gray-300">
-      {/* Newsletter */}
-      <div className="border-b border-gray-800/70 py-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3 px-4">
-          <div>
-            <h3 className="text-base font-semibold text-white">Stay Updated</h3>
-            <p className="text-xs text-white">Get deals and product updates.</p>
-          </div>
-          <form
-            onSubmit={handleSubscribe}
-            className="flex gap-2 w-full md:w-auto"
-          >
-            <div className="relative flex-1 md:flex-none">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email address"
-                required
-                className="w-full md:w-64 pl-9 pr-4 py-2 text-xs rounded-full bg-white text-black border border-gray-700 focus:ring-1 focus:ring-primary focus:outline-none"
-              />
-            </div>
-            <Button
-              type="submit"
-              variant="accent"
-              size="sm"
-              isLoading={isSubscribing}
-              className="rounded-full"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </Button>
-          </form>
-        </div>
-      </div>
-
       {/* Main Footer */}
       <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-2 md:grid-cols-5 gap-6">
         {/* Brand */}
@@ -109,21 +59,15 @@ export default function Footer() {
             />
           </Link>
           <p className="text-xs text-white leading-relaxed mb-3">
-            Nigeria’s trusted multi-vendor marketplace. Shop Smart, Live Better.
+            Nigeria&apos;s trusted multi-vendor marketplace. Shop Smart, Live Better.
           </p>
 
           {/* Contact */}
           <div className="flex flex-col gap-1 text-xs text-white">
-            <a
-              href="tel:+2348076942904"
-              className="flex items-center gap-2 hover:text-white"
-            >
+            <a href="tel:+2348076942904" className="flex items-center gap-2 hover:text-accent transition-colors">
               <Phone className="w-3.5 h-3.5" /> +234 807 694 2904
             </a>
-            <a
-              href="mailto:support@carmelmart.ng"
-              className="flex items-center gap-2 hover:text-white"
-            >
+            <a href="mailto:support@carmelmart.ng" className="flex items-center gap-2 hover:text-accent transition-colors">
               <Mail className="w-3.5 h-3.5" /> support@carmelmart.ng
             </a>
             <span className="flex items-center gap-2">
@@ -138,30 +82,26 @@ export default function Footer() {
                 key={i}
                 href={social.href}
                 target="_blank"
-                className="w-8 h-8 rounded-full bg-gray-800/70 flex items-center justify-center hover:bg-primary transition-all"
+                rel="noreferrer"
+                className="w-8 h-8 rounded-full bg-gray-800/70 flex items-center justify-center hover:bg-white/20 transition-colors"
                 whileHover={{ scale: 1.05 }}
               >
-                <span className="[&>svg]:w-3.5 [&>svg]:h-3.5">
-                  {social.icon}
-                </span>
+                <span className="[&>svg]:w-3.5 [&>svg]:h-3.5">{social.icon}</span>
               </motion.a>
             ))}
           </div>
         </div>
 
-        {/* Links (Grouped Compactly) */}
+        {/* Link groups */}
         {["shop", "support", "company"].map((section, i) => (
           <div key={i}>
             <h4 className="font-semibold text-white mb-2 text-xs uppercase tracking-wider">
               {section}
             </h4>
             <ul className="space-y-1">
-              {footerLinks[section].map((link, index) => (
-                <li key={index}>
-                  <Link
-                    href={link.href}
-                    className="text-xs text-white hover:text-accent transition"
-                  >
+              {footerLinks[section].map((link, idx) => (
+                <li key={idx}>
+                  <Link href={link.href} className="text-xs text-white/80 hover:text-accent transition-colors">
                     {link.name}
                   </Link>
                 </li>
@@ -172,9 +112,9 @@ export default function Footer() {
       </div>
 
       {/* Payment + Bottom */}
-      <div className="border-t border-gray-800/70 py-4 px-4 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white">
-        <div className="flex items-center gap-2">
-          <span>Payments:</span>
+      <div className="border-t border-white/10 py-4 px-4 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white">
+        <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+          <span className="text-white/60">Secure Payments:</span>
           <VisaIcon />
           <MastercardIcon />
           <VerveIcon />
@@ -183,25 +123,17 @@ export default function Footer() {
             alt="Flutterwave"
             width={60}
             height={18}
-            className="opacity-75"
+            className="opacity-70"
           />
         </div>
-        <div className="flex flex-wrap justify-center text-white gap-4">
-          <Link href="/privacy" className="hover:text-accent">
-            Privacy
-          </Link>
-          <Link href="/terms" className="hover:text-accent">
-            Terms
-          </Link>
-          <Link href="/cookies" className="hover:text-accent">
-            Cookies
-          </Link>
-          <Link href="/sitemap" className="hover:text-accent">
-            Sitemap
-          </Link>
+        <div className="flex flex-wrap justify-center gap-4 text-white/60">
+          <Link href="/help" className="hover:text-accent transition-colors">Privacy</Link>
+          <Link href="/help" className="hover:text-accent transition-colors">Terms</Link>
+          <Link href="/help" className="hover:text-accent transition-colors">Cookies</Link>
+          <Link href="/help" className="hover:text-accent transition-colors">Sitemap</Link>
         </div>
-        <p className="text-white text-[11px] text-center">
-          © 2025 CarmelMart. All rights reserved.
+        <p className="text-white/60 text-[11px] text-center">
+          © {new Date().getFullYear()} CarmelMart. All rights reserved.
         </p>
       </div>
 
@@ -210,7 +142,8 @@ export default function Footer() {
         onClick={scrollToTop}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        className="fixed bottom-5 right-5 w-10 h-10 bg-gradient-to-br from-primary to-accent text-white rounded-full flex items-center justify-center shadow-lg"
+        className="fixed bottom-20 lg:bottom-5 right-4 lg:right-5 w-10 h-10 bg-linear-to-br from-primary to-accent text-white rounded-full flex items-center justify-center shadow-lg z-40"
+        aria-label="Scroll to top"
       >
         <ChevronUp className="w-4 h-4" />
       </motion.button>

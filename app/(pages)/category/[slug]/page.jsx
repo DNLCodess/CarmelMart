@@ -11,8 +11,8 @@ import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { categories, featuredProducts } from "@/lib/data";
-import { useCartStore } from "@/store/authStore";
-import { useUIStore } from "@/store/userStore";
+import { useCartStore } from "@/store/cartStore";
+import { useUIStore } from "@/store/uiStore";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function slugify(name) {

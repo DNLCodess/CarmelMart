@@ -41,7 +41,7 @@ export async function POST(request) {
         break;
 
       default:
-        console.log(`Unhandled webhook event: ${event}`);
+        // Unhandled event type — no action needed
     }
 
     return NextResponse.json({ success: true });
@@ -58,14 +58,15 @@ export async function POST(request) {
  * Verify webhook signature
  */
 function verifyWebhookSignature(body, signature) {
-  const secretHash = process.env.FLUTTERWAVE_SECRET_HASH;
+  // Env var is FLUTTERWAVE_WEBHOOK_HASH (matches CLAUDE.md / .env convention)
+  const secretHash = process.env.FLUTTERWAVE_WEBHOOK_HASH;
 
   if (!secretHash) {
-    console.error("FLUTTERWAVE_SECRET_HASH not set");
+    console.error("FLUTTERWAVE_WEBHOOK_HASH not set — webhook verification skipped");
     return false;
   }
 
-  // For Flutterwave, the signature is the secret hash itself
+  // For Flutterwave, the verif-hash header must equal the secret hash
   return signature === secretHash;
 }
 
@@ -78,14 +79,12 @@ async function handlePaymentCompleted(data) {
 
     // Only process successful payments
     if (status !== "successful") {
-      console.log(`Payment ${id} is not successful: ${status}`);
       return;
     }
 
     // Check if this payment was already processed
     const alreadyProcessed = await checkPaymentProcessed(id);
     if (alreadyProcessed) {
-      console.log(`Payment ${id} already processed`);
       return;
     }
 
@@ -140,7 +139,6 @@ async function handlePaymentCompleted(data) {
       transactionId: id,
     });
 
-    console.log(`Successfully processed payment ${id} for user ${userId}`);
   } catch (error) {
     console.error("Error handling payment completion:", error);
     // Don't throw - we want to return 200 to Flutterwave even if processing fails
@@ -167,7 +165,6 @@ async function handlePaymentFailed(data) {
       transactionId: id,
     });
 
-    console.log(`Payment failed for user ${userId}: ${id}`);
   } catch (error) {
     console.error("Error handling payment failure:", error);
   }
@@ -179,7 +176,6 @@ async function handlePaymentFailed(data) {
 async function handleTransferCompleted(data) {
   try {
     // Implement transfer completion logic if you have vendor payouts
-    console.log("Transfer completed:", data);
   } catch (error) {
     console.error("Error handling transfer completion:", error);
   }
@@ -224,7 +220,6 @@ async function markPaymentProcessed(transactionId) {
   //     processed_at: new Date().toISOString(),
   //   }]);
 
-  console.log(`Marked payment ${transactionId} as processed`);
 }
 
 /**
@@ -255,7 +250,6 @@ async function updateRegistrationStatus(userId, status) {
   //   .update({ status: status })
   //   .eq('user_id', userId);
 
-  console.log(`Updated registration status for ${userId}: ${status}`);
 }
 
 /**
@@ -265,8 +259,10 @@ async function generateUniqueReferralCode(userId) {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "";
 
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
   for (let i = 0; i < 8; i++) {
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
+    code += characters.charAt(bytes[i] % characters.length);
   }
 
   return `VND${code}`;
@@ -277,9 +273,6 @@ async function generateUniqueReferralCode(userId) {
  */
 async function processReferralBonus(referralCode, bonusAmount) {
   // Implement referral bonus logic
-  console.log(
-    `Processing referral bonus for code ${referralCode}: ${bonusAmount}`
-  );
   return { referralCode, bonusAmount };
 }
 
@@ -288,7 +281,6 @@ async function processReferralBonus(referralCode, bonusAmount) {
  */
 async function completeVendorRegistration(data) {
   // Complete the registration in your database
-  console.log("Completing vendor registration:", data);
 }
 
 /**
@@ -296,7 +288,6 @@ async function completeVendorRegistration(data) {
  */
 async function sendPaymentConfirmationEmail(data) {
   // Send email using your email service
-  console.log("Sending payment confirmation email:", data);
 }
 
 /**
@@ -304,7 +295,6 @@ async function sendPaymentConfirmationEmail(data) {
  */
 async function sendPaymentFailedEmail(data) {
   // Send email using your email service
-  console.log("Sending payment failed email:", data);
 }
 
 /**

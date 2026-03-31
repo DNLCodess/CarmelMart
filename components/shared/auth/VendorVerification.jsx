@@ -19,7 +19,9 @@ import {
 
 import { qoreIdHelpers } from "@/lib/qoreId";
 import { flutterwaveHelpers } from "@/lib/flutterwave";
-import { dbHelpers } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
+
+const supabase = createClient();
 import toast from "react-hot-toast";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/button";
@@ -72,7 +74,7 @@ export default function VendorVerification({
     try {
       // Step 1: Create user profile with referral code
       const { data: userProfile, error: userError } =
-        await dbHelpers.createUserProfile({
+        await supabase.from("users").insert([{
           id: userId,
           email: email,
           phone: data.phone,
@@ -81,23 +83,27 @@ export default function VendorVerification({
           referred_by: referredBy || null, // Code of person who referred them
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        });
+        }]).select().single();
 
       if (userError) {
         // Check if user already exists (duplicate key error)
         if (userError.code === "23505") {
-          console.log("User profile already exists, continuing...");
+          // User profile already exists, continue
 
           // Fetch existing user profile to get their referral code
-          const { data: existingProfile } = await dbHelpers.getUserProfile(
-            userId
-          );
+          const { data: existingProfile } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", userId)
+            .single();
           if (existingProfile && !existingProfile.referral_code) {
             // Update existing profile with referral code if it doesn't have one
-            await dbHelpers.updateUserProfile(userId, {
-              referral_code: referralCode,
-              referred_by: referredBy || null,
-            });
+            await supabase
+              .from("users")
+              .update({ referral_code: referralCode, referred_by: referredBy || null })
+              .eq("id", userId)
+              .select()
+              .single();
           }
         } else {
           throw userError;
@@ -109,20 +115,19 @@ export default function VendorVerification({
         try {
           // Find the referrer
           const { data: referrer, error: referrerError } =
-            await dbHelpers.getUserByReferralCode(referredBy);
+            await supabase.from("users").select("*").eq("referral_code", referredBy).single();
 
           if (referrer && !referrerError) {
             // Create referral record
-            await dbHelpers.createReferral({
+            await supabase.from("referrals").insert([{
               referrer_id: referrer.id,
               referred_id: userId,
               referral_code: referredBy,
               bonus_amount: 500, // ₦500 bonus
               status: "pending", // Will be 'completed' after verification payment
               created_at: new Date().toISOString(),
-            });
+            }]);
 
-            console.log(`✅ Referral created: ${referrer.id} → ${userId}`);
           }
         } catch (referralError) {
           // Log but don't block registration if referral processing fails
@@ -132,7 +137,7 @@ export default function VendorVerification({
 
       // Step 3: Create vendor profile
       const { data: vendorData, error: vendorError } =
-        await dbHelpers.createVendorProfile({
+        await supabase.from("vendors").insert([{
           id: userId,
           business_name: data.businessName,
           address: data.address,
@@ -149,7 +154,7 @@ export default function VendorVerification({
           status: "pending",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        });
+        }]).select().single();
 
       if (vendorError) throw vendorError;
 
@@ -166,9 +171,7 @@ export default function VendorVerification({
   const handleVerificationChoice = async (type) => {
     setVerificationType(type);
 
-    await dbHelpers.updateVendorProfile(userId, {
-      verification_type: type,
-    });
+    await supabase.from("vendors").update({ verification_type: type }).eq("id", userId).select().single();
 
     toast.success(
       type === "nin_cac"
@@ -193,14 +196,14 @@ export default function VendorVerification({
       );
 
       if (result.success) {
-        await dbHelpers.updateVendorProfile(userId, {
+        await supabase.from("vendors").update({
           nin_verified: true,
           nin_data: {
             first_name: data.firstName,
             last_name: data.lastName,
             nin: data.nin,
           },
-        });
+        }).eq("id", userId).select().single();
 
         setVerificationStatus((prev) => ({
           ...prev,
@@ -239,10 +242,7 @@ export default function VendorVerification({
       const result = await qoreIdHelpers.verifyCAC(data.cacNumber);
 
       if (result.success) {
-        await dbHelpers.updateVendorProfile(userId, {
-          cac_verified: true,
-          cac_number: data.cacNumber,
-        });
+        await supabase.from("vendors").update({ cac_verified: true, cac_number: data.cacNumber }).eq("id", userId).select().single();
 
         setVerificationStatus((prev) => ({
           ...prev,
@@ -270,7 +270,6 @@ export default function VendorVerification({
   // Process successful payment
   const processSuccessfulPayment = async (transactionData) => {
     try {
-      console.log("🔄 Starting payment processing...");
 
       setVerificationStatus((prev) => ({
         ...prev,
@@ -278,34 +277,40 @@ export default function VendorVerification({
       }));
 
       // Update payment record
-      console.log("💾 Updating payment record...");
-      await dbHelpers.updatePayment(transactionData.reference, {
-        status: "success",
-        transaction_id: transactionData.transaction_id,
-        flw_ref: transactionData.flw_ref,
-      });
+      await supabase
+        .from("payments")
+        .update({ status: "success", transaction_id: transactionData.transaction_id, flw_ref: transactionData.flw_ref })
+        .eq("reference", transactionData.reference)
+        .select()
+        .single();
 
       // Update vendor profile
-      console.log("👔 Activating vendor profile...");
-      await dbHelpers.updateVendorProfile(userId, {
-        payment_verified: true,
-        status: "active",
-      });
+      await supabase.from("vendors").update({ payment_verified: true, status: "active" }).eq("id", userId).select().single();
 
       // Update user profile status to active
-      console.log("✅ Verifying user account...");
-      await dbHelpers.updateUserProfile(userId, {
-        verified: true,
-        updated_at: new Date().toISOString(),
-      });
+      await supabase
+        .from("users")
+        .update({ verified: true, updated_at: new Date().toISOString() })
+        .eq("id", userId)
+        .select()
+        .single();
 
       // ✅ CRITICAL: Credit referral bonus if user was referred
       if (referredBy) {
         try {
-          console.log("🎁 Processing referral bonus...");
-          const result = await dbHelpers.creditReferralBonus(userId);
-          if (result?.success) {
-            console.log("✅ Referral bonus credited successfully");
+          const { data: referral } = await supabase
+            .from("referrals")
+            .select("*, referrer:referrer_id(*)")
+            .eq("referred_id", userId)
+            .eq("status", "pending")
+            .single();
+          if (referral) {
+            await supabase.from("referrals").update({ status: "completed" }).eq("id", referral.id);
+            await supabase.rpc("credit_wallet", {
+              user_id: referral.referrer_id,
+              amount: 500,
+              description: "Referral bonus",
+            });
           }
         } catch (referralError) {
           // Log but don't block completion
@@ -327,16 +332,12 @@ export default function VendorVerification({
         duration: 4000,
       });
 
-      console.log("🎉 Payment processing completed!");
 
       // Wait a moment before redirecting
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Get updated vendor data
-      const { data: vendorData } = await dbHelpers.getVendorProfile(userId);
-
-      // Now redirect to success page
-      console.log("🚀 Redirecting to success page...");
+      const { data: vendorData } = await supabase.from("vendors").select("*").eq("id", userId).single();
 
       handleVendorComplete();
     } catch (error) {
@@ -365,7 +366,7 @@ export default function VendorVerification({
 
     try {
       // Create payment record
-      await dbHelpers.createPayment({
+      await supabase.from("payments").insert([{
         user_id: userId,
         amount: amount,
         reference,
@@ -373,7 +374,7 @@ export default function VendorVerification({
         type: "vendor_fee",
         payment_provider: "flutterwave",
         verification_type: verificationType,
-      });
+      }]).select().single();
 
       // Initialize Flutterwave payment with callbacks
       await flutterwaveHelpers.initializePayment(
@@ -384,7 +385,6 @@ export default function VendorVerification({
         verificationType,
         // ✅ SUCCESS CALLBACK - This runs BEFORE redirect
         async (response) => {
-          console.log("💰 Payment successful, processing...", response);
 
           try {
             // Verify payment with backend
@@ -411,16 +411,11 @@ export default function VendorVerification({
 
             toast.error("Payment verification failed. Please contact support.");
 
-            await dbHelpers.updatePayment(reference, {
-              status: "failed",
-              error_message: error.message,
-            });
+            await supabase.from("payments").update({ status: "failed", error_message: error.message }).eq("reference", reference).select().single();
           }
         },
         // ✅ CLOSE CALLBACK - User closed without paying
         () => {
-          console.log("❌ Payment modal closed");
-
           setVerificationStatus((prev) => ({
             ...prev,
             payment: { verified: false, loading: false, processing: false },
@@ -428,9 +423,7 @@ export default function VendorVerification({
 
           toast.error("Payment cancelled");
 
-          dbHelpers.updatePayment(reference, {
-            status: "cancelled",
-          });
+          supabase.from("payments").update({ status: "cancelled" }).eq("reference", reference).select().single();
         }
       );
     } catch (error) {
@@ -447,10 +440,7 @@ export default function VendorVerification({
           : "Failed to initialize payment. Please try again."
       );
 
-      await dbHelpers.updatePayment(reference, {
-        status: "failed",
-        error_message: error.message,
-      });
+      await supabase.from("payments").update({ status: "failed", error_message: error.message }).eq("reference", reference).select().single();
     }
   };
 

@@ -46,7 +46,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "Insufficient wallet balance" }, { status: 400 });
     }
 
-    const reference = `CM-WD-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const reference = `CM-WD-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 7).toUpperCase()}`;
 
     // Call Flutterwave Transfers API server-side
     const fwRes = await fetch("https://api.flutterwave.com/v3/transfers", {

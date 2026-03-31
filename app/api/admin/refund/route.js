@@ -29,7 +29,7 @@ export async function POST(request) {
     if (amount > order.total)
       return NextResponse.json({ error: `Refund (₦${amount.toLocaleString()}) exceeds order total (₦${order.total.toLocaleString()})` }, { status: 400 });
 
-    const reference = `CM-REF-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const reference = `CM-REF-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 7).toUpperCase()}`;
 
     // Credit wallet
     const { error: walletErr } = await admin.rpc("increment_wallet", {

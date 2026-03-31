@@ -12,6 +12,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { useAuth } from "@/lib/auth-context";
 import { formatNigerianPhone } from "@/lib/utils";
+import { updateProfileAction, updatePasswordAction } from "@/app/actions/auth";
 
 const TABS = [
   { id: "profile",       label: "Profile",       icon: User },
@@ -42,10 +43,18 @@ function ProfileTab({ user }) {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    // TODO: call updateProfileAction(form)
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
-    toast.success("Profile updated");
+    try {
+      await updateProfileAction(user.id, {
+        full_name: form.fullName,
+        phone:     form.phone,
+        location:  form.location,
+      });
+      toast.success("Profile updated");
+    } catch (err) {
+      toast.error(err.message || "Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -319,11 +328,15 @@ function SecurityTab() {
     if (form.next !== form.confirm) { toast.error("Passwords don't match"); return; }
     if (form.next.length < 8) { toast.error("Password must be at least 8 characters"); return; }
     setSaving(true);
-    // TODO: call Supabase updateUser({ password: form.next }) via server action
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
-    setForm({ current: "", next: "", confirm: "" });
-    toast.success("Password updated successfully");
+    try {
+      await updatePasswordAction({ currentPassword: form.current, newPassword: form.next });
+      setForm({ current: "", next: "", confirm: "" });
+      toast.success("Password updated successfully");
+    } catch (err) {
+      toast.error(err.message || "Failed to update password");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const ToggleIcon = ({ field }) => (

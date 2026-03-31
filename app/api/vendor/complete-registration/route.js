@@ -146,8 +146,10 @@ async function generateUniqueReferralCode(userId) {
   let code = "";
 
   // Generate 8-character code
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
   for (let i = 0; i < 8; i++) {
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
+    code += characters.charAt(bytes[i] % characters.length);
   }
 
   // Add prefix for vendors
@@ -339,7 +341,6 @@ async function sendWelcomeEmail({ email, name, referralCode }) {
   // Implement your email sending logic here
   // Example using SendGrid, Resend, or other email service
 
-  console.log(`Sending welcome email to ${email}`);
   // await emailService.send({
   //   to: email,
   //   subject: "Welcome to CarmelMart - Your Vendor Account is Active!",
@@ -352,7 +353,6 @@ async function sendWelcomeEmail({ email, name, referralCode }) {
  */
 async function sendReferralBonusNotification({ email, amount }) {
   // Implement your notification logic here
-  console.log(`Sending referral bonus notification to ${email}`);
   // await emailService.send({
   //   to: email,
   //   subject: "You've earned a referral bonus!",

@@ -91,7 +91,6 @@ export async function POST(request) {
     const verifyUrl = `${baseUrl}/v1/ng/identities/cac-basic`;
     const payload = { regNumber: trimmed };
 
-    console.log("Verifying CAC:", trimmed, "→", verifyUrl);
 
     const apiRes = await fetch(verifyUrl, {
       method: "POST",
@@ -108,7 +107,6 @@ export async function POST(request) {
       ? await apiRes.json()
       : null;
 
-    console.log("QoreID CAC response:", { status: apiRes.status, body: data });
 
     // ---- CORRECT STATUS CHECK ----
     if (apiRes.status !== 200) {

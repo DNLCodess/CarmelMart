@@ -252,16 +252,22 @@ function VendorSuccessContent() {
                 community to receive launch updates, connect with other vendors,
                 and get early access to platform features.
               </p>
-              <Link href={telegramLink}>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full sm:w-auto group shadow-lg shadow-primary/30"
-                >
-                  Join Telegram Community
-                  <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                </Button>
-              </Link>
+              {telegramLink ? (
+                <Link href={telegramLink} target="_blank" rel="noopener noreferrer">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="w-full sm:w-auto group shadow-lg shadow-primary/30"
+                  >
+                    Join Telegram Community
+                    <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </Button>
+                </Link>
+              ) : (
+                <p className="text-sm font-semibold text-primary">
+                  Telegram community link coming soon
+                </p>
+              )}
               <p className="text-sm text-gray-500 mt-4">
                 You'll be notified when the platform launches
               </p>

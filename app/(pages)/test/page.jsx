@@ -1,8 +1,12 @@
 "use client";
 
+import { notFound } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
 import { Check, X, AlertCircle, RefreshCw } from "lucide-react";
+
+// This page is only available in development
+if (process.env.NODE_ENV === "production") notFound();
 
 export default function ImageTestPage() {
   const [imageStates, setImageStates] = useState({});

@@ -42,3 +42,12 @@ yarn-error.log*
 next-env.d.ts
 public/favicon_io.zip
 CLAUDE.md
+tdl.md
+.claude/db-schema.md
+.claude/ui-system.md
+.claude/commands/new-component.md
+.claude/integrations.md
+.claude/commands/new-component.md
+.claude/roadmap.md
+.claude/commands/new-component.md
+.claude/commands/new-component.md

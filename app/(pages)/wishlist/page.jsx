@@ -5,8 +5,8 @@ import { Heart, ShoppingCart, Trash2, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { useUIStore } from "@/store/userStore";
-import { useCartStore } from "@/store/authStore";
+import { useUIStore } from "@/store/uiStore";
+import { useCartStore } from "@/store/cartStore";
 import { featuredProducts } from "@/lib/data";
 
 // Resolve product objects from IDs — replace with React Query / Supabase when DB is live

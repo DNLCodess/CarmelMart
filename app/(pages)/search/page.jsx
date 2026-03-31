@@ -12,8 +12,8 @@ import {
   PackageSearch,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useCartStore } from "@/store/authStore";
-import { useUIStore } from "@/store/userStore";
+import { useCartStore } from "@/store/cartStore";
+import { useUIStore } from "@/store/uiStore";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 

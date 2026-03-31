@@ -22,7 +22,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { useCartStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 import { useAuth } from "@/lib/auth-context";
 import { formatNigerianPhone } from "@/lib/utils";
 import StateLgaPicker from "@/components/ui/StateLgaPicker";
@@ -245,7 +245,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    const txRef = `CM-FLW-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const txRef = `CM-FLW-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 
     window.FlutterwaveCheckout({
       public_key: publicKey,

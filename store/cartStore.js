@@ -1,8 +1,7 @@
-// Auth state is now managed by AuthProvider + React Query (lib/auth-context.jsx).
+// Cart state — client-side persisted with Zustand.
+// Auth state is managed by AuthProvider + React Query (lib/auth-context.jsx).
 // Use useAuth() from @/lib/auth-context to read user, role, isAuthenticated, etc.
-//
-// This store is kept only for cart and other client-side persisted state.
-// Do NOT add user/session/role back here — that causes stale data bugs.
+// Do NOT add user/session/role here — that causes stale data bugs.
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

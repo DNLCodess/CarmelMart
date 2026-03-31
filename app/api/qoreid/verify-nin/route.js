@@ -112,7 +112,6 @@ export async function POST(request) {
       lastname: lastName.toUpperCase(),
     };
 
-    console.log("Verifying NIN:", nin, "→", verifyUrl);
 
     const apiResponse = await fetch(verifyUrl, {
       method: "POST",
@@ -129,10 +128,6 @@ export async function POST(request) {
       ? await apiResponse.json()
       : null;
 
-    console.log("QoreID verification response:", {
-      status: apiResponse.status,
-      body: data,
-    });
 
     if (!apiResponse.ok) {
       return Response.json(

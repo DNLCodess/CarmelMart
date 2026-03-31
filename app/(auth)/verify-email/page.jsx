@@ -80,7 +80,7 @@ export default function VerifyEmailPage() {
 
           {/* Manual Link */}
           <button
-            onClick={() => router.push("/auth/login")}
+            onClick={() => router.push("/login")}
             className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
           >
             Go to login now

@@ -301,7 +301,6 @@ export default function VendorVerification({
   const handlePayment = () => {
     handleFlutterPayment({
       callback: async (response) => {
-        console.log("Payment response:", response);
         closePaymentModal();
 
         if (response.status === "successful") {
@@ -349,9 +348,7 @@ export default function VendorVerification({
           toast.error("Payment was not successful");
         }
       },
-      onClose: () => {
-        console.log("Payment modal closed");
-      },
+      onClose: () => {},
     });
   };
 

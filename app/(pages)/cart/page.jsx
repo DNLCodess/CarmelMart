@@ -13,7 +13,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { useCartStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 
 export default function CartPage() {
   const items = useCartStore((s) => s.items);

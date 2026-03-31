@@ -1,4 +1,5 @@
-// User profile and vendor profile are now fetched with React Query (useAuth / useQuery).
+// UI preferences and local-first state — client-side persisted with Zustand.
+// User profile and vendor profile are fetched with React Query (useAuth / useQuery).
 // This store holds only lightweight client-side UI preferences that don't need server sync.
 import { create } from "zustand";
 import { persist } from "zustand/middleware";

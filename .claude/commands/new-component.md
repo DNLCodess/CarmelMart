@@ -7,12 +7,14 @@ Scaffold a new React component for CarmelMart following the project's exact patt
 The user will describe the component they want. Create it at the appropriate path under `components/`.
 
 ### Path Conventions
+
 - Generic reusable primitives → `components/ui/ComponentName.jsx`
 - Feature-specific sections → `components/shared/[feature]/ComponentName.jsx`
 - Auth-related → `components/auth/ComponentName.jsx`
 - Layout (navbar/footer) → `components/common/ComponentName.jsx`
 
 ### Component Template
+
 ```jsx
 "use client";
 
@@ -24,15 +26,12 @@ import toast from "react-hot-toast";
 export default function ComponentName({ prop1, prop2 }) {
   const [state, setState] = useState(null);
 
-  return (
-    <div className="...">
-      {/* JSX */}
-    </div>
-  );
+  return <div className="...">{/* JSX */}</div>;
 }
 ```
 
 ### Rules to Follow
+
 1. Always `"use client";` at the top for interactive components; omit for static/display-only
 2. JSX files only — no TypeScript
 3. Tailwind CSS v4 utility classes — no inline styles
@@ -46,22 +45,24 @@ export default function ComponentName({ prop1, prop2 }) {
 11. For client-only UI state (modal open, tab selected, form step), use `useState`
 
 ### Data Fetching Pattern (React Query)
+
 ```jsx
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 // Read data
 const { data, isLoading, error } = useQuery({
   queryKey: ["resource", id],
-  queryFn: () => fetch(`/api/resource/${id}`).then(r => r.json()),
+  queryFn: () => fetch(`/api/resource/${id}`).then((r) => r.json()),
 });
 
 // Write/mutate data
 const { mutate, isPending } = useMutation({
-  mutationFn: (payload) => fetch("/api/resource", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  }).then(r => r.json()),
+  mutationFn: (payload) =>
+    fetch("/api/resource", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then((r) => r.json()),
   onSuccess: () => {
     toast.success("Done!");
     queryClient.invalidateQueries({ queryKey: ["resource"] });
@@ -71,13 +72,16 @@ const { mutate, isPending } = useMutation({
 ```
 
 ### Zustand Usage
+
 Use Zustand **only** for client-side global UI state:
+
 - `useAuthStore` — current user session/auth status
 - `useUserStore` — local user preferences, UI state
 
 Do NOT store API response data in Zustand.
 
 ### Common UI Patterns
+
 ```jsx
 // Loading skeleton
 {isLoading && (
