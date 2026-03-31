@@ -13,7 +13,7 @@ import {
   ArrowRight,
   Building2,
   IdCard,
-  Sparkles,
+  Gift,
 } from "lucide-react";
 import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
 import toast from "react-hot-toast";
@@ -650,7 +650,7 @@ export default function VendorVerification({
                     </div>
                     {referralCode && (
                       <div className="flex items-center gap-2 text-sm text-green-600 mt-2">
-                        <Sparkles className="w-4 h-4" />
+                        <Gift className="w-4 h-4" />
                         <span>
                           Referral bonus will be credited to your referrer
                         </span>

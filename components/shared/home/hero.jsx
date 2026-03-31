@@ -8,7 +8,7 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
+  Tag,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -225,7 +225,7 @@ export default function HeroSection() {
                 transition={{ delay: 0.2 }}
                 className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full mb-8 border border-white/20"
               >
-                <Sparkles className="w-4 h-4 text-accent" />
+                <Tag className="w-4 h-4 text-accent" />
                 <span className="text-sm font-semibold text-white">
                   {currentHero.badge}
                 </span>

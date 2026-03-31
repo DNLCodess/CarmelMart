@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles, ShoppingCart, Star, ChevronRight, Heart } from "lucide-react";
+import { PackagePlus, ShoppingCart, Star, ChevronRight, Heart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -156,7 +156,7 @@ export default function NewArrivalsSection() {
             viewport={{ once: true }}
           >
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-primary" />
+              <PackagePlus className="w-5 h-5 text-primary" />
               <span className="text-xs font-bold text-primary uppercase tracking-wider">Just Dropped</span>
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900">New Arrivals</h2>
@@ -234,7 +234,7 @@ export default function NewArrivalsSection() {
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1.5 hover:text-primary transition-colors">
                         {p.name}
                       </h3>
-                      <p className="text-xs text-gray-500 mb-2 truncate">{p.vendor || p.vendor_name}</p>
+                      <p className="text-xs text-gray-500 mb-2 truncate">{p.vendor?.name ?? p.vendor ?? p.vendor_name}</p>
                       {(p.avgRating ?? p.avg_rating) > 0 && (
                         <div className="flex items-center gap-1 mb-2">
                           <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
