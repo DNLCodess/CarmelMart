@@ -8,7 +8,7 @@ import {
   Search, SlidersHorizontal, X, Star, ShoppingCart, Heart,
   ChevronDown, Grid3X3, List, ChevronLeft, ChevronRight,
   CheckCircle, Flame, Tag, Zap, LayoutGrid, Filter, Eye,
-  Truck, BadgeCheck, Package, Home, ChevronRight as Chevron,
+  Truck, BadgeCheck, Package, Home, ChevronRight as Chevron, Scale,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -215,8 +215,102 @@ function QuickViewModal({ product, onClose, onAddToCart, onToggleWishlist, inWis
   );
 }
 
+// ── Compare Modal ─────────────────────────────────────────────────────────────
+function CompareModal({ products, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [onClose]);
+
+  const ROWS = [
+    { label: "Price",     render: (p) => `₦${(p.salePrice ?? p.price).toLocaleString()}` },
+    { label: "Rating",    render: (p) => p.avgRating ? `${p.avgRating.toFixed(1)} ★` : "—" },
+    { label: "Condition", render: (p) => p.condition ? p.condition.charAt(0).toUpperCase() + p.condition.slice(1) : "New" },
+    { label: "Delivery",  render: (p) => (p.salePrice ?? p.price) >= 10000 ? "Free" : "Standard" },
+    { label: "In Stock",  render: (p) => (p.stock ?? 1) > 0 ? "Yes" : "No" },
+    { label: "Sizes",     render: (p) => p.attributes?.sizes?.join(", ") || "—" },
+    { label: "Colors",    render: (p) => p.attributes?.colors?.join(", ") || "—" },
+    { label: "Storage",   render: (p) => p.attributes?.storage?.join(", ") || "—" },
+    { label: "RAM",       render: (p) => p.attributes?.ram?.join(", ") || "—" },
+    { label: "Sold",      render: (p) => p.soldCount ? `${p.soldCount.toLocaleString()} units` : "—" },
+  ].filter((row) => products.some((p) => {
+    const v = row.render(p);
+    return v && v !== "—";
+  }));
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-auto z-10"
+      >
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-3xl">
+          <div className="flex items-center gap-2">
+            <Scale className="w-5 h-5 text-primary" />
+            <h2 className="font-bold text-gray-900">Compare Products</h2>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 overflow-x-auto">
+          <table className="w-full text-sm border-separate border-spacing-0">
+            <thead>
+              <tr>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider py-3 pr-4 min-w-[120px]">Feature</th>
+                {products.map((p) => (
+                  <th key={p.id} className="text-center min-w-[160px] pb-4 px-2">
+                    <div className="relative h-32 rounded-2xl overflow-hidden bg-gray-50 mb-2">
+                      {p.image && <Image src={p.image} alt={p.name} fill className="object-cover" sizes="160px" />}
+                    </div>
+                    <p className="text-xs font-bold text-gray-900 line-clamp-2">{p.name}</p>
+                    <Link href={`/product/${p.id}`} className="text-[10px] text-primary hover:underline mt-0.5 block">
+                      View full details →
+                    </Link>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ROWS.map((row, ri) => (
+                <tr key={row.label} className={ri % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                  <td className="py-3 pr-4 text-xs font-semibold text-gray-500 whitespace-nowrap rounded-l-xl pl-3">{row.label}</td>
+                  {products.map((p) => (
+                    <td key={p.id} className="py-3 px-2 text-xs text-gray-900 text-center font-medium rounded-r-xl">
+                      {row.render(p)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {/* CTA row */}
+              <tr>
+                <td className="pt-4" />
+                {products.map((p) => (
+                  <td key={p.id} className="pt-4 px-2 text-center">
+                    <Link
+                      href={`/product/${p.id}`}
+                      onClick={onClose}
+                      className="inline-block w-full py-2 bg-primary text-white text-xs font-bold rounded-full hover:opacity-90 transition-opacity"
+                    >
+                      View Product
+                    </Link>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ── Product Card ──────────────────────────────────────────────────────────────
-function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist, onQuickView }) {
+function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist, onQuickView, onCompare, inCompare }) {
   const discount = product.salePrice
     ? Math.round((1 - product.salePrice / product.price) * 100)
     : null;
@@ -316,6 +410,13 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
             {discount && !product.badge && (
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white">-{discount}%</span>
             )}
+            {product.condition && product.condition !== "new" && (
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                product.condition === "used" ? "bg-yellow-500 text-white" : "bg-teal-500 text-white"
+              }`}>
+                {product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}
+              </span>
+            )}
           </div>
           {/* Express delivery badge */}
           <div className="absolute top-3 right-10">
@@ -346,6 +447,19 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
           >
             <Heart className={`w-4 h-4 ${inWishlist ? "fill-current" : ""}`} />
           </button>
+          {/* Compare toggle (bottom-left, grid only) */}
+          {onCompare && (
+            <button
+              onClick={(e) => { e.preventDefault(); onCompare(product); }}
+              className={`absolute bottom-10 right-3 w-6 h-6 rounded flex items-center justify-center border-2 transition-colors ${
+                inCompare ? "bg-primary border-primary text-white" : "bg-white border-gray-300 text-transparent hover:border-primary"
+              }`}
+              title={inCompare ? "Remove from compare" : "Add to compare"}
+              aria-label={inCompare ? "Remove from compare" : "Add to compare"}
+            >
+              {inCompare && <CheckCircle className="w-3.5 h-3.5" />}
+            </button>
+          )}
           {/* Hover overlay with Add to Cart + Quick View */}
           <div className="absolute inset-x-0 bottom-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex gap-1.5">
             <button
@@ -395,6 +509,29 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
             <span className="text-[10px] text-gray-400">{product.soldCount} sold</span>
           )}
         </div>
+        {/* Color swatches from product attributes */}
+        {(() => {
+          const colors = product.attributes?.colors ?? [];
+          if (!colors.length) return null;
+          const shown = colors.slice(0, 5);
+          const rest  = colors.length - shown.length;
+          return (
+            <div className="flex items-center gap-1 mb-2">
+              {shown.map((name) => {
+                const hex = COLOR_OPTIONS.find((c) => c.name.toLowerCase() === name.toLowerCase())?.hex;
+                return hex ? (
+                  <span
+                    key={name}
+                    title={name}
+                    className="w-3.5 h-3.5 rounded-full border border-gray-200 shrink-0"
+                    style={{ backgroundColor: hex }}
+                  />
+                ) : null;
+              })}
+              {rest > 0 && <span className="text-[10px] text-gray-400">+{rest}</span>}
+            </div>
+          );
+        })()}
         <div className="mt-auto">
           <div className="flex items-baseline gap-2">
             <span className="text-base font-bold text-gray-900">
@@ -444,7 +581,7 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
             <div className="space-y-1">
               <button
                 onClick={() => setFilter("category", null)}
-                className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${!filters.category ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"}`}
+                className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${filters.category ? "text-gray-700 hover:bg-gray-100" : "bg-primary text-white"}`}
               >
                 All Products
               </button>
@@ -691,6 +828,16 @@ function ShopContent() {
   const removeFromWishlist = useUIStore((s) => s.removeFromWishlist);
 
   const [quickViewProduct, setQuickViewProduct] = useState(null);
+  const [compareIds,       setCompareIds]       = useState([]);
+  const [showCompare,      setShowCompare]       = useState(false);
+
+  const handleToggleCompare = useCallback((product) => {
+    setCompareIds((prev) => {
+      if (prev.includes(product.id)) return prev.filter((id) => id !== product.id);
+      if (prev.length >= 4) { toast.error("You can compare up to 4 products"); return prev; }
+      return [...prev, product.id];
+    });
+  }, []);
 
   const [filters, setFiltersState] = useState({
     category:  sp.get("category")   || null,
@@ -761,6 +908,8 @@ function ShopContent() {
   const pagination = productsData?.pagination ?? { total: 0, pages: 1, page: 1 };
   const categories = categoriesData?.categories ?? [];
 
+  const compareProducts = products.filter((p) => compareIds.includes(p.id));
+
   const activeFilters = [
     filters.category  && { key: "category",  label: categories.find((c) => c.slug === filters.category)?.name ?? filters.category },
     filters.search    && { key: "search",    label: `"${filters.search}"` },
@@ -812,6 +961,45 @@ function ShopContent() {
         )}
       </AnimatePresence>
 
+      {/* Compare Modal */}
+      <AnimatePresence>
+        {showCompare && compareProducts.length >= 2 && (
+          <CompareModal products={compareProducts} onClose={() => setShowCompare(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Compare Sticky Bar */}
+      <AnimatePresence>
+        {compareIds.length >= 2 && !showCompare && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4"
+          >
+            <div className="flex items-center gap-2">
+              <Scale className="w-4 h-4 text-accent" />
+              <span className="text-sm font-semibold">{compareIds.length} products selected</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCompare(true)}
+                className="bg-primary text-white text-xs font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap"
+              >
+                Compare Now
+              </button>
+              <button
+                onClick={() => setCompareIds([])}
+                className="text-gray-400 hover:text-white transition-colors p-1"
+                aria-label="Clear compare"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Shop header banner ───────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -821,7 +1009,7 @@ function ShopContent() {
               <Home className="w-3.5 h-3.5" /> Home
             </Link>
             <Chevron className="w-3 h-3" />
-            <Link href="/shop" className={`hover:text-primary transition-colors ${!filters.category ? "text-gray-900 font-medium" : ""}`}>
+            <Link href="/shop" className={`hover:text-primary transition-colors ${filters.category ? "" : "text-gray-900 font-medium"}`}>
               Shop
             </Link>
             {currentCategory && (
@@ -1004,6 +1192,8 @@ function ShopContent() {
                       onToggleWishlist={handleToggleWishlist}
                       inWishlist={wishlist.some((w) => w === product.id || w?.id === product.id)}
                       onQuickView={setQuickViewProduct}
+                      onCompare={view === "grid" ? handleToggleCompare : null}
+                      inCompare={compareIds.includes(product.id)}
                     />
                   ))}
                 </motion.div>

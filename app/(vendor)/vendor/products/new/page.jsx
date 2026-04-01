@@ -11,6 +11,40 @@ import ProductImageUploader from "@/components/shared/vendor/ProductImageUploade
 
 const DRAFT_KEY = "cm-new-product-draft";
 
+// Per-category dynamic attribute definitions
+const CATEGORY_ATTRIBUTES = {
+  fashion:      [
+    { key: "sizes",    label: "Available Sizes",   type: "multicheck", options: ["XS","S","M","L","XL","XXL","XXXL"] },
+    { key: "colors",   label: "Available Colors",  type: "multicheck", options: ["Black","White","Red","Blue","Green","Yellow","Brown","Gray","Pink","Purple"] },
+    { key: "material", label: "Material/Fabric",   type: "text",       placeholder: "e.g. 100% Cotton, Polyester blend" },
+  ],
+  electronics:  [
+    { key: "storage",  label: "Storage Options",   type: "multicheck", options: ["32GB","64GB","128GB","256GB","512GB","1TB","2TB"] },
+    { key: "ram",      label: "RAM Options",        type: "multicheck", options: ["4GB","6GB","8GB","12GB","16GB","32GB"] },
+    { key: "colors",   label: "Available Colors",  type: "multicheck", options: ["Black","White","Silver","Gold","Blue","Space Gray"] },
+  ],
+  phones:       [
+    { key: "storage",  label: "Storage Options",   type: "multicheck", options: ["64GB","128GB","256GB","512GB"] },
+    { key: "ram",      label: "RAM Options",        type: "multicheck", options: ["4GB","6GB","8GB","12GB","16GB"] },
+    { key: "colors",   label: "Available Colors",  type: "multicheck", options: ["Black","White","Silver","Gold","Blue","Red","Green"] },
+  ],
+  "home-living": [
+    { key: "colors",   label: "Available Colors",  type: "multicheck", options: ["Black","White","Brown","Gray","Beige","Natural Wood"] },
+    { key: "material", label: "Material",          type: "text",       placeholder: "e.g. Solid Oak, MDF, Stainless Steel" },
+  ],
+  beauty:       [
+    { key: "shades",   label: "Available Shades/Colors", type: "multicheck", options: ["Ivory","Beige","Tan","Caramel","Ebony","Cocoa","Universal"] },
+    { key: "size",     label: "Volume/Size Options",     type: "multicheck", options: ["30ml","50ml","100ml","200ml","250ml","500ml","1L"] },
+  ],
+  sports:       [
+    { key: "sizes",    label: "Available Sizes",   type: "multicheck", options: ["XS","S","M","L","XL","XXL","36","37","38","39","40","41","42","43","44","45"] },
+    { key: "colors",   label: "Available Colors",  type: "multicheck", options: ["Black","White","Red","Blue","Green","Gray","Navy","Orange"] },
+  ],
+  _default:     [
+    { key: "colors",   label: "Available Colors",  type: "multicheck", options: ["Black","White","Red","Blue","Green","Yellow","Other"] },
+  ],
+};
+
 async function fetchCategories() {
   const r = await fetch("/api/categories");
   return r.json();
@@ -39,6 +73,8 @@ export default function NewProductPage() {
   const [uploadedPaths, setUploadedPaths] = useState([]); // for potential cleanup
   const [draft, setDraft]               = useState(null);  // { values, savedAt, images }
   const [draftBanner, setDraftBanner]   = useState(false);
+  const [condition, setCondition]       = useState("new");
+  const [attributes, setAttributes]     = useState({});    // { sizes: ["S","M"], colors: ["Black"], ... }
   const saveTimer = useRef(null);
 
   const { data: catData } = useQuery({
@@ -59,9 +95,26 @@ export default function NewProductPage() {
     defaultValues: { status: "active", stock: 0 },
   });
 
-  const allValues = useWatch({ control });
-  const price     = watch("price");
-  const salePrice = watch("sale_price");
+  const allValues   = useWatch({ control });
+  const price       = watch("price");
+  const salePrice   = watch("sale_price");
+  const categoryId  = watch("category_id");
+
+  // Resolve attribute definitions for the selected category
+  const selectedCat = categories.find((c) => String(c.id) === String(categoryId));
+  const attrDefs    = selectedCat
+    ? (CATEGORY_ATTRIBUTES[selectedCat.slug] ?? CATEGORY_ATTRIBUTES._default)
+    : [];
+
+  const toggleAttrOption = (key, value) => {
+    setAttributes((prev) => {
+      const current = prev[key] ?? [];
+      const next = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { ...prev, [key]: next };
+    });
+  };
 
   // ── Load draft on mount ────────────────────────────────────────────────────
   useEffect(() => {
@@ -122,6 +175,12 @@ export default function NewProductPage() {
           category_id: data.category_id || null,
           status:      data.status,
           images,
+          condition,
+          attributes:  Object.fromEntries(
+            Object.entries(attributes).filter(([, v]) =>
+              Array.isArray(v) ? v.length > 0 : v?.toString().trim()
+            )
+          ),
         }),
       });
       const d = await r.json();
@@ -288,6 +347,85 @@ export default function NewProductPage() {
               </select>
             </div>
           </div>
+        </div>
+
+        {/* ── Condition & Variants ────────────────────────────────────────── */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-5">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Condition & Variants</h2>
+
+          {/* Condition — applies to all categories */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Condition <span className="text-red-500">*</span>
+            </label>
+            <div className="flex gap-3 flex-wrap">
+              {[{ value: "new", label: "New" }, { value: "used", label: "Used" }, { value: "refurbished", label: "Refurbished" }].map((opt) => (
+                <button
+                  type="button"
+                  key={opt.value}
+                  onClick={() => setCondition(opt.value)}
+                  className={`px-5 py-2 text-sm font-semibold rounded-full border-2 transition-all ${
+                    condition === opt.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category-specific attributes */}
+          {attrDefs.length > 0 && (
+            <div className="space-y-5 pt-2 border-t border-gray-100 dark:border-gray-700">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                {selectedCat?.name} Variants
+              </p>
+              {attrDefs.map((attr) => (
+                <div key={attr.key}>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    {attr.label}
+                  </label>
+                  {attr.type === "multicheck" ? (
+                    <div className="flex flex-wrap gap-2">
+                      {attr.options.map((opt) => {
+                        const checked = (attributes[attr.key] ?? []).includes(opt);
+                        return (
+                          <button
+                            type="button"
+                            key={opt}
+                            onClick={() => toggleAttrOption(attr.key, opt)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 transition-all ${
+                              checked
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder={attr.placeholder}
+                      value={attributes[attr.key] ?? ""}
+                      onChange={(e) => setAttributes((prev) => ({ ...prev, [attr.key]: e.target.value }))}
+                      className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!categoryId && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+              Select a category above to see category-specific variant options (sizes, colors, storage, etc.)
+            </p>
+          )}
         </div>
 
         {/* ── Product Images ───────────────────────────────────────────────── */}

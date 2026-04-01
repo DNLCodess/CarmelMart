@@ -49,6 +49,8 @@ export async function PATCH(request, { params }) {
         category_id: body.category_id,
         status:      body.status,
         images:      body.images ?? [],
+        condition:   ["new","used","refurbished"].includes(body.condition) ? body.condition : "new",
+        attributes:  body.attributes && typeof body.attributes === "object" ? body.attributes : {},
         updated_at:  new Date().toISOString(),
       })
       .eq("id", id)

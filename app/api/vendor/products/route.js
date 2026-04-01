@@ -80,12 +80,13 @@ export async function POST(request) {
     if (!profile || profile.role !== "vendor") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { name, description, price, sale_price, stock, category_id, status, images } = body;
+    const { name, description, price, sale_price, stock, category_id, status, images, condition, attributes } = body;
 
     if (!name || !price) return NextResponse.json({ error: "Name and price are required" }, { status: 400 });
     if (sale_price && Number(sale_price) >= Number(price)) {
       return NextResponse.json({ error: "Sale price must be less than regular price" }, { status: 400 });
     }
+    const VALID_CONDITIONS = ["new", "used", "refurbished"];
 
     const { data: product, error } = await admin
       .from("products")
@@ -99,6 +100,8 @@ export async function POST(request) {
         category_id: category_id || null,
         status:      status ?? "active",
         images:      images ?? [],
+        condition:   VALID_CONDITIONS.includes(condition) ? condition : "new",
+        attributes:  attributes && typeof attributes === "object" ? attributes : {},
         created_at:  new Date().toISOString(),
         updated_at:  new Date().toISOString(),
       })

@@ -625,7 +625,21 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-center gap-2 text-xs text-gray-400 pt-1">
+              {/* Trust badges */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
+                {[
+                  { icon: ShieldCheck, label: "Buyer Protection" },
+                  { icon: Truck,       label: "Fast Delivery"    },
+                  { icon: CheckCircle, label: "7-Day Returns"    },
+                ].map(({ icon: Icon, label }) => (
+                  <div key={label} className="flex flex-col items-center gap-1 text-center">
+                    <Icon className="w-4 h-4 text-primary" />
+                    <span className="text-[10px] font-semibold text-gray-600">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
                 <ShieldCheck className="w-4 h-4 text-green-500" />
                 Secured by Flutterwave
               </div>

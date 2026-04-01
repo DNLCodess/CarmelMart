@@ -8,6 +8,7 @@ import FeaturedProductsSection from "@/components/shared/home/FeaturedProductsSe
 import PromoBannersSection    from "@/components/shared/home/PromoBannersSection";
 import NewArrivalsSection     from "@/components/shared/home/NewArrivalsSection";
 import ShopByBrandSection    from "@/components/shared/home/ShopByBrandSection";
+import LiveActivityTicker    from "@/components/shared/home/LiveActivityTicker";
 import TopVendorsSection      from "@/components/shared/home/TopVendorsSection";
 import TrustStrip              from "@/components/shared/home/TrustStrip";
 import HowItWorksSection      from "@/components/shared/home/HowItWorksSection";
@@ -32,6 +33,9 @@ export default function LandingPage() {
 
       {/* 4. Featured / Trending products */}
       <FeaturedProductsSection />
+
+      {/* 4b. Live activity ticker — "people are buying right now" */}
+      <LiveActivityTicker />
 
       {/* 5. Promotional banners — Electronics Week, Free Delivery, Buyer Protection */}
       <PromoBannersSection />
