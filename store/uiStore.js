@@ -29,6 +29,18 @@ export const useUIStore = create(
           recentlyViewed: [productId, ...state.recentlyViewed.filter((id) => id !== productId)].slice(0, 20),
         })),
 
+      // Recent searches — shown in autocomplete dropdown when input is focused but empty
+      recentSearches: [], // string[]
+      addRecentSearch: (term) =>
+        set((state) => {
+          const cleaned = term.trim();
+          if (!cleaned) return state;
+          return {
+            recentSearches: [cleaned, ...state.recentSearches.filter((s) => s !== cleaned)].slice(0, 8),
+          };
+        }),
+      clearRecentSearches: () => set({ recentSearches: [] }),
+
       // Delivery location (persisted; pre-fills checkout state selector)
       deliveryLocation: "Lagos",
       setDeliveryLocation: (state) => set({ deliveryLocation: state }),

@@ -716,47 +716,51 @@ export default function ProductDetailPage() {
                 )}
 
                 {/* CTA buttons */}
-                <div className="flex gap-3">
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleAddToCart}
-                    disabled={!inStock}
-                    className="flex-1 flex items-center justify-center gap-2 border-2 border-primary text-primary font-semibold py-3.5 rounded-full hover:bg-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ShoppingCart className="w-5 h-5" />
-                    Add to Cart
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleBuyNow}
-                    disabled={!inStock}
-                    className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-semibold py-3.5 rounded-full hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-                  >
-                    <ShoppingBag className="w-5 h-5" />
-                    Buy Now
-                  </motion.button>
-                  <button
-                    onClick={handleWishlist}
-                    className={`p-3.5 rounded-full border-2 transition-colors ${
-                      isWishlisted
-                        ? "border-red-400 bg-red-50 text-red-500"
-                        : "border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-400"
-                    }`}
-                    aria-label={
-                      isWishlisted ? "Remove from wishlist" : "Add to wishlist"
-                    }
-                  >
-                    <Heart
-                      className={`w-5 h-5 ${isWishlisted ? "fill-current" : ""}`}
-                    />
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    className="p-3.5 rounded-full border-2 border-gray-200 text-gray-600 hover:border-primary hover:text-primary transition-colors"
-                    aria-label="Share product"
-                  >
-                    <Share2 className="w-5 h-5" />
-                  </button>
+                <div className="space-y-3">
+                  {/* Primary actions */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={handleBuyNow}
+                      disabled={!inStock}
+                      className="flex items-center justify-center gap-2 bg-primary text-white font-bold py-4 rounded-2xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity text-sm sm:text-base"
+                    >
+                      <ShoppingBag className="w-5 h-5 shrink-0" />
+                      Buy Now
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={handleAddToCart}
+                      disabled={!inStock}
+                      className="flex items-center justify-center gap-2 border-2 border-primary text-primary font-bold py-4 rounded-2xl hover:bg-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+                    >
+                      <ShoppingCart className="w-5 h-5 shrink-0" />
+                      Add to Cart
+                    </motion.button>
+                  </div>
+                  {/* Secondary actions */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleWishlist}
+                      className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-semibold transition-colors ${
+                        isWishlisted
+                          ? "border-red-300 bg-red-50 text-red-500"
+                          : "border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-500 hover:bg-red-50"
+                      }`}
+                      aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                    >
+                      <Heart className={`w-4 h-4 shrink-0 ${isWishlisted ? "fill-current" : ""}`} />
+                      {isWishlisted ? "Saved" : "Save"}
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary transition-colors text-sm font-semibold"
+                      aria-label="Share product"
+                    >
+                      <Share2 className="w-4 h-4 shrink-0" />
+                      Share
+                    </button>
+                  </div>
                 </div>
 
                 {/* Trust badges */}

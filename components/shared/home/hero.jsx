@@ -201,14 +201,14 @@ export default function HeroSection() {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
+        className="hidden md:flex absolute left-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
         aria-label="Previous slide"
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
       <button
         onClick={nextSlide}
-        className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
+        className="hidden md:flex absolute right-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
         aria-label="Next slide"
       >
         <ChevronRight className="w-6 h-6" />
@@ -272,28 +272,28 @@ export default function HeroSection() {
               </div>
 
               {/* Trust Indicators with Glass Effect */}
-              <div className="grid grid-cols-3 gap-6 p-6 bg-primary/10 backdrop-blur-xl rounded-2xl border border-white/10">
+              <div className="grid grid-cols-3 gap-2 sm:gap-6 p-4 sm:p-6 bg-primary/10 backdrop-blur-xl rounded-2xl border border-white/10">
                 <div>
-                  <div className="text-3xl font-bold text-white mb-1">
+                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
                     {currentHero.stats.vendors}
                   </div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
                     {currentHero.statLabels?.vendors ?? "Verified Vendors"}
                   </div>
                 </div>
-                <div>
-                  <div className="text-3xl font-bold text-white mb-1">
+                <div className="border-x border-white/10 px-2 sm:px-0">
+                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
                     {currentHero.stats.products}
                   </div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
                     {currentHero.statLabels?.products ?? "Products"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-white mb-1">
+                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
                     {currentHero.stats.satisfaction}
                   </div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
                     {currentHero.statLabels?.satisfaction ?? "Satisfaction"}
                   </div>
                 </div>

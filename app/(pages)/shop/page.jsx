@@ -34,6 +34,7 @@ async function fetchCategories() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const SORT_OPTIONS = [
+  { label: "Best Match",      value: "relevance"  }, // shown first when a search query is active
   { label: "Most Popular",    value: "popular"    },
   { label: "Newest",          value: "newest"     },
   { label: "Best Discount",   value: "discount"   },
@@ -941,7 +942,7 @@ function ShopContent() {
     size:         sp.get("size")          || null,
     verifiedOnly: sp.get("verified_only") === "true",
     minDiscount:  sp.get("min_discount") ? Number(sp.get("min_discount")) : null,
-    sort:         sp.get("sort")          || "popular",
+    sort:         sp.get("sort")          || (sp.get("q") ? "relevance" : "popular"),
     page:         sp.get("page") ? Number(sp.get("page")) : 1,
   });
   const [view, setView]               = useState("grid");

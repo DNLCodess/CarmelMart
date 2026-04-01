@@ -18,7 +18,21 @@ import { useAuth } from "@/lib/auth-context";
 import { useCartStore } from "@/store/cartStore";
 import { useUIStore } from "@/store/uiStore";
 import { logoutAction } from "@/app/actions/auth";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+// Bold the portion of text that matches the search query
+function HighlightMatch({ text, query }) {
+  if (!query || query.length < 2) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-transparent font-black text-gray-900 not-italic">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -83,8 +97,10 @@ export default function Navbar() {
   const [promoVisible,        setPromoVisible]        = useState(true);
   const [isMobileMenuOpen,    setIsMobileMenuOpen]    = useState(false);
   const [searchQuery,         setSearchQuery]         = useState("");
+  const [debouncedQuery,      setDebouncedQuery]      = useState("");
   const [searchCategory,      setSearchCategory]      = useState("All Categories");
   const [showSuggestions,     setShowSuggestions]     = useState(false);
+  const [activeIndex,         setActiveIndex]         = useState(-1);
   const [showCartPreview,     setShowCartPreview]     = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [activeCategory,      setActiveCategory]      = useState("All Departments");
@@ -106,9 +122,12 @@ export default function Navbar() {
   const cartItems  = useCartStore((s) => s.items);
   const cartCount  = useCartStore((s) => s.itemCount);
   const cartTotal  = useCartStore((s) => s.total);
-  const wishlistCount      = useUIStore((s) => s.wishlist.length);
-  const deliveryLocation   = useUIStore((s) => s.deliveryLocation);
+  const wishlistCount       = useUIStore((s) => s.wishlist.length);
+  const deliveryLocation    = useUIStore((s) => s.deliveryLocation);
   const setDeliveryLocation = useUIStore((s) => s.setDeliveryLocation);
+  const recentSearches      = useUIStore((s) => s.recentSearches);
+  const addRecentSearch     = useUIStore((s) => s.addRecentSearch);
+  const clearRecentSearches = useUIStore((s) => s.clearRecentSearches);
 
   const firstName    = user?.first_name ?? user?.email?.split("@")[0] ?? "Guest";
   const displayName  = user?.first_name
@@ -117,10 +136,41 @@ export default function Navbar() {
   const displayRole  = role ? role.charAt(0).toUpperCase() + role.slice(1) : "Customer";
   const initials     = displayName.slice(0, 2).toUpperCase();
 
+  // Debounce search query for live API calls
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 280);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const { data: liveData, isFetching: liveLoading } = useQuery({
+    queryKey: ["search-autocomplete", debouncedQuery, searchCategory],
+    queryFn: async () => {
+      const params = new URLSearchParams({ search: debouncedQuery, per_page: "7" });
+      if (searchCategory !== "All Categories") params.set("category", searchCategory.toLowerCase().replace(/\s+/g, "-"));
+      const r = await fetch(`/api/products?${params}`);
+      return r.json();
+    },
+    enabled: debouncedQuery.length >= 2,
+    staleTime: 30 * 1000,
+    keepPreviousData: true,
+  });
+
+  const liveResults = liveData?.products ?? [];
+
+  // Flat navigable list for keyboard arrow-key navigation
+  const navItems = (() => {
+    if (debouncedQuery.length >= 2) return liveResults.map((p) => ({ type: "product", data: p }));
+    if (recentSearches.length > 0)  return recentSearches.map((s) => ({ type: "recent",   data: s }));
+    return SEARCH_SUGGESTIONS.slice(0, 5).map((s) => ({ type: "trending", data: s }));
+  })();
+
+  // Reset keyboard selection whenever the query changes
+  useEffect(() => { setActiveIndex(-1); }, [searchQuery]);
+
   const filteredSuggestions = searchQuery.length >= 2
     ? SEARCH_SUGGESTIONS.filter((s) =>
         s.label.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 6)
+      ).slice(0, 3)
     : SEARCH_SUGGESTIONS.slice(0, 5);
 
   const accountLinks = isAuthenticated ? [
@@ -137,20 +187,49 @@ export default function Navbar() {
   const handleSearchSubmit = useCallback((e) => {
     e.preventDefault();
     const q = searchQuery.trim();
+    if (q) addRecentSearch(q);
     setShowSuggestions(false);
+    setActiveIndex(-1);
     setIsMobileMenuOpen(false);
     const catParam = searchCategory !== "All Categories"
       ? `&category=${encodeURIComponent(searchCategory.toLowerCase())}`
       : "";
     router.push(q ? `/shop?q=${encodeURIComponent(q)}${catParam}` : "/shop");
-  }, [router, searchQuery, searchCategory]);
+  }, [router, searchQuery, searchCategory, addRecentSearch]);
 
   const handleSuggestionClick = useCallback((label) => {
+    addRecentSearch(label);
     setSearchQuery(label);
     setShowSuggestions(false);
+    setActiveIndex(-1);
     setIsMobileMenuOpen(false);
     router.push(`/shop?q=${encodeURIComponent(label)}`);
-  }, [router]);
+  }, [router, addRecentSearch]);
+
+  const handleSearchKeyDown = useCallback((e) => {
+    if (!showSuggestions || navItems.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, navItems.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, -1));
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+      setActiveIndex(-1);
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      const item = navItems[activeIndex];
+      if (item.type === "product") {
+        addRecentSearch(item.data.name);
+        setShowSuggestions(false);
+        setActiveIndex(-1);
+        router.push(`/product/${item.data.id}`);
+      } else {
+        handleSuggestionClick(item.type === "recent" ? item.data : item.data.label);
+      }
+    }
+  }, [showSuggestions, navItems, activeIndex, router, addRecentSearch, handleSuggestionClick]);
 
   const handleSignOut = useCallback(async () => {
     await logoutAction();
@@ -203,31 +282,165 @@ export default function Navbar() {
       transition={{ duration: 0.15 }}
       className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
     >
-      <div className="px-4 py-2.5 border-b border-gray-50 flex items-center justify-between">
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-          {searchQuery.length >= 2 ? "Suggestions" : "Trending Searches"}
-        </p>
-        {searchCategory !== "All Categories" && (
-          <span className="text-[11px] text-primary font-medium bg-primary/5 px-2 py-0.5 rounded-full">
-            in {searchCategory}
-          </span>
-        )}
-      </div>
-      {filteredSuggestions.length === 0 ? (
-        <div className="px-4 py-3 text-sm text-gray-400">No results found</div>
-      ) : (
-        filteredSuggestions.map((s) => (
-          <button
-            key={s.label}
-            type="button"
-            onMouseDown={() => handleSuggestionClick(s.label)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
-          >
-            <Search className="w-4 h-4 text-gray-300 shrink-0" />
-            <span className="text-sm text-gray-900 flex-1">{s.label}</span>
-            <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{s.category}</span>
-          </button>
-        ))
+
+      {/* ── Live product results (query ≥ 2 chars) ── */}
+      {debouncedQuery.length >= 2 && (
+        <>
+          <div className="px-4 py-2.5 border-b border-gray-50 flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+              {liveLoading ? "Searching…" : liveResults.length > 0 ? `${liveResults.length} products` : "No products found"}
+            </p>
+            {searchCategory !== "All Categories" && (
+              <span className="text-[11px] text-primary font-medium bg-primary/5 px-2 py-0.5 rounded-full">in {searchCategory}</span>
+            )}
+          </div>
+
+          {liveLoading && (
+            <div className="px-4 py-3 space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 animate-pulse">
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 bg-gray-100 rounded w-3/4" />
+                    <div className="h-2.5 bg-gray-100 rounded w-1/3" />
+                  </div>
+                  <div className="h-4 bg-gray-100 rounded w-16 shrink-0" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!liveLoading && liveResults.length > 0 && (
+            <div className="max-h-72 overflow-y-auto">
+              {liveResults.map((product, idx) => {
+                const image       = Array.isArray(product.images) ? product.images[0] : product.image;
+                const price       = product.salePrice ?? product.price;
+                const isActive    = idx === activeIndex;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onMouseDown={() => {
+                      addRecentSearch(product.name);
+                      setShowSuggestions(false);
+                      setActiveIndex(-1);
+                      router.push(`/product/${product.id}`);
+                    }}
+                    onMouseEnter={() => setActiveIndex(idx)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${isActive ? "bg-primary/5" : "hover:bg-gray-50"}`}
+                  >
+                    <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                      {image && <Image src={image} alt={product.name} fill className="object-cover" sizes="40px" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-700 font-medium truncate">
+                        <HighlightMatch text={product.name} query={debouncedQuery} />
+                      </p>
+                      <p className="text-[11px] text-gray-400 truncate">{product.vendor?.name ?? product.category?.name}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold text-gray-900">₦{price.toLocaleString()}</p>
+                      {product.salePrice && (
+                        <p className="text-[10px] text-gray-400 line-through">₦{product.price.toLocaleString()}</p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!liveLoading && liveResults.length === 0 && (
+            <div className="px-4 py-5 text-center">
+              <p className="text-sm text-gray-400 mb-2">No products match &ldquo;{debouncedQuery}&rdquo;</p>
+              <button
+                type="submit"
+                onMouseDown={() => { addRecentSearch(debouncedQuery); setShowSuggestions(false); router.push(`/shop?q=${encodeURIComponent(debouncedQuery)}`); }}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                Search all categories →
+              </button>
+            </div>
+          )}
+
+          {/* Related keyword chips */}
+          {!liveLoading && filteredSuggestions.length > 0 && (
+            <div className="border-t border-gray-50 px-4 py-2.5">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Related</p>
+              <div className="flex flex-wrap gap-1.5">
+                {filteredSuggestions.map((s) => (
+                  <button key={s.label} type="button" onMouseDown={() => handleSuggestionClick(s.label)}
+                    className="text-[11px] text-gray-600 bg-gray-100 hover:bg-primary/10 hover:text-primary px-2.5 py-1 rounded-full transition-colors">
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* View all footer */}
+          {!liveLoading && liveResults.length > 0 && (
+            <div className="border-t border-gray-50">
+              <button type="submit" onMouseDown={() => { addRecentSearch(debouncedQuery); setShowSuggestions(false); }}
+                className="w-full px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors text-center">
+                See all results for &ldquo;{debouncedQuery}&rdquo; →
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Empty state: recent searches + trending ── */}
+      {debouncedQuery.length < 2 && (
+        <>
+          {/* Recent searches */}
+          {recentSearches.length > 0 && (
+            <>
+              <div className="px-4 py-2.5 border-b border-gray-50 flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Recent</p>
+                <button type="button" onMouseDown={clearRecentSearches}
+                  className="text-[11px] text-gray-400 hover:text-red-500 transition-colors font-medium">
+                  Clear
+                </button>
+              </div>
+              {recentSearches.map((term, idx) => {
+                const isActive = idx === activeIndex;
+                return (
+                  <button key={term} type="button"
+                    onMouseDown={() => handleSuggestionClick(term)}
+                    onMouseEnter={() => setActiveIndex(idx)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${isActive ? "bg-primary/5" : "hover:bg-gray-50"}`}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                    <span className="text-sm text-gray-700 flex-1">{term}</span>
+                    <X className="w-3 h-3 text-gray-300 hover:text-gray-500 shrink-0"
+                      onMouseDown={(e) => { e.stopPropagation(); clearRecentSearches(); }} />
+                  </button>
+                );
+              })}
+            </>
+          )}
+
+          {/* Trending searches */}
+          <div className={`px-4 py-2.5 ${recentSearches.length > 0 ? "border-t border-gray-50" : "border-b border-gray-50"}`}>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Trending</p>
+          </div>
+          {SEARCH_SUGGESTIONS.slice(0, 5).map((s, idx) => {
+            const navIdx   = recentSearches.length + idx;
+            const isActive = navIdx === activeIndex;
+            return (
+              <button key={s.label} type="button"
+                onMouseDown={() => handleSuggestionClick(s.label)}
+                onMouseEnter={() => setActiveIndex(navIdx)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${isActive ? "bg-primary/5" : "hover:bg-gray-50"}`}
+              >
+                <Search className="w-4 h-4 text-gray-300 shrink-0" />
+                <span className="text-sm text-gray-700 flex-1">{s.label}</span>
+                <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{s.category}</span>
+              </button>
+            );
+          })}
+        </>
       )}
     </motion.div>
   );
@@ -380,7 +593,8 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
                   onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onBlur={() => setTimeout(() => { setShowSuggestions(false); setActiveIndex(-1); }, 150)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="Search products, brands, vendors…"
                   className="flex-1 min-w-0 px-3 bg-white outline-none text-sm placeholder:text-gray-400 text-gray-900"
                   autoComplete="off"
@@ -562,7 +776,7 @@ export default function Navbar() {
                         key={cartCount}
                         initial={{ scale: 1.4 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-accent text-white text-[11px] font-bold rounded-full flex items-center justify-center"
+                        className="absolute -top-2 -right-2 min-w-5 h-5 px-1 bg-accent text-white text-[11px] font-bold rounded-full flex items-center justify-center"
                       >
                         {cartCount > 99 ? "99+" : cartCount}
                       </motion.span>
@@ -681,7 +895,8 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
                   onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onBlur={() => setTimeout(() => { setShowSuggestions(false); setActiveIndex(-1); }, 150)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="Search products, brands, vendors…"
                   className="flex-1 min-w-0 px-4 bg-white outline-none text-sm placeholder:text-gray-400 text-gray-900"
                   autoComplete="off"

@@ -84,7 +84,8 @@ export async function GET(request) {
       .eq("status", "active");
 
     if (resolvedCategoryId) query = query.eq("category_id", resolvedCategoryId);
-    if (search)             query = query.ilike("name", `%${search}%`);
+    // Search name AND description so partial-word matches in specs/description surface too
+    if (search)             query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
     if (minPrice !== null)  query = query.gte("price", minPrice);
     if (maxPrice !== null)  query = query.lte("price", maxPrice);
     if (minRating !== null) query = query.gte("avg_rating", minRating);
@@ -105,6 +106,8 @@ export async function GET(request) {
       case "rating":     query = query.order("avg_rating", { ascending: false }); break;
       case "popular":    query = query.order("sold_count", { ascending: false }); break;
       case "discount":   query = query.not("sale_price", "is", null).order("price", { ascending: false }); break;
+      // Relevance: highest-rated + most-sold matching products rise to top
+      case "relevance":  query = query.order("avg_rating", { ascending: false }).order("sold_count", { ascending: false }); break;
       default:           query = query.order("created_at", { ascending: false });
     }
 
