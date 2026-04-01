@@ -9,7 +9,7 @@ import {
   Search, ShoppingCart, User, Heart, Menu, X, LogOut,
   Zap, Laptop, Shirt, Home as HomeIcon, Gem, Dumbbell,
   BookOpen, Package, Settings, TrendingUp, Bell,
-  BadgeCheck, ArrowRight, Phone, MapPin, ChevronDown,
+  BadgeCheck, ArrowRight, Phone, MapPin, ChevronDown, ChevronRight,
   LayoutGrid, RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
@@ -58,6 +58,17 @@ const CATEGORIES = [
   { name: "Flash Sale",      href: "/shop?sort=flash_sale",         icon: Zap, hot: true },
 ];
 
+// Sub-categories shown in mega-menu on hover
+const CATEGORY_SUBS = {
+  Fashion:     { subs: ["Men's Wear", "Women's Wear", "Shoes & Sneakers", "Bags & Accessories", "Watches", "Traditional Wear"], href: "/shop?category=fashion"     },
+  Electronics: { subs: ["Laptops & Computers", "Televisions", "Audio & Headphones", "Cameras", "Gaming", "Smart Home"],         href: "/shop?category=electronics" },
+  Phones:      { subs: ["Smartphones", "Feature Phones", "Phone Cases", "Chargers & Cables", "Screen Protectors", "Power Banks"], href: "/shop?category=phones"      },
+  Home:        { subs: ["Furniture", "Kitchen & Dining", "Bedding & Pillows", "Home Decor", "Lighting", "Storage"],              href: "/shop?category=home-living"  },
+  Beauty:      { subs: ["Skincare", "Makeup", "Hair Care", "Fragrances", "Nail Care", "Personal Care"],                         href: "/shop?category=beauty"      },
+  Sports:      { subs: ["Gym Equipment", "Sportswear", "Supplements", "Outdoor & Camping", "Cycling", "Swimming"],              href: "/shop?category=sports"       },
+  Books:       { subs: ["Fiction", "Non-Fiction", "Academic & Textbooks", "Children's Books", "Business", "Self Help"],         href: "/shop?category=books"        },
+};
+
 const NIGERIAN_STATES = [
   "Lagos", "Abuja (FCT)", "Rivers", "Kano", "Oyo", "Delta",
   "Anambra", "Kaduna", "Enugu", "Ondo", "Osun", "Ogun", "Edo", "Kwara", "Plateau",
@@ -79,10 +90,12 @@ export default function Navbar() {
   const [activeCategory,      setActiveCategory]      = useState("All Departments");
   const [deliveryLocation,    setDeliveryLocation]    = useState("Lagos");
   const [showLocationPicker,  setShowLocationPicker]  = useState(false);
+  const [hoveredCategory,     setHoveredCategory]     = useState(null);
 
   // Refs
   const cartHoverTimer    = useRef(null);
   const accountHoverTimer = useRef(null);
+  const megaMenuTimer     = useRef(null);
 
   // Store & auth
   const router      = useRouter();
@@ -181,7 +194,47 @@ export default function Navbar() {
   useEffect(() => () => {
     clearTimeout(cartHoverTimer.current);
     clearTimeout(accountHoverTimer.current);
+    clearTimeout(megaMenuTimer.current);
   }, []);
+
+  // ── Shared suggestions dropdown ──────────────────────────────────────────────
+
+  const suggestionsDropdown = showSuggestions && (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 6 }}
+      transition={{ duration: 0.15 }}
+      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
+    >
+      <div className="px-4 py-2.5 border-b border-gray-50 flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+          {searchQuery.length >= 2 ? "Suggestions" : "Trending Searches"}
+        </p>
+        {searchCategory !== "All Categories" && (
+          <span className="text-[11px] text-primary font-medium bg-primary/5 px-2 py-0.5 rounded-full">
+            in {searchCategory}
+          </span>
+        )}
+      </div>
+      {filteredSuggestions.length === 0 ? (
+        <div className="px-4 py-3 text-sm text-gray-400">No results found</div>
+      ) : (
+        filteredSuggestions.map((s) => (
+          <button
+            key={s.label}
+            type="button"
+            onMouseDown={() => handleSuggestionClick(s.label)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+          >
+            <Search className="w-4 h-4 text-gray-300 shrink-0" />
+            <span className="text-sm text-gray-900 flex-1">{s.label}</span>
+            <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{s.category}</span>
+          </button>
+        ))
+      )}
+    </motion.div>
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -237,11 +290,11 @@ export default function Navbar() {
       >
         {/* ── Main bar ── */}
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8">
-          <div className="flex items-center gap-3 lg:gap-5 h-16 sm:h-[70px]">
+          <div className="flex items-center justify-between sm:justify-start gap-3 lg:gap-5 h-14 sm:h-[70px]">
 
             {/* Logo */}
             <Link href="/" className="shrink-0">
-              <div className="relative w-28 sm:w-32 lg:w-36 h-8 sm:h-10">
+              <div className="relative w-32 sm:w-32 lg:w-36 h-9 sm:h-10">
                 <Image
                   src="/logo-black.png"
                   alt="CarmelMart"
@@ -305,10 +358,10 @@ export default function Navbar() {
               </AnimatePresence>
             </div>
 
-            {/* ── Search bar — Amazon style with category selector ── */}
+            {/* ── Search bar — Amazon style with category selector (sm+) ── */}
             <form
               onSubmit={handleSearchSubmit}
-              className="flex-1 min-w-0 relative"
+              className="hidden sm:block sm:flex-1 min-w-0 relative"
             >
               <div className="relative flex items-stretch h-11 rounded-xl overflow-hidden border-2 border-gray-200 focus-within:border-accent transition-colors group">
                 {/* Category selector */}
@@ -350,44 +403,7 @@ export default function Navbar() {
               </div>
 
               {/* Autocomplete dropdown */}
-              <AnimatePresence>
-                {showSuggestions && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
-                  >
-                    <div className="px-4 py-2.5 border-b border-gray-50 flex items-center justify-between">
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                        {searchQuery.length >= 2 ? "Suggestions" : "Trending Searches"}
-                      </p>
-                      {searchCategory !== "All Categories" && (
-                        <span className="text-[11px] text-primary font-medium bg-primary/5 px-2 py-0.5 rounded-full">
-                          in {searchCategory}
-                        </span>
-                      )}
-                    </div>
-                    {filteredSuggestions.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-gray-400">No results found</div>
-                    ) : (
-                      filteredSuggestions.map((s) => (
-                        <button
-                          key={s.label}
-                          type="button"
-                          onMouseDown={() => handleSuggestionClick(s.label)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
-                        >
-                          <Search className="w-4 h-4 text-gray-300 shrink-0" />
-                          <span className="text-sm text-gray-900 flex-1">{s.label}</span>
-                          <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{s.category}</span>
-                        </button>
-                      ))
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <AnimatePresence>{suggestionsDropdown}</AnimatePresence>
             </form>
 
             {/* ── Right Actions ── */}
@@ -396,7 +412,7 @@ export default function Navbar() {
               {/* Wishlist — desktop only */}
               <Link
                 href="/wishlist"
-                className="hidden md:flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl hover:bg-gray-50 transition-colors group"
+                className="flex flex-col items-center gap-0.5 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
                 aria-label={`Wishlist, ${wishlistCount} items`}
               >
                 <div className="relative">
@@ -541,11 +557,11 @@ export default function Navbar() {
               >
                 <Link
                   href="/cart"
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors group"
+                  className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
                   aria-label={`Cart, ${cartCount} items`}
                 >
                   <div className="relative">
-                    <ShoppingCart className="w-7 h-7 text-gray-800 group-hover:text-primary transition-colors" />
+                    <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-gray-800 group-hover:text-primary transition-colors" />
                     {cartCount > 0 && (
                       <motion.span
                         key={cartCount}
@@ -647,54 +663,138 @@ export default function Navbar() {
               </div>
 
               {/* Hamburger — mobile only */}
-              <motion.button
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="md:hidden p-2 text-gray-700 rounded-xl hover:bg-gray-100 transition-colors"
-                whileTap={{ scale: 0.93 }}
-                aria-label="Open menu"
-              >
-                <Menu className="w-6 h-6" />
-              </motion.button>
+              <div className="md:hidden flex items-center">
+                <div className="w-px h-6 bg-gray-200 mr-2" />
+                <motion.button
+                  onClick={() => setIsMobileMenuOpen(true)}
+                  className="p-2.5 text-gray-700 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                  whileTap={{ scale: 0.93 }}
+                  aria-label="Open menu"
+                >
+                  <Menu className="w-5 h-5" />
+                </motion.button>
+              </div>
             </div>
+          </div>
+
+          {/* ── Mobile-only full-width search row ── */}
+          <div className="sm:hidden px-3 pb-3">
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <div className="flex items-stretch h-11 rounded-xl overflow-hidden border-2 border-gray-200 focus-within:border-accent transition-colors">
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  placeholder="Search products, brands, vendors…"
+                  className="flex-1 min-w-0 px-4 bg-white outline-none text-sm placeholder:text-gray-400 text-gray-900"
+                  autoComplete="off"
+                />
+                <button
+                  type="submit"
+                  className="flex items-center justify-center bg-accent hover:bg-accent-dark text-white px-4 font-semibold transition-colors shrink-0"
+                  aria-label="Search"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+              </div>
+              <AnimatePresence>{suggestionsDropdown}</AnimatePresence>
+            </form>
           </div>
         </div>
 
         {/* ══════════════════════ CATEGORY BAR ═════════════════════════════════ */}
-        <div className="bg-primary border-t border-white/10 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8">
-            <div className="flex items-center h-10">
-              {CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const isActive = activeCategory === cat.name;
-                const isAllDepts = cat.name === "All Departments";
-                return (
-                  <Link
-                    key={cat.name}
-                    href={cat.href}
-                    onClick={() => setActiveCategory(cat.name)}
-                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-all shrink-0 h-full border-b-2 ${
-                      isActive
-                        ? "text-white border-accent"
-                        : cat.hot
-                        ? "text-accent hover:text-accent border-transparent hover:border-accent/50"
-                        : "text-white/80 hover:text-white border-transparent hover:border-white/40"
-                    } ${isAllDepts ? "font-bold mr-1" : ""}`}
-                  >
-                    {Icon && (
-                      <Icon className={`w-3.5 h-3.5 shrink-0 ${
-                        cat.hot && !isActive ? "text-accent" :
-                        isActive ? "text-accent" : ""
-                      }`} />
-                    )}
-                    {cat.name}
-                    {cat.hot && !isActive && (
-                      <span className="ml-0.5 text-accent font-black text-[10px]">⚡</span>
-                    )}
-                  </Link>
-                );
-              })}
+        <div
+          className="relative bg-primary border-t border-white/10"
+          onMouseLeave={() => { megaMenuTimer.current = setTimeout(() => setHoveredCategory(null), 150); }}
+        >
+          <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8">
+              <div className="flex items-center h-10">
+                {CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  const isActive = activeCategory === cat.name;
+                  const isAllDepts = cat.name === "All Departments";
+                  const hasSubs = !!CATEGORY_SUBS[cat.name];
+                  return (
+                    <div
+                      key={cat.name}
+                      className="relative h-full shrink-0 flex items-center"
+                      onMouseEnter={() => {
+                        clearTimeout(megaMenuTimer.current);
+                        setHoveredCategory(hasSubs ? cat.name : null);
+                      }}
+                    >
+                      <Link
+                        href={cat.href}
+                        onClick={() => { setActiveCategory(cat.name); setHoveredCategory(null); }}
+                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-all h-full border-b-2 ${
+                          isActive
+                            ? "text-white border-accent"
+                            : cat.hot
+                            ? "text-accent hover:text-accent border-transparent hover:border-accent/50"
+                            : "text-white/80 hover:text-white border-transparent hover:border-white/40"
+                        } ${isAllDepts ? "font-bold mr-1" : ""}`}
+                      >
+                        {Icon && (
+                          <Icon className={`w-3.5 h-3.5 shrink-0 ${
+                            cat.hot && !isActive ? "text-accent" : isActive ? "text-accent" : ""
+                          }`} />
+                        )}
+                        {cat.name}
+                        {cat.hot && !isActive && (
+                          <span className="ml-0.5 text-accent font-black text-[10px]">⚡</span>
+                        )}
+                        {hasSubs && <ChevronDown className="w-3 h-3 ml-0.5 opacity-60" />}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
+
+          {/* Mega-menu dropdown */}
+          <AnimatePresence>
+            {hoveredCategory && CATEGORY_SUBS[hoveredCategory] && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-0 right-0 top-full bg-white shadow-2xl border-t-2 border-accent z-50"
+                onMouseEnter={() => clearTimeout(megaMenuTimer.current)}
+                onMouseLeave={() => { megaMenuTimer.current = setTimeout(() => setHoveredCategory(null), 150); }}
+              >
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+                  <div className="flex items-start gap-8">
+                    {/* Sub-category links */}
+                    <div className="flex-1 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      {CATEGORY_SUBS[hoveredCategory].subs.map((sub) => (
+                        <Link
+                          key={sub}
+                          href={`${CATEGORY_SUBS[hoveredCategory].href}&sub=${encodeURIComponent(sub.toLowerCase())}`}
+                          onClick={() => setHoveredCategory(null)}
+                          className="px-3 py-2 text-sm text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors font-medium whitespace-nowrap"
+                        >
+                          {sub}
+                        </Link>
+                      ))}
+                    </div>
+                    {/* Browse all CTA */}
+                    <Link
+                      href={CATEGORY_SUBS[hoveredCategory].href}
+                      onClick={() => setHoveredCategory(null)}
+                      className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 px-4 py-2 rounded-full transition-colors whitespace-nowrap"
+                    >
+                      Browse all {hoveredCategory} <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.header>
 

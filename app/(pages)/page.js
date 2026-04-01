@@ -7,6 +7,7 @@ import FlashSaleSection       from "@/components/shared/home/FlashSaleSection";
 import FeaturedProductsSection from "@/components/shared/home/FeaturedProductsSection";
 import PromoBannersSection    from "@/components/shared/home/PromoBannersSection";
 import NewArrivalsSection     from "@/components/shared/home/NewArrivalsSection";
+import ShopByBrandSection    from "@/components/shared/home/ShopByBrandSection";
 import TopVendorsSection      from "@/components/shared/home/TopVendorsSection";
 import TrustStrip              from "@/components/shared/home/TrustStrip";
 import HowItWorksSection      from "@/components/shared/home/HowItWorksSection";
@@ -37,6 +38,9 @@ export default function LandingPage() {
 
       {/* 6. New Arrivals */}
       <NewArrivalsSection />
+
+      {/* 6b. Shop by Brand */}
+      <ShopByBrandSection />
 
       {/* 7. Top verified vendors */}
       <TopVendorsSection />
