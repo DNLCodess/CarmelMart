@@ -49,36 +49,43 @@ const heroSlides = [
     id: 1,
     image:
       "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1920&q=80",
-    badge: "New Arrivals",
-    title: "Shop Smart,",
-    titleAccent: "Live Better",
+    badge: "Fashion Week",
+    title: "Dress to",
+    titleAccent: "Impress",
     description:
-      "Discover authentic products from Nigeria's most trusted vendors. Quality guaranteed, delivered nationwide.",
-    stats: { vendors: "850+", products: "12K+", satisfaction: "98%" },
+      "Shop the latest trends in fashion — African prints, sneakers, bags and more from verified Nigerian vendors.",
+    ctaLabel: "Shop Fashion",
+    ctaHref: "/shop?category=fashion",
+    stats: { vendors: "Verified", products: "Authentic", satisfaction: "100%" },
+    statLabels: { vendors: "Vendors Only", products: "Products", satisfaction: "Buyer Protection" },
   },
   {
     id: 2,
     image:
-      "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1920&q=80",
-    badge: "Premium Collection",
-    title: "Luxury Meets",
-    titleAccent: "Affordability",
+      "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1920&q=80",
+    badge: "Electronics Sale",
+    title: "Up to 40% Off",
+    titleAccent: "Phones & Laptops",
     description:
-      "Experience premium quality without breaking the bank. Curated selections from top-rated vendors.",
-    stats: { vendors: "320+", products: "4.5K+", satisfaction: "99%" },
-    statLabels: { vendors: "Premium Vendors", products: "Luxury Items", satisfaction: "Satisfaction" },
+      "Latest smartphones, laptops, earbuds and gadgets — all genuine, all delivered nationwide.",
+    ctaLabel: "Shop Electronics",
+    ctaHref: "/shop?category=electronics",
+    stats: { vendors: "KYC", products: "7-Day", satisfaction: "Secure" },
+    statLabels: { vendors: "Verified Sellers", products: "Easy Returns", satisfaction: "Checkout" },
   },
   {
     id: 3,
     image:
-      "https://images.unsplash.com/photo-1607082349566-187342175e2f?w=1920&q=80",
-    badge: "Trending Now",
-    title: "Your Style,",
-    titleAccent: "Your Choice",
+      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1920&q=80",
+    badge: "Home & Living",
+    title: "Make Your Space",
+    titleAccent: "Feel Like Home",
     description:
-      "From fashion to electronics, find everything you need in one trusted marketplace.",
-    stats: { vendors: "45K+", products: "8K+", satisfaction: "4.9★" },
-    statLabels: { vendors: "Happy Customers", products: "Products", satisfaction: "Avg Rating" },
+      "Furniture, kitchen essentials, bedding and decor — find everything to build your dream home.",
+    ctaLabel: "Shop Home & Living",
+    ctaHref: "/shop?category=home-living",
+    stats: { vendors: "Fast", products: "Nationwide", satisfaction: "Safe" },
+    statLabels: { vendors: "Delivery", products: "Shipping", satisfaction: "Payments" },
   },
 ];
 
@@ -127,10 +134,11 @@ export default function HeroSection() {
         description:  b.description || "",
         ctaLabel:     b.cta_label || "Shop Now",
         ctaHref:      b.cta_href  || "/shop",
-        stats:        { vendors: "850+", products: "12K+", satisfaction: "98%" },
+        stats:        { vendors: "Verified", products: "Authentic", satisfaction: "100%" },
+        statLabels:   { vendors: "Vendors Only", products: "Products", satisfaction: "Buyer Protection" },
       }));
     }
-    return heroSlides.map((s) => ({ ...s, ctaLabel: "Explore Products", ctaHref: "/shop" }));
+    return heroSlides.map((s) => ({ ...s, ctaLabel: s.ctaLabel ?? "Shop Now", ctaHref: s.ctaHref ?? "/shop" }));
   }, [bannerData]);
 
   useEffect(() => {
@@ -230,7 +238,7 @@ export default function HeroSection() {
                   {currentHero.badge}
                 </span>
                 <span className="text-xs text-white/60">
-                  • Trusted by 45,000+ Shoppers
+                  • Nigeria&apos;s Verified Marketplace
                 </span>
               </motion.div>
 
@@ -256,9 +264,9 @@ export default function HeroSection() {
                     <ArrowRight className="w-5 h-5" />
                   </Button>
                 </Link>
-                <Link href="/vendors" className="w-[75%] sm:w-auto">
+                <Link href="/register" className="w-[75%] sm:w-auto">
                   <Button variant="white" size="lg" className="w-full">
-                    Browse Vendors
+                    Start Selling
                   </Button>
                 </Link>
               </div>
@@ -301,7 +309,7 @@ export default function HeroSection() {
             className="hidden lg:block relative h-[600px]"
           >
             {/* Main Product Card */}
-            <div className="animate-float absolute top-0 right-0 w-80 h-96 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm border border-white/10 transform rotate-3 hover:rotate-0 transition-transform duration-500 group">
+            <Link href="/shop" className="animate-float absolute top-0 right-0 w-80 h-96 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm border border-white/10 transform rotate-3 hover:rotate-0 transition-transform duration-500 group">
               <Image
                 src={featuredProducts[0].image}
                 alt={featuredProducts[0].name}
@@ -310,7 +318,7 @@ export default function HeroSection() {
                 placeholder="blur"
                 blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+              <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                 <div className="inline-block gradient-accent px-3 py-1 rounded-full text-xs font-semibold mb-3 text-white">
                   {featuredProducts[0].badge}
@@ -330,10 +338,10 @@ export default function HeroSection() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Secondary Product Card */}
-            <div className="animate-float-reverse absolute bottom-0 left-0 w-64 h-80 rounded-3xl overflow-hidden shadow-xl backdrop-blur-sm border border-white/10 transform -rotate-6 hover:rotate-0 transition-transform duration-500 group">
+            <Link href="/shop" className="animate-float-reverse absolute bottom-0 left-0 w-64 h-80 rounded-3xl overflow-hidden shadow-xl backdrop-blur-sm border border-white/10 transform -rotate-6 hover:rotate-0 transition-transform duration-500 group">
               <Image
                 src={featuredProducts[1].image}
                 alt={featuredProducts[1].name}
@@ -342,7 +350,7 @@ export default function HeroSection() {
                 placeholder="blur"
                 blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+              <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
                 <div className="inline-block gradient-primary px-3 py-1 rounded-full text-xs font-semibold mb-2 text-white">
                   {featuredProducts[1].badge}
@@ -354,7 +362,7 @@ export default function HeroSection() {
                   ₦{featuredProducts[1].price.toLocaleString()}
                 </span>
               </div>
-            </div>
+            </Link>
 
             {/* Floating Stats Card */}
             <div className="animate-float-sm absolute top-1/2 left-0 bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-52 border border-white/20">
@@ -363,8 +371,8 @@ export default function HeroSection() {
                   <span className="text-2xl text-white">✓</span>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-white">45K+</div>
-                  <div className="text-xs text-gray-400">Happy Customers</div>
+                  <div className="text-xl font-bold text-white">100%</div>
+                  <div className="text-xs text-gray-400">Buyer Protection</div>
                 </div>
               </div>
             </div>

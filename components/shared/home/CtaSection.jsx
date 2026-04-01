@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { TrendingUp, ArrowRight } from "lucide-react";
 import Image from "next/image";
@@ -9,6 +10,19 @@ import Button from "@/components/ui/button";
 
 export default function CtaSection() {
   const ctaRef = useRef(null);
+
+  const { data: stats } = useQuery({
+    queryKey: ["platform-stats"],
+    queryFn: () => fetch("/api/platform-stats").then((r) => r.json()),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const statItems = [
+    { value: stats?.vendors  ? `${stats.vendors.toLocaleString()}+`  : null, label: "Verified Vendors"   },
+    { value: stats?.products ? stats.products.toLocaleString()       : null, label: "Products Available" },
+    { value: stats?.orders   ? `${stats.orders.toLocaleString()}+`   : null, label: "Orders Completed"   },
+  ];
   const { scrollYProgress } = useScroll({ target: ctaRef, offset: ["start end", "end start"] });
 
   const backgroundY    = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
@@ -33,7 +47,7 @@ export default function CtaSection() {
       </motion.div>
 
       <motion.div
-        className="absolute inset-0 bg-gradient-to-br from-primary via-primary-dark to-accent"
+        className="absolute inset-0 bg-linear-to-br from-primary via-primary-dark to-accent"
         style={{ opacity: overlayOpacity, willChange: "opacity" }}
       />
 
@@ -74,7 +88,7 @@ export default function CtaSection() {
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
             Start Your Shopping
             <br />
-            <span className="bg-gradient-to-r from-accent-light to-white bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-accent-light to-white bg-clip-text text-transparent">
               Journey Today
             </span>
           </h2>
@@ -100,31 +114,29 @@ export default function CtaSection() {
             </motion.div>
           </div>
 
-          <motion.div
-            className="grid grid-cols-3 gap-6 md:gap-8 pt-12 border-t border-white/20"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
-          >
-            {[
-              { value: "850+",  label: "Verified Vendors"   },
-              { value: "12.5K", label: "Products Available" },
-              { value: "45K+",  label: "Happy Customers"    },
-            ].map((stat) => (
-              <motion.div
-                key={stat.label}
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                whileHover={{ scale: 1.05 }}
-                className="backdrop-blur-sm bg-white/5 rounded-2xl p-4 border border-white/10"
-              >
-                <div className="text-3xl md:text-4xl font-bold mb-1 bg-gradient-to-br from-white to-accent-light bg-clip-text text-transparent">
-                  {stat.value}
-                </div>
-                <div className="text-xs md:text-sm opacity-80">{stat.label}</div>
-              </motion.div>
-            ))}
-          </motion.div>
+          {statItems.some((s) => s.value) && (
+            <motion.div
+              className="grid grid-cols-3 gap-6 md:gap-8 pt-12 border-t border-white/20"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
+            >
+              {statItems.map((stat) => (
+                <motion.div
+                  key={stat.label}
+                  variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                  whileHover={{ scale: 1.05 }}
+                  className="backdrop-blur-sm bg-white/5 rounded-2xl p-4 border border-white/10"
+                >
+                  <div className="text-3xl md:text-4xl font-bold mb-1 bg-linear-to-br from-white to-accent-light bg-clip-text text-transparent">
+                    {stat.value ?? "—"}
+                  </div>
+                  <div className="text-xs md:text-sm opacity-80">{stat.label}</div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
         </motion.div>
       </motion.div>
 

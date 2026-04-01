@@ -1,117 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Zap, ShoppingCart, Star, ChevronRight, Clock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useCartStore } from "@/store/cartStore";
 
-// Static flash sale items — replace with API when flash_sales table is populated
-const FLASH_ITEMS = [
-  {
-    id: "fs-1",
-    name: "Premium Noise-Cancelling Headphones",
-    price: 65000,
-    salePrice: 38000,
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
-    vendor: "TechHub Nigeria",
-    rating: 4.8,
-    reviews: 124,
-    stock: 7,
-    sold: 43,
-  },
-  {
-    id: "fs-2",
-    name: "Smart Fitness Tracker Watch",
-    price: 45000,
-    salePrice: 22000,
-    image: "https://images.unsplash.com/photo-1557438159-51eec7a6c9e8?w=600&q=80",
-    vendor: "FitGear Store",
-    rating: 4.7,
-    reviews: 203,
-    stock: 3,
-    sold: 67,
-  },
-  {
-    id: "fs-3",
-    name: "Organic Skincare Collection",
-    price: 25000,
-    salePrice: 14500,
-    image: "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=600&q=80",
-    vendor: "Beauty Haven",
-    rating: 5.0,
-    reviews: 156,
-    stock: 12,
-    sold: 89,
-  },
-  {
-    id: "fs-4",
-    name: "Elegant African Print Dress",
-    price: 28000,
-    salePrice: 16000,
-    image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=600&q=80",
-    vendor: "Afrique Styles",
-    rating: 4.9,
-    reviews: 89,
-    stock: 5,
-    sold: 31,
-  },
-  {
-    id: "fs-5",
-    name: "Professional DSLR Camera",
-    price: 180000,
-    salePrice: 115000,
-    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&q=80",
-    vendor: "Photo Pro NG",
-    rating: 4.9,
-    reviews: 67,
-    stock: 2,
-    sold: 18,
-  },
-  {
-    id: "fs-6",
-    name: "Gaming Laptop Pro",
-    price: 350000,
-    salePrice: 249000,
-    image: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=600&q=80",
-    vendor: "TechZone Nigeria",
-    rating: 4.8,
-    reviews: 92,
-    stock: 4,
-    sold: 22,
-  },
-];
-
-// End of day countdown target
-function getEndOfDayTarget() {
-  const now = new Date();
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 0);
-  // If we're past 22:00, extend to tomorrow
-  if (now.getHours() >= 22) {
-    end.setDate(end.getDate() + 1);
-    end.setHours(23, 59, 59, 0);
-  }
-  return end;
-}
-
-function useCountdown(target) {
+function useCountdown(endsAt) {
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
 
   useEffect(() => {
-    function calc() {
-      const diff = Math.max(0, target.getTime() - Date.now());
-      const h = Math.floor(diff / 3_600_000);
-      const m = Math.floor((diff % 3_600_000) / 60_000);
-      const s = Math.floor((diff % 60_000) / 1_000);
-      setTimeLeft({ h, m, s });
-    }
+    if (!endsAt) return;
+    const target = new Date(endsAt).getTime();
+
+    const calc = () => {
+      const diff = Math.max(0, target - Date.now());
+      setTimeLeft({
+        h: Math.floor(diff / 3_600_000),
+        m: Math.floor((diff % 3_600_000) / 60_000),
+        s: Math.floor((diff % 60_000) / 1_000),
+      });
+    };
     calc();
     const id = setInterval(calc, 1_000);
     return () => clearInterval(id);
-  }, [target]);
+  }, [endsAt]);
 
   return timeLeft;
 }
@@ -128,8 +44,8 @@ function Digit({ value, label }) {
 }
 
 function StockBar({ stock, sold }) {
-  const total = stock + sold;
-  const pct   = total > 0 ? Math.round((sold / total) * 100) : 0;
+  const total = (stock ?? 0) + (sold ?? 0);
+  const pct   = total > 0 ? Math.round(((sold ?? 0) / total) * 100) : 0;
   return (
     <div className="mt-2">
       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -139,9 +55,9 @@ function StockBar({ stock, sold }) {
         />
       </div>
       <p className="text-xs text-gray-500 mt-1">
-        {stock <= 5
+        {(stock ?? 0) <= 5
           ? <span className="text-red-500 font-semibold">Only {stock} left!</span>
-          : <span>Sold: {sold}</span>
+          : <span>{sold ?? 0} sold</span>
         }
       </p>
     </div>
@@ -150,8 +66,36 @@ function StockBar({ stock, sold }) {
 
 export default function FlashSaleSection() {
   const addItem = useCartStore((s) => s.addItem);
-  const [target] = useState(getEndOfDayTarget);
-  const { h, m, s } = useCountdown(target);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["flash-sale"],
+    queryFn: () => fetch("/api/flash-sales").then((r) => r.json()),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const sale     = data?.sale ?? null;
+  const products = data?.products ?? [];
+  const { h, m, s } = useCountdown(sale?.endsAt ?? null);
+
+  // Hide section when there's no live flash sale and we're done loading
+  if (!isLoading && !sale) return null;
+
+  // Show skeleton while loading
+  if (isLoading) {
+    return (
+      <section className="py-12 sm:py-16 bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="h-8 w-48 bg-gray-700 rounded-xl mb-8 animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-gray-800 rounded-2xl h-64 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const handleAddToCart = (e, item) => {
     e.preventDefault();
@@ -167,6 +111,10 @@ export default function FlashSaleSection() {
     toast.success(`${item.name} added to cart!`);
   };
 
+  const discountLabel = sale.discountType === "percentage"
+    ? `Up to ${sale.discountValue}% OFF`
+    : `₦${sale.discountValue.toLocaleString()} OFF`;
+
   return (
     <section className="py-12 sm:py-16 bg-gray-900 relative overflow-hidden">
       {/* Background pattern */}
@@ -181,8 +129,12 @@ export default function FlashSaleSection() {
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Flash Sale</h2>
-              <p className="text-orange-400 text-sm font-medium">Up to 50% OFF — Today only</p>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                {sale.title}
+              </h2>
+              <p className="text-orange-400 text-sm font-medium">
+                {sale.description ?? discountLabel} — Today only
+              </p>
             </div>
           </div>
 
@@ -209,7 +161,7 @@ export default function FlashSaleSection() {
 
         {/* Products grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-          {FLASH_ITEMS.map((item, index) => {
+          {products.map((item, index) => {
             const discount = Math.round(((item.price - item.salePrice) / item.price) * 100);
             return (
               <motion.div
@@ -222,21 +174,20 @@ export default function FlashSaleSection() {
               >
                 <Link href={`/product/${item.id}`}>
                   <div className="bg-white rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 relative">
-                    {/* Discount badge */}
                     <div className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-xs font-extrabold px-2 py-1 rounded-lg">
                       -{discount}%
                     </div>
 
-                    {/* Image */}
                     <div className="relative h-36 sm:h-44 overflow-hidden bg-gray-50">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 16vw"
-                      />
-                      {/* Hover add to cart */}
+                      {item.image && (
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 16vw"
+                        />
+                      )}
                       <div className="absolute inset-x-0 bottom-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                         <button
                           onClick={(e) => handleAddToCart(e, item)}
@@ -252,11 +203,13 @@ export default function FlashSaleSection() {
                       <p className="text-xs sm:text-sm font-semibold text-gray-900 line-clamp-2 leading-snug mb-2">
                         {item.name}
                       </p>
-                      <div className="flex items-center gap-1 mb-1">
-                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-xs font-semibold text-gray-900">{item.rating}</span>
-                        <span className="text-xs text-gray-400">({item.reviews})</span>
-                      </div>
+                      {item.rating > 0 && (
+                        <div className="flex items-center gap-1 mb-1">
+                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          <span className="text-xs font-semibold text-gray-900">{item.rating.toFixed(1)}</span>
+                          {item.reviews > 0 && <span className="text-xs text-gray-400">({item.reviews})</span>}
+                        </div>
+                      )}
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-base font-extrabold text-gray-900">₦{item.salePrice.toLocaleString()}</span>
                       </div>

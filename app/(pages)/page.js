@@ -8,6 +8,7 @@ import FeaturedProductsSection from "@/components/shared/home/FeaturedProductsSe
 import PromoBannersSection    from "@/components/shared/home/PromoBannersSection";
 import NewArrivalsSection     from "@/components/shared/home/NewArrivalsSection";
 import TopVendorsSection      from "@/components/shared/home/TopVendorsSection";
+import TrustStrip              from "@/components/shared/home/TrustStrip";
 import HowItWorksSection      from "@/components/shared/home/HowItWorksSection";
 import TestimonialsSection    from "@/components/shared/home/TestimonialsSection";
 import CtaSection             from "@/components/shared/home/CtaSection";
@@ -18,6 +19,9 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white">
       {/* 1. Hero with auto-play carousel */}
       <HeroSection />
+
+      {/* 1b. Trust strip — payment badges, returns, buyer protection */}
+      <TrustStrip />
 
       {/* 2. Categories — horizontal scroll mobile, grid desktop */}
       <CategoriesSection />

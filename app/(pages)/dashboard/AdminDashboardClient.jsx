@@ -13,17 +13,6 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 
-// Mock 30-day trend data (replace with real Supabase query)
-const TREND_DATA = [
-  { day: "1",  orders: 12, revenue: 480000 }, { day: "3",  orders: 18, revenue: 720000 },
-  { day: "5",  orders: 24, revenue: 960000 }, { day: "7",  orders: 15, revenue: 600000 },
-  { day: "9",  orders: 31, revenue: 1240000 },{ day: "11", orders: 28, revenue: 1120000 },
-  { day: "13", orders: 22, revenue: 880000 }, { day: "15", orders: 35, revenue: 1400000 },
-  { day: "17", orders: 42, revenue: 1680000 },{ day: "19", orders: 38, revenue: 1520000 },
-  { day: "21", orders: 29, revenue: 1160000 },{ day: "23", orders: 45, revenue: 1800000 },
-  { day: "25", orders: 52, revenue: 2080000 },{ day: "27", orders: 48, revenue: 1920000 },
-  { day: "30", orders: 61, revenue: 2440000 },
-];
 
 function StatCard({ label, value, icon: Icon, color, sub, trend, trendVal }) {
   return (
@@ -58,7 +47,7 @@ const QUICK_ACTIONS = [
   { href: "/dashboard/marketing",icon: Zap,          label: "Marketing & Promo",   desc: "Promo codes, flash sales",          color: "bg-orange-50 text-orange-600"},
 ];
 
-export default function AdminDashboardClient({ stats, adminName }) {
+export default function AdminDashboardClient({ stats, adminName, trendData = [] }) {
   const [tab, setTab] = useState("overview");
 
   const TABS = ["overview", "vendors", "users"];
@@ -120,7 +109,7 @@ export default function AdminDashboardClient({ stats, adminName }) {
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={TREND_DATA} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                <AreaChart data={trendData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="adminRevGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#560238" stopOpacity={0.15} />

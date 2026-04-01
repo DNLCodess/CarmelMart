@@ -104,28 +104,8 @@ export default function TestimonialsSection() {
             What Nigerians Are Saying
           </h2>
           <p className="text-gray-600">
-            45,000+ happy customers across all 36 states
+            Real reviews from verified buyers across Nigeria
           </p>
-        </motion.div>
-
-        {/* Rating summary */}
-        <motion.div
-          className="flex flex-wrap justify-center gap-6 sm:gap-12 mb-12"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-        >
-          {[
-            { value: "4.9/5", label: "Average Rating", sub: "From 12,400+ reviews" },
-            { value: "98%",   label: "Satisfaction Rate", sub: "Verified purchases" },
-            { value: "45K+",  label: "Happy Customers", sub: "Nationwide" },
-          ].map(({ value, label, sub }) => (
-            <div key={label} className="text-center">
-              <p className="text-3xl font-extrabold text-gray-900">{value}</p>
-              <p className="text-sm font-semibold text-gray-700 mt-1">{label}</p>
-              <p className="text-xs text-gray-400">{sub}</p>
-            </div>
-          ))}
         </motion.div>
 
         {/* Desktop: 3-column carousel */}

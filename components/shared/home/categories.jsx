@@ -2,70 +2,50 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
-const categories = [
-  {
-    name: "Fashion",
-    slug: "fashion",
-    count: "2,450+",
-    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
-    sub: ["Men's Wear", "Women's Wear", "Shoes", "Bags"],
-  },
-  {
-    name: "Electronics",
-    slug: "electronics",
-    count: "1,890+",
-    image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80",
-    sub: ["Phones", "Laptops", "TVs", "Audio"],
-  },
-  {
-    name: "Home & Living",
-    slug: "home-living",
-    count: "3,200+",
-    image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80",
-    sub: ["Furniture", "Kitchen", "Bedding", "Decor"],
-  },
-  {
-    name: "Beauty",
-    slug: "beauty",
-    count: "1,650+",
-    image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&q=80",
-    sub: ["Skincare", "Makeup", "Hair", "Fragrances"],
-  },
-  {
-    name: "Sports",
-    slug: "sports",
-    count: "980+",
-    image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80",
-    sub: ["Gym", "Sportswear", "Supplements", "Outdoor"],
-  },
-  {
-    name: "Books",
-    slug: "books",
-    count: "2,100+",
-    image: "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800&q=80",
-    sub: ["Fiction", "Non-Fiction", "Academic", "Children's"],
-  },
-  {
-    name: "Phones",
-    slug: "phones",
-    count: "890+",
-    image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80",
-    sub: ["Smartphones", "Accessories", "Cases", "Chargers"],
-  },
-  {
-    name: "Food & Drinks",
-    slug: "food-drinks",
-    count: "540+",
-    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
-    sub: ["Snacks", "Beverages", "Organic", "Spices"],
-  },
-];
+// Static fallback images + sub-categories keyed by slug
+const STATIC_META = {
+  fashion:     { image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80", sub: ["Men's Wear", "Women's Wear", "Shoes", "Bags"] },
+  electronics: { image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80", sub: ["Phones", "Laptops", "TVs", "Audio"] },
+  "home-living":{ image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80", sub: ["Furniture", "Kitchen", "Bedding", "Decor"] },
+  beauty:      { image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&q=80", sub: ["Skincare", "Makeup", "Hair", "Fragrances"] },
+  sports:      { image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80", sub: ["Gym", "Sportswear", "Supplements", "Outdoor"] },
+  books:       { image: "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800&q=80", sub: ["Fiction", "Non-Fiction", "Academic", "Children's"] },
+  phones:      { image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80", sub: ["Smartphones", "Accessories", "Cases", "Chargers"] },
+  "food-drinks":{ image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80", sub: ["Snacks", "Beverages", "Organic", "Spices"] },
+};
+
+// Static fallback list shown while API loads
+const FALLBACK_CATEGORIES = Object.entries(STATIC_META).map(([slug, meta]) => ({
+  name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  slug,
+  productCount: null, // null = loading/unknown → hide count
+  image: meta.image,
+  sub: meta.sub,
+}));
 
 export default function CategoriesSection() {
   const [activeIdx, setActiveIdx] = useState(null);
+
+  const { data } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => fetch("/api/categories").then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  // Merge API data with static images/sub-categories
+  const categories = data?.categories?.length
+    ? data.categories.map((c) => ({
+        ...c,
+        image: STATIC_META[c.slug]?.image ?? "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
+        sub:   STATIC_META[c.slug]?.sub   ?? [],
+      }))
+    : FALLBACK_CATEGORIES;
 
   return (
     <section className="py-16 sm:py-20 bg-linear-to-br from-gray-50 via-primary/2 to-accent/3 relative overflow-hidden">
@@ -138,7 +118,9 @@ export default function CategoriesSection() {
                       transition={{ duration: 0.2 }}
                     >
                       <h3 className="text-sm font-bold text-white drop-shadow-md">{cat.name}</h3>
-                      <p className="text-[11px] text-white/80 font-medium mt-0.5">{cat.count}</p>
+                      {cat.productCount != null && (
+                        <p className="text-[11px] text-white/80 font-medium mt-0.5">{cat.productCount.toLocaleString()} items</p>
+                      )}
                     </motion.div>
                   </div>
 
@@ -192,7 +174,9 @@ export default function CategoriesSection() {
                   <div className="absolute inset-0 bg-linear-to-t from-black/70 to-transparent" />
                   <div className="absolute inset-0 flex flex-col items-center justify-end p-2.5">
                     <h3 className="text-xs font-bold text-white text-center leading-tight">{cat.name}</h3>
-                    <p className="text-[10px] text-white/75 mt-0.5">{cat.count}</p>
+                    {cat.productCount != null && (
+                      <p className="text-[10px] text-white/75 mt-0.5">{cat.productCount.toLocaleString()} items</p>
+                    )}
                   </div>
                 </motion.div>
               </Link>

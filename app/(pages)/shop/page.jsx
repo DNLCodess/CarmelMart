@@ -60,6 +60,26 @@ const RATING_OPTIONS = [
 const CONDITION_OPTIONS = ["All", "New", "Used", "Refurbished"];
 const DELIVERY_OPTIONS  = ["All", "Express (24hrs)", "Standard (2-5 days)", "Free Delivery"];
 
+const BRAND_OPTIONS = [
+  "Apple", "Samsung", "Nike", "Adidas", "Sony", "LG", "HP", "Lenovo",
+  "Infinix", "Tecno", "Itel", "Xiaomi", "Hisense", "Haier",
+];
+
+const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"];
+
+const COLOR_OPTIONS = [
+  { name: "Black",  hex: "#111827" },
+  { name: "White",  hex: "#F9FAFB" },
+  { name: "Red",    hex: "#EF4444" },
+  { name: "Blue",   hex: "#3B82F6" },
+  { name: "Green",  hex: "#22C55E" },
+  { name: "Yellow", hex: "#EAB308" },
+  { name: "Pink",   hex: "#EC4899" },
+  { name: "Purple", hex: "#A855F7" },
+  { name: "Gray",   hex: "#6B7280" },
+  { name: "Brown",  hex: "#92400E" },
+];
+
 const PER_PAGE = 12;
 
 function Stars({ rating }) {
@@ -234,8 +254,10 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
             <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
               <Truck className="w-3 h-3" /> Free Delivery
             </span>
-            {product.stock > 0 && product.stock <= 5 && (
-              <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+            {product.stock > 0 && product.stock <= 10 && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                product.stock <= 3 ? "text-red-600 bg-red-50" : "text-amber-600 bg-amber-50"
+              }`}>
                 Only {product.stock} left
               </span>
             )}
@@ -308,9 +330,11 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
             </div>
           )}
           {/* Low stock */}
-          {product.stock > 0 && product.stock <= 5 && (
+          {product.stock > 0 && product.stock <= 10 && (
             <div className="absolute bottom-10 left-3">
-              <span className="text-xs font-semibold bg-amber-500 text-white px-2 py-0.5 rounded-full">
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                product.stock <= 3 ? "bg-red-500 text-white" : "bg-amber-500 text-white"
+              }`}>
                 Only {product.stock} left
               </span>
             </div>
@@ -539,6 +563,81 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
               ))}
             </div>
           </div>
+
+          {/* Brand */}
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Brand</h3>
+            <div className="space-y-1 max-h-44 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
+              <button
+                onClick={() => setFilter("brand", null)}
+                className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  filters.brand ? "text-gray-700 hover:bg-gray-100" : "bg-primary text-white"
+                }`}
+              >
+                All Brands
+              </button>
+              {BRAND_OPTIONS.map((brand) => (
+                <button
+                  key={brand}
+                  onClick={() => setFilter("brand", filters.brand === brand ? null : brand)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    filters.brand === brand ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {brand}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Color */}
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Color</h3>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_OPTIONS.map(({ name, hex }) => (
+                <button
+                  key={name}
+                  onClick={() => setFilter("color", filters.color === name ? null : name)}
+                  title={name}
+                  aria-label={name}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${
+                    filters.color === name
+                      ? "border-primary scale-110 ring-2 ring-primary/30"
+                      : "border-gray-200 hover:border-gray-400"
+                  }`}
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+            </div>
+            {filters.color && (
+              <button
+                onClick={() => setFilter("color", null)}
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                Clear color
+              </button>
+            )}
+          </div>
+
+          {/* Size */}
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Size</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {SIZE_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setFilter("size", filters.size === s ? null : s)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                    filters.size === s
+                      ? "bg-primary text-white border-primary"
+                      : "border-gray-200 text-gray-700 hover:border-primary hover:text-primary"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </aside>
     </>
@@ -601,6 +700,9 @@ function ShopContent() {
     minRating: sp.get("min_rating") ? Number(sp.get("min_rating")) : null,
     condition: sp.get("condition")  || null,
     delivery:  sp.get("delivery")   || null,
+    brand:     sp.get("brand")      || null,
+    color:     sp.get("color")      || null,
+    size:      sp.get("size")       || null,
     sort:      sp.get("sort")       || "popular",   // default: Most Popular
     page:      sp.get("page") ? Number(sp.get("page")) : 1,
   });
@@ -625,6 +727,9 @@ function ShopContent() {
     if (filters.minRating) params.set("min_rating",  filters.minRating);
     if (filters.condition) params.set("condition",   filters.condition);
     if (filters.delivery)  params.set("delivery",    filters.delivery);
+    if (filters.brand)     params.set("brand",       filters.brand);
+    if (filters.color)     params.set("color",       filters.color);
+    if (filters.size)      params.set("size",        filters.size);
     if (filters.sort !== "popular") params.set("sort", filters.sort);
     if (filters.page > 1)  params.set("page",        filters.page);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
@@ -669,6 +774,9 @@ function ShopContent() {
     filters.minRating && { key: "minRating", label: `${filters.minRating}+ stars` },
     filters.condition && { key: "condition", label: filters.condition },
     filters.delivery  && { key: "delivery",  label: filters.delivery },
+    filters.brand     && { key: "brand",     label: filters.brand },
+    filters.color     && { key: "color",     label: filters.color },
+    filters.size      && { key: "size",      label: `Size: ${filters.size}` },
   ].filter(Boolean);
 
   const clearFilter = (key) => {
@@ -793,7 +901,7 @@ function ShopContent() {
 
               {activeFilters.length > 1 && (
                 <button
-                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, sort: "popular", page: 1 })}
+                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, brand: null, color: null, size: null, sort: "popular", page: 1 })}
                   className="text-xs font-semibold text-gray-500 hover:text-red-500 underline"
                 >
                   Clear all
@@ -866,7 +974,7 @@ function ShopContent() {
                 <h3 className="font-bold text-gray-900 mb-1">No products found</h3>
                 <p className="text-sm text-gray-500 mb-5">Try adjusting your filters or search term.</p>
                 <button
-                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, sort: "popular", page: 1 })}
+                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, brand: null, color: null, size: null, sort: "popular", page: 1 })}
                   className="px-6 py-2.5 bg-primary text-white rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
                 >
                   Clear Filters
