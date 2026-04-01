@@ -20,11 +20,20 @@ export async function GET(request, { params }) {
       );
     }
 
-    const { data: vendorData } = await supabase
-      .from("vendors")
-      .select("id, business_name, verification_status")
-      .eq("id", data.vendor_id)
-      .single();
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const [{ data: vendorData }, { count: soldToday }] = await Promise.all([
+      supabase
+        .from("vendors")
+        .select("id, business_name, verification_status")
+        .eq("id", data.vendor_id)
+        .single(),
+      supabase
+        .from("order_items")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", id)
+        .gte("created_at", since24h),
+    ]);
 
     const product = {
       id: data.id,
@@ -36,7 +45,9 @@ export async function GET(request, { params }) {
       stock: data.stock,
       image: Array.isArray(data.images) ? data.images[0] : null,
       images: Array.isArray(data.images) ? data.images : [],
-      attributes: data.attributes,
+      attributes: data.attributes ?? {},
+      condition: data.condition ?? "new",
+      soldToday: soldToday ?? 0,
       avgRating: Number(data.avg_rating),
       reviewCount: data.review_count,
       soldCount: data.sold_count,

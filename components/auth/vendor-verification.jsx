@@ -356,7 +356,7 @@ export default function VendorVerification({
     <div className="w-full max-w-2xl mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 mb-4">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-linear-to-r from-primary/10 to-accent/10 border border-primary/20 mb-4">
           <Shield className="w-5 h-5 text-primary" />
           <span className="text-sm font-semibold text-gray-900">
             Vendor Verification
@@ -384,7 +384,7 @@ export default function VendorVerification({
             className="bg-white rounded-2xl border-2 border-gray-200 p-8 shadow-sm"
           >
             <div className="flex items-start gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/10 to-accent/10 flex items-center justify-center">
                 <IdCard className="w-6 h-6 text-primary" />
               </div>
               <div>
@@ -479,7 +479,7 @@ export default function VendorVerification({
             className="bg-white rounded-2xl border-2 border-gray-200 p-8 shadow-sm"
           >
             <div className="flex items-start gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/10 to-accent/10 flex items-center justify-center">
                 <Building2 className="w-6 h-6 text-primary" />
               </div>
               <div>
@@ -592,7 +592,7 @@ export default function VendorVerification({
               <>
                 <div className="bg-white rounded-2xl border-2 border-gray-200 p-8 shadow-sm">
                   <div className="flex items-start gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/10 to-accent/10 flex items-center justify-center">
                       <CreditCard className="w-6 h-6 text-primary" />
                     </div>
                     <div>
@@ -658,7 +658,7 @@ export default function VendorVerification({
                     )}
                   </div>
 
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/20 mb-6">
+                  <div className="p-4 rounded-xl bg-linear-to-r from-primary/5 to-accent/5 border border-primary/20 mb-6">
                     <div className="flex gap-3">
                       <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                       <div className="text-sm text-gray-900">

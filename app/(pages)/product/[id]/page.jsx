@@ -533,6 +533,17 @@ export default function ProductDetailPage() {
                   </Link>
                 )}
 
+                {/* Condition badge */}
+                {product.condition && product.condition !== "new" && (
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                    product.condition === "used"
+                      ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
+                      : "bg-teal-100 text-teal-700 border border-teal-200"
+                  }`}>
+                    {product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}
+                  </span>
+                )}
+
                 <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 leading-tight">
                   {product.name}
                 </h1>
@@ -604,6 +615,12 @@ export default function ProductDetailPage() {
                         {product.stock > 0 && product.stock <= 10 && (
                           <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full text-xs">
                             Only {product.stock} left!
+                          </span>
+                        )}
+                        {product.soldToday > 0 && (
+                          <span className="text-orange-600 font-medium bg-orange-50 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
+                            <Zap className="w-3 h-3" />
+                            {product.soldToday} sold in last 24h
                           </span>
                         )}
                       </>

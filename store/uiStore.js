@@ -7,17 +7,20 @@ import { persist } from "zustand/middleware";
 export const useUIStore = create(
   persist(
     (set) => ({
-      // Wishlist (local-first; sync to DB on login)
-      wishlist: [], // productId[]
-      addToWishlist: (productId) =>
+      // Wishlist (local-first; stores full product snapshots for offline display)
+      wishlist: [], // Product[]
+      addToWishlist: (product) =>
         set((state) =>
-          state.wishlist.includes(productId)
+          state.wishlist.some((w) => w?.id === product?.id || w === product?.id)
             ? state
-            : { wishlist: [...state.wishlist, productId] },
+            : { wishlist: [...state.wishlist, product] },
         ),
       removeFromWishlist: (productId) =>
-        set((state) => ({ wishlist: state.wishlist.filter((id) => id !== productId) })),
-      isWishlisted: (productId) => (state) => state.wishlist.includes(productId),
+        set((state) => ({
+          wishlist: state.wishlist.filter((w) => (w?.id ?? w) !== productId),
+        })),
+      isWishlisted: (productId) => (state) =>
+        state.wishlist.some((w) => (w?.id ?? w) === productId),
 
       // Recently viewed products (local only)
       recentlyViewed: [], // productId[]
@@ -25,6 +28,10 @@ export const useUIStore = create(
         set((state) => ({
           recentlyViewed: [productId, ...state.recentlyViewed.filter((id) => id !== productId)].slice(0, 20),
         })),
+
+      // Delivery location (persisted; pre-fills checkout state selector)
+      deliveryLocation: "Lagos",
+      setDeliveryLocation: (state) => set({ deliveryLocation: state }),
 
       // UI preferences
       prefersDarkMode: false,

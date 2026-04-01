@@ -79,7 +79,7 @@ export default function VendorReferralsPage() {
       </div>
 
       {/* Referral card */}
-      <div className="bg-gradient-to-br from-primary to-primary-dark rounded-2xl p-6 text-white">
+      <div className="bg-linear-to-br from-primary to-primary-dark rounded-2xl p-6 text-white">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
             <Gift className="w-5 h-5 text-white" />

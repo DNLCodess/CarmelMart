@@ -6,6 +6,7 @@ import CategoriesSection      from "@/components/shared/home/categories";
 import FlashSaleSection       from "@/components/shared/home/FlashSaleSection";
 import FeaturedProductsSection from "@/components/shared/home/FeaturedProductsSection";
 import PromoBannersSection    from "@/components/shared/home/PromoBannersSection";
+import DailyDealsSection      from "@/components/shared/home/DailyDealsSection";
 import NewArrivalsSection     from "@/components/shared/home/NewArrivalsSection";
 import ShopByBrandSection    from "@/components/shared/home/ShopByBrandSection";
 import LiveActivityTicker    from "@/components/shared/home/LiveActivityTicker";
@@ -30,6 +31,9 @@ export default function LandingPage() {
 
       {/* 3. Flash Sale — countdown timer, up to 50% off */}
       <FlashSaleSection />
+
+      {/* 3b. Daily Deals — products with largest active discounts */}
+      <DailyDealsSection />
 
       {/* 4. Featured / Trending products */}
       <FeaturedProductsSection />

@@ -7,22 +7,18 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { useUIStore } from "@/store/uiStore";
 import { useCartStore } from "@/store/cartStore";
-import { featuredProducts } from "@/lib/data";
-
-// Resolve product objects from IDs — replace with React Query / Supabase when DB is live
-function getProductById(id) {
-  return featuredProducts.find((p) => p.id === id) ?? null;
-}
 
 export default function WishlistPage() {
   const wishlist = useUIStore((s) => s.wishlist);
   const removeFromWishlist = useUIStore((s) => s.removeFromWishlist);
   const addItem = useCartStore((s) => s.addItem);
 
-  const products = wishlist.map(getProductById).filter(Boolean);
+  // wishlist stores full product objects; guard against stale ID-only entries
+  const products = wishlist.filter((w) => w?.id);
 
   const handleMoveToCart = (product) => {
-    addItem({ productId: product.id, vendorId: null, name: product.name, price: product.price, image: product.image, quantity: 1 });
+    const price = product.salePrice ?? product.price;
+    addItem({ productId: product.id, vendorId: product.vendor?.id ?? null, name: product.name, price, image: product.image, quantity: 1 });
     removeFromWishlist(product.id);
     toast.success(`${product.name} moved to cart`);
   };
@@ -77,11 +73,14 @@ export default function WishlistPage() {
                   </div>
                 </Link>
                 <div className="p-4">
-                  <p className="text-xs text-gray-500 mb-1">{product.vendor}</p>
+                  <p className="text-xs text-gray-500 mb-1">{product.vendor?.name ?? product.vendor}</p>
                   <Link href={`/product/${product.id}`}>
                     <h3 className="font-semibold text-gray-900 text-sm mb-2 line-clamp-2 hover:text-primary">{product.name}</h3>
                   </Link>
-                  <p className="text-lg font-bold text-gray-900 mb-3">₦{product.price.toLocaleString()}</p>
+                  <div className="mb-3">
+                    <span className="text-lg font-bold text-gray-900">₦{(product.salePrice ?? product.price).toLocaleString()}</span>
+                    {product.salePrice && <span className="text-xs text-gray-400 line-through ml-1.5">₦{product.price.toLocaleString()}</span>}
+                  </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleMoveToCart(product)}

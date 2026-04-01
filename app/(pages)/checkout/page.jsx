@@ -23,6 +23,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useCartStore } from "@/store/cartStore";
+import { useUIStore } from "@/store/uiStore";
 import { useAuth } from "@/lib/auth-context";
 import { formatNigerianPhone } from "@/lib/utils";
 import StateLgaPicker from "@/components/ui/StateLgaPicker";
@@ -86,6 +87,7 @@ export default function CheckoutPage() {
   const items = useCartStore((s) => s.items);
   const total = useCartStore((s) => s.total);
   const clearCart = useCartStore((s) => s.clearCart);
+  const savedDeliveryState = useUIStore((s) => s.deliveryLocation);
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -103,7 +105,7 @@ export default function CheckoutPage() {
     landmark: "",
     area: "",
     city: "",
-    state: "",
+    state: savedDeliveryState ?? "",
     lga: "",
     deliveryInstructions: "",
   });

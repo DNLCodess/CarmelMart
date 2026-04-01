@@ -88,7 +88,6 @@ export default function Navbar() {
   const [showCartPreview,     setShowCartPreview]     = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [activeCategory,      setActiveCategory]      = useState("All Departments");
-  const [deliveryLocation,    setDeliveryLocation]    = useState("Lagos");
   const [showLocationPicker,  setShowLocationPicker]  = useState(false);
   const [hoveredCategory,     setHoveredCategory]     = useState(null);
 
@@ -107,7 +106,9 @@ export default function Navbar() {
   const cartItems  = useCartStore((s) => s.items);
   const cartCount  = useCartStore((s) => s.itemCount);
   const cartTotal  = useCartStore((s) => s.total);
-  const wishlistCount = useUIStore((s) => s.wishlist.length);
+  const wishlistCount      = useUIStore((s) => s.wishlist.length);
+  const deliveryLocation   = useUIStore((s) => s.deliveryLocation);
+  const setDeliveryLocation = useUIStore((s) => s.setDeliveryLocation);
 
   const firstName    = user?.first_name ?? user?.email?.split("@")[0] ?? "Guest";
   const displayName  = user?.first_name
@@ -166,11 +167,6 @@ export default function Navbar() {
   const handleAccountLeave = () => { accountHoverTimer.current = setTimeout(() => setShowAccountDropdown(false), 180); };
 
   // ── Effects ───────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    const saved = localStorage.getItem("cm_delivery_location");
-    if (saved) setDeliveryLocation(saved);
-  }, []);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 20);
@@ -339,7 +335,6 @@ export default function Navbar() {
                           key={state}
                           onMouseDown={() => {
                             setDeliveryLocation(state);
-                            localStorage.setItem("cm_delivery_location", state);
                             setShowLocationPicker(false);
                           }}
                           className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${

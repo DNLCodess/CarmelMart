@@ -10,7 +10,7 @@ import Button from "@/components/ui/button";
 import { useCartStore } from "@/store/cartStore";
 
 async function fetchFeatured() {
-  const r = await fetch("/api/products?featured=true&limit=8");
+  const r = await fetch("/api/products?featured=true&per_page=8");
   return r.json();
 }
 

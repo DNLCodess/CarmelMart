@@ -9,108 +9,8 @@ import toast from "react-hot-toast";
 import { useCartStore } from "@/store/cartStore";
 import { useUIStore } from "@/store/uiStore";
 
-// Fallback static data while API is wired up
-const STATIC_ARRIVALS = [
-  {
-    id: "na-1",
-    name: "Wireless Noise-Cancelling Earbuds",
-    price: 28000,
-    salePrice: null,
-    image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&q=80",
-    vendor: "TechHub Nigeria",
-    avgRating: 4.8,
-    reviewCount: 12,
-    badge: "New",
-    category: { name: "Electronics" },
-  },
-  {
-    id: "na-2",
-    name: "Premium Ankara Blazer",
-    price: 32000,
-    salePrice: null,
-    image: "https://images.unsplash.com/photo-1594938298603-c8148c4b4468?w=600&q=80",
-    vendor: "Afrique Styles",
-    avgRating: 5.0,
-    reviewCount: 8,
-    badge: "New",
-    category: { name: "Fashion" },
-  },
-  {
-    id: "na-3",
-    name: "Smart Air Purifier",
-    price: 55000,
-    salePrice: 45000,
-    image: "https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=600&q=80",
-    vendor: "Home Essentials",
-    avgRating: 4.7,
-    reviewCount: 5,
-    badge: "New",
-    category: { name: "Home & Living" },
-  },
-  {
-    id: "na-4",
-    name: "Vitamin C Brightening Serum",
-    price: 12500,
-    salePrice: null,
-    image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=600&q=80",
-    vendor: "Beauty Haven",
-    avgRating: 4.9,
-    reviewCount: 22,
-    badge: "New",
-    category: { name: "Beauty" },
-  },
-  {
-    id: "na-5",
-    name: "Adjustable Dumbbell Set",
-    price: 68000,
-    salePrice: 52000,
-    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=80",
-    vendor: "FitGear Store",
-    avgRating: 4.6,
-    reviewCount: 18,
-    badge: "New",
-    category: { name: "Sports" },
-  },
-  {
-    id: "na-6",
-    name: "Modern Bamboo Desk Lamp",
-    price: 18000,
-    salePrice: null,
-    image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&q=80",
-    vendor: "Home & Office",
-    avgRating: 4.5,
-    reviewCount: 9,
-    badge: "New",
-    category: { name: "Home & Living" },
-  },
-  {
-    id: "na-7",
-    name: "Women's Ankara Tote Bag",
-    price: 14500,
-    salePrice: null,
-    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&q=80",
-    vendor: "Luxury Collections",
-    avgRating: 4.8,
-    reviewCount: 34,
-    badge: "New",
-    category: { name: "Fashion" },
-  },
-  {
-    id: "na-8",
-    name: "Men's Running Sneakers",
-    price: 24000,
-    salePrice: 19500,
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80",
-    vendor: "FitGear Store",
-    avgRating: 4.7,
-    reviewCount: 41,
-    badge: "New",
-    category: { name: "Sports" },
-  },
-];
-
 async function fetchNewArrivals() {
-  const r = await fetch("/api/products?sort=newest&limit=8");
+  const r = await fetch("/api/products?sort=newest&per_page=8");
   if (!r.ok) throw new Error("fetch failed");
   return r.json();
 }
@@ -127,7 +27,9 @@ export default function NewArrivalsSection() {
     staleTime: 5 * 60_000,
   });
 
-  const products = data?.products?.length ? data.products : STATIC_ARRIVALS;
+  const products = data?.products ?? [];
+
+  if (!products.length && data !== undefined) return null;
 
   const handleAddToCart = (e, p) => {
     e.preventDefault();

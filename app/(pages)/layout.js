@@ -6,8 +6,14 @@ export default function PagesLayout({ children }) {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen pb-16 lg:pb-0">{children}</main>
+      <main className="min-h-screen">{children}</main>
       <Footer />
+      {/* Spacer that matches MobileBottomNav height + iOS safe-area-inset-bottom */}
+      <div
+        aria-hidden="true"
+        className="lg:hidden h-16"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      />
       <MobileBottomNav />
     </>
   );

@@ -16,6 +16,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *   vendor_id  — filter to a specific vendor
  *   badge      — filter by badge text
  *   featured   — "true" to return only featured products
+ *   condition      — "new" | "used" | "refurbished"
+ *   verified_only  — "true" to return only products from verified vendors
+ *   min_discount   — minimum discount % (integer 1–99, requires sale_price)
  */
 export async function GET(request) {
   try {
@@ -31,11 +34,28 @@ export async function GET(request) {
     const vendorId   = searchParams.get("vendor_id") || null;
     const badge      = searchParams.get("badge")     || null;
     const featured   = searchParams.get("featured")  === "true";
-    const page       = Math.max(1, Number(searchParams.get("page")     || 1));
+    const condition     = searchParams.get("condition")      || null;
+    const verifiedOnly  = searchParams.get("verified_only") === "true";
+    const minDiscount   = searchParams.get("min_discount") ? Number(searchParams.get("min_discount")) : null;
+    const page          = Math.max(1, Number(searchParams.get("page") || 1));
     const perPage    = Math.min(48, Math.max(1, Number(searchParams.get("per_page") || 12)));
     const offset     = (page - 1) * perPage;
 
     const supabase = createAdminClient();
+
+    // ── Resolve verified vendor IDs (if filter requested) ────────────────────
+    let verifiedVendorIds = null;
+    if (verifiedOnly) {
+      const { data: vv } = await supabase
+        .from("vendors")
+        .select("id")
+        .eq("verification_status", "verified");
+      verifiedVendorIds = (vv ?? []).map((v) => v.id);
+      // If no verified vendors exist yet, return empty early
+      if (verifiedVendorIds.length === 0) {
+        return NextResponse.json({ success: true, products: [], pagination: { total: 0, page, perPage, pages: 0 } });
+      }
+    }
 
     // ── Resolve category slug → id ────────────────────────────────────────────
     let resolvedCategoryId = categoryId;
@@ -58,7 +78,7 @@ export async function GET(request) {
       .select(`
         id, name, slug, description, price, sale_price, stock,
         vendor_id, images, avg_rating, review_count, sold_count,
-        location, badge, status, created_at,
+        condition, attributes, location, badge, status, created_at,
         categories ( id, name, slug )
       `, { count: "exact" })
       .eq("status", "active");
@@ -68,8 +88,11 @@ export async function GET(request) {
     if (minPrice !== null)  query = query.gte("price", minPrice);
     if (maxPrice !== null)  query = query.lte("price", maxPrice);
     if (minRating !== null) query = query.gte("avg_rating", minRating);
-    if (vendorId)           query = query.eq("vendor_id", vendorId);
-    if (badge)              query = query.eq("badge", badge);
+    if (vendorId)               query = query.eq("vendor_id", vendorId);
+    if (badge)                  query = query.eq("badge", badge);
+    if (condition)              query = query.eq("condition", condition);
+    if (verifiedVendorIds)      query = query.in("vendor_id", verifiedVendorIds);
+    if (minDiscount !== null)   query = query.not("sale_price", "is", null);
 
     // featured column may not exist in older DB instances — try it, fall back gracefully
     if (featured) {
@@ -81,6 +104,7 @@ export async function GET(request) {
       case "price_desc": query = query.order("price",      { ascending: false }); break;
       case "rating":     query = query.order("avg_rating", { ascending: false }); break;
       case "popular":    query = query.order("sold_count", { ascending: false }); break;
+      case "discount":   query = query.not("sale_price", "is", null).order("price", { ascending: false }); break;
       default:           query = query.order("created_at", { ascending: false });
     }
 
@@ -101,8 +125,11 @@ export async function GET(request) {
     }
 
     // ── Normalise ─────────────────────────────────────────────────────────────
-    const products = (data ?? []).map((p) => {
+    let products = (data ?? []).map((p) => {
       const vendor = vendorMap[p.vendor_id] ?? null;
+      const discount = p.sale_price && p.price > 0
+        ? Math.round(((p.price - p.sale_price) / p.price) * 100)
+        : 0;
       return {
         id:          p.id,
         name:        p.name,
@@ -110,12 +137,15 @@ export async function GET(request) {
         description: p.description,
         price:       p.price,
         salePrice:   p.sale_price,
+        discount,
         stock:       p.stock,
         image:       Array.isArray(p.images) ? p.images[0] : null,
         images:      Array.isArray(p.images) ? p.images : [],
         avgRating:   Number(p.avg_rating ?? 0),
         reviewCount: p.review_count ?? 0,
         soldCount:   p.sold_count   ?? 0,
+        condition:   p.condition    ?? "new",
+        attributes:  p.attributes   ?? {},
         location:    p.location,
         badge:       p.badge,
         createdAt:   p.created_at,
@@ -127,6 +157,11 @@ export async function GET(request) {
           : null,
       };
     });
+
+    // Post-filter by discount % (can't do this in Postgres without a computed column)
+    if (minDiscount !== null) {
+      products = products.filter((p) => p.discount >= minDiscount);
+    }
 
     return NextResponse.json({
       success: true,

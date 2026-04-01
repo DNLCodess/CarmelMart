@@ -96,7 +96,7 @@ function LoginContent() {
       {/* Left: Banner */}
       <div className="hidden lg:block flex-1 relative overflow-hidden">
         <Image src="/auth-banner.jpg" alt="Login to CarmelMart" fill className="object-cover" priority />
-        <div className="absolute inset-0 bg-gradient-to-tl from-black/70 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-tl from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-0 right-0 p-12 text-white">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <h1 className="text-5xl font-bold mb-4">Welcome Back</h1>
@@ -106,7 +106,7 @@ function LoginContent() {
       </div>
 
       {/* Right: Form */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-gradient-to-br from-gray-50 to-white">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-linear-to-br from-gray-50 to-white">
         <div className="w-full max-w-md">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
             <Link href="/" className="inline-flex items-center gap-2 text-gray-600 hover:text-primary group">

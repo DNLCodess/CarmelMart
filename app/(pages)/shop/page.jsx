@@ -36,18 +36,10 @@ async function fetchCategories() {
 const SORT_OPTIONS = [
   { label: "Most Popular",    value: "popular"    },
   { label: "Newest",          value: "newest"     },
+  { label: "Best Discount",   value: "discount"   },
   { label: "Price: Low–High", value: "price_asc"  },
   { label: "Price: High–Low", value: "price_desc" },
   { label: "Top Rated",       value: "rating"     },
-];
-
-const PRICE_PRESETS = [
-  { label: "All Prices",         min: null,    max: null    },
-  { label: "Under ₦10,000",      min: null,    max: 10000   },
-  { label: "₦10k – ₦50k",       min: 10000,   max: 50000   },
-  { label: "₦50k – ₦150k",      min: 50000,   max: 150000  },
-  { label: "₦150k – ₦500k",     min: 150000,  max: 500000  },
-  { label: "Above ₦500,000",     min: 500000,  max: null    },
 ];
 
 const RATING_OPTIONS = [
@@ -548,10 +540,83 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
   );
 }
 
+// ── Price Range Slider ────────────────────────────────────────────────────────
+const PRICE_SLIDER_MAX = 1_000_000;
+
+function PriceRangeSlider({ minPrice, maxPrice, onCommit }) {
+  const [localMin, setLocalMin] = useState(minPrice ?? 0);
+  const [localMax, setLocalMax] = useState(maxPrice ?? PRICE_SLIDER_MAX);
+
+  // Sync when external filters reset
+  useEffect(() => { setLocalMin(minPrice ?? 0); }, [minPrice]);
+  useEffect(() => { setLocalMax(maxPrice ?? PRICE_SLIDER_MAX); }, [maxPrice]);
+
+  const minPct = (localMin / PRICE_SLIDER_MAX) * 100;
+  const maxPct = (localMax / PRICE_SLIDER_MAX) * 100;
+
+  const handleMinChange = (e) => {
+    const v = Math.min(Number(e.target.value), localMax - 1000);
+    setLocalMin(v);
+  };
+  const handleMaxChange = (e) => {
+    const v = Math.max(Number(e.target.value), localMin + 1000);
+    setLocalMax(v);
+  };
+  const handleCommit = () => {
+    onCommit(localMin > 0 ? localMin : null, localMax < PRICE_SLIDER_MAX ? localMax : null);
+  };
+
+  return (
+    <div>
+      {/* Track + filled range */}
+      <div className="relative h-1.5 bg-gray-200 rounded-full mx-1 mb-4 mt-5">
+        <div
+          className="absolute h-1.5 bg-primary rounded-full"
+          style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
+        />
+        {/* Min thumb */}
+        <input
+          type="range"
+          min={0}
+          max={PRICE_SLIDER_MAX}
+          step={1000}
+          value={localMin}
+          onChange={handleMinChange}
+          onMouseUp={handleCommit}
+          onTouchEnd={handleCommit}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          style={{ zIndex: localMin > PRICE_SLIDER_MAX * 0.9 ? 5 : 3 }}
+        />
+        {/* Max thumb */}
+        <input
+          type="range"
+          min={0}
+          max={PRICE_SLIDER_MAX}
+          step={1000}
+          value={localMax}
+          onChange={handleMaxChange}
+          onMouseUp={handleCommit}
+          onTouchEnd={handleCommit}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          style={{ zIndex: 4 }}
+        />
+        {/* Visual thumb dots */}
+        <div className="absolute w-4 h-4 bg-white border-2 border-primary rounded-full shadow -top-1.5 -translate-x-1/2 pointer-events-none" style={{ left: `${minPct}%` }} />
+        <div className="absolute w-4 h-4 bg-white border-2 border-primary rounded-full shadow -top-1.5 -translate-x-1/2 pointer-events-none" style={{ left: `${maxPct}%` }} />
+      </div>
+
+      {/* Labels */}
+      <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
+        <span>₦{localMin.toLocaleString()}</span>
+        <span>{localMax >= PRICE_SLIDER_MAX ? "₦1M+" : `₦${localMax.toLocaleString()}`}</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Filter Sidebar ────────────────────────────────────────────────────────────
 function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
-  const [minPriceInput, setMinPriceInput] = useState(filters.minPrice ?? "");
-  const [maxPriceInput, setMaxPriceInput] = useState(filters.maxPrice ?? "");
+  // no local price state needed — PriceRangeSlider handles it
 
   return (
     <>
@@ -600,43 +665,22 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Price Range — presets + custom inputs */}
+          {/* Price Range — dual slider */}
           <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Price Range</h3>
-            <div className="space-y-1 mb-3">
-              {PRICE_PRESETS.map((preset) => {
-                const active = filters.minPrice === preset.min && filters.maxPrice === preset.max;
-                return (
-                  <button
-                    key={preset.label}
-                    onClick={() => { setFilter("minPrice", preset.min); setFilter("maxPrice", preset.max); setMinPriceInput(""); setMaxPriceInput(""); }}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${active ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"}`}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
-            {/* Custom range inputs */}
-            <div className="flex gap-2 items-center">
-              <input
-                type="number"
-                placeholder="Min"
-                value={minPriceInput}
-                onChange={(e) => setMinPriceInput(e.target.value)}
-                onBlur={() => setFilter("minPrice", minPriceInput ? Number(minPriceInput) : null)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30"
-              />
-              <span className="text-gray-400 text-xs shrink-0">to</span>
-              <input
-                type="number"
-                placeholder="Max"
-                value={maxPriceInput}
-                onChange={(e) => setMaxPriceInput(e.target.value)}
-                onBlur={() => setFilter("maxPrice", maxPriceInput ? Number(maxPriceInput) : null)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30"
-              />
-            </div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Price Range</h3>
+            <PriceRangeSlider
+              minPrice={filters.minPrice}
+              maxPrice={filters.maxPrice}
+              onCommit={(min, max) => { setFilter("minPrice", min); setFilter("maxPrice", max); }}
+            />
+            {(filters.minPrice !== null || filters.maxPrice !== null) && (
+              <button
+                onClick={() => { setFilter("minPrice", null); setFilter("maxPrice", null); }}
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                Clear price
+              </button>
+            )}
           </div>
 
           {/* Customer Rating */}
@@ -775,6 +819,51 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
               ))}
             </div>
           </div>
+
+          {/* Discount % */}
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Discount</h3>
+            <div className="space-y-1">
+              {[null, 10, 20, 30, 50].map((pct) => (
+                <button
+                  key={pct ?? "all"}
+                  onClick={() => setFilter("minDiscount", pct)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    filters.minDiscount === pct
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {pct === null ? "All discounts" : `${pct}% off or more`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Verified Sellers */}
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Seller</h3>
+            <button
+              onClick={() => setFilter("verifiedOnly", !filters.verifiedOnly)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors ${
+                filters.verifiedOnly
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-gray-200 text-gray-700 hover:border-primary/40"
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                filters.verifiedOnly ? "border-primary bg-primary" : "border-gray-300"
+              }`}>
+                {filters.verifiedOnly && (
+                  <svg viewBox="0 0 10 8" fill="none" className="w-3 h-3">
+                    <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </span>
+              <span>Verified sellers only</span>
+              <BadgeCheck className={`w-4 h-4 ml-auto shrink-0 ${filters.verifiedOnly ? "text-primary" : "text-gray-300"}`} />
+            </button>
+          </div>
         </div>
       </aside>
     </>
@@ -849,9 +938,11 @@ function ShopContent() {
     delivery:  sp.get("delivery")   || null,
     brand:     sp.get("brand")      || null,
     color:     sp.get("color")      || null,
-    size:      sp.get("size")       || null,
-    sort:      sp.get("sort")       || "popular",   // default: Most Popular
-    page:      sp.get("page") ? Number(sp.get("page")) : 1,
+    size:         sp.get("size")          || null,
+    verifiedOnly: sp.get("verified_only") === "true",
+    minDiscount:  sp.get("min_discount") ? Number(sp.get("min_discount")) : null,
+    sort:         sp.get("sort")          || "popular",
+    page:         sp.get("page") ? Number(sp.get("page")) : 1,
   });
   const [view, setView]               = useState("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -875,9 +966,11 @@ function ShopContent() {
     if (filters.condition) params.set("condition",   filters.condition);
     if (filters.delivery)  params.set("delivery",    filters.delivery);
     if (filters.brand)     params.set("brand",       filters.brand);
-    if (filters.color)     params.set("color",       filters.color);
-    if (filters.size)      params.set("size",        filters.size);
-    if (filters.sort !== "popular") params.set("sort", filters.sort);
+    if (filters.color)        params.set("color",          filters.color);
+    if (filters.size)         params.set("size",           filters.size);
+    if (filters.verifiedOnly) params.set("verified_only",  "true");
+    if (filters.minDiscount)  params.set("min_discount",   filters.minDiscount);
+    if (filters.sort !== "popular") params.set("sort",     filters.sort);
     if (filters.page > 1)  params.set("page",        filters.page);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [filters, pathname, router]);
@@ -885,15 +978,17 @@ function ShopContent() {
   const { data: productsData, isLoading, isError } = useQuery({
     queryKey: ["products", filters],
     queryFn: () => fetchProducts({
-      category:   filters.category,
-      search:     filters.search,
-      min_price:  filters.minPrice,
-      max_price:  filters.maxPrice,
-      min_rating: filters.minRating,
-      condition:  filters.condition,
-      sort:       filters.sort,
-      page:       filters.page,
-      per_page:   PER_PAGE,
+      category:      filters.category,
+      search:        filters.search,
+      min_price:     filters.minPrice,
+      max_price:     filters.maxPrice,
+      min_rating:    filters.minRating,
+      condition:     filters.condition,
+      verified_only: filters.verifiedOnly ? "true" : undefined,
+      min_discount:  filters.minDiscount,
+      sort:          filters.sort,
+      page:          filters.page,
+      per_page:      PER_PAGE,
     }),
     staleTime: 30_000,
   });
@@ -924,12 +1019,15 @@ function ShopContent() {
     filters.condition && { key: "condition", label: filters.condition },
     filters.delivery  && { key: "delivery",  label: filters.delivery },
     filters.brand     && { key: "brand",     label: filters.brand },
-    filters.color     && { key: "color",     label: filters.color },
-    filters.size      && { key: "size",      label: `Size: ${filters.size}` },
+    filters.color        && { key: "color",        label: filters.color },
+    filters.size         && { key: "size",         label: `Size: ${filters.size}` },
+    filters.verifiedOnly && { key: "verifiedOnly", label: "Verified Sellers" },
+    filters.minDiscount  && { key: "minDiscount",  label: `${filters.minDiscount}%+ off` },
   ].filter(Boolean);
 
   const clearFilter = (key) => {
     if (key === "price") { setFilter("minPrice", null); setFilter("maxPrice", null); }
+    else if (key === "verifiedOnly") setFilter("verifiedOnly", false);
     else setFilter(key, null);
   };
 
@@ -1089,7 +1187,7 @@ function ShopContent() {
 
               {activeFilters.length > 1 && (
                 <button
-                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, brand: null, color: null, size: null, sort: "popular", page: 1 })}
+                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, brand: null, color: null, size: null, verifiedOnly: false, minDiscount: null, sort: "popular", page: 1 })}
                   className="text-xs font-semibold text-gray-500 hover:text-red-500 underline"
                 >
                   Clear all
@@ -1162,7 +1260,7 @@ function ShopContent() {
                 <h3 className="font-bold text-gray-900 mb-1">No products found</h3>
                 <p className="text-sm text-gray-500 mb-5">Try adjusting your filters or search term.</p>
                 <button
-                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, brand: null, color: null, size: null, sort: "popular", page: 1 })}
+                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, brand: null, color: null, size: null, verifiedOnly: false, minDiscount: null, sort: "popular", page: 1 })}
                   className="px-6 py-2.5 bg-primary text-white rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
                 >
                   Clear Filters

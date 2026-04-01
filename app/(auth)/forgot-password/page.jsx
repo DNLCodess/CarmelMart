@@ -149,7 +149,7 @@ export default function ForgotPassword() {
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/70 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-br from-black/70 to-transparent" />
         <div className="absolute bottom-0 left-0 p-12 text-white">
           <h1 className="text-5xl font-bold mb-4">Reset Password</h1>
           <p className="text-xl opacity-90">Secure your account in seconds</p>
@@ -157,7 +157,7 @@ export default function ForgotPassword() {
       </div>
 
       {/* Right: Form */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-gradient-to-br from-gray-50 to-white">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-linear-to-br from-gray-50 to-white">
         <div className="w-full max-w-md">
           <motion.div
             initial={{ opacity: 0, x: -20 }}

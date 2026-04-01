@@ -56,7 +56,7 @@ function VendorSuccessContent() {
       ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-100">
       {/* Header with Success State */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
@@ -65,7 +65,7 @@ function VendorSuccessContent() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 mb-6"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-linear-to-br from-green-100 to-emerald-100 mb-6"
           >
             <CheckCircle2
               className="w-11 h-11 text-green-600"
@@ -235,7 +235,7 @@ function VendorSuccessContent() {
             className="bg-linear-to-br from-primary/5 to-accent/5 border-2 border-primary/20 rounded-2xl p-8 shadow-sm"
           >
             <div className="text-center max-w-xl mx-auto">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent mb-4">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-linear-to-br from-primary to-accent mb-4">
                 <svg
                   className="w-7 h-7 text-white"
                   fill="currentColor"
@@ -357,7 +357,7 @@ function VendorSuccessContent() {
                   transition={{ delay: 0.9 + index * 0.1, duration: 0.3 }}
                   className="flex gap-4"
                 >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 text-primary flex items-center justify-center text-sm font-bold shadow-sm">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-linear-to-br from-primary/20 to-accent/20 text-primary flex items-center justify-center text-sm font-bold shadow-sm">
                     {item.step}
                   </div>
                   <div>

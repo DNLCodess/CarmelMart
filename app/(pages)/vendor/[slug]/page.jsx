@@ -108,7 +108,7 @@ export default function VendorStorePage() {
           placeholder="blur"
           blurDataURL={BLUR_URL}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">

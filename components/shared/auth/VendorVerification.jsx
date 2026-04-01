@@ -455,10 +455,10 @@ export default function VendorVerification({
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8 p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200"
+          className="mb-8 p-4 rounded-xl bg-linear-to-br from-green-50 to-emerald-50 border-2 border-green-200"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-full bg-linear-to-br from-green-500 to-emerald-600 flex items-center justify-center shrink-0">
               <Gift className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -1098,7 +1098,7 @@ export default function VendorVerification({
 
                   {/* Referral Bonus Reminder */}
                   {referredBy && (
-                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-4">
+                    <div className="bg-linear-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-4">
                       <div className="flex items-center gap-3">
                         <Gift className="w-6 h-6 text-green-600" />
                         <div>

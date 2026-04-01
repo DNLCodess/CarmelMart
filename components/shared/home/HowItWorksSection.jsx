@@ -72,7 +72,7 @@ export default function HowItWorksSection() {
         {/* Steps */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 relative">
           {/* Connector line (desktop) */}
-          <div className="hidden lg:block absolute top-10 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-blue-200 via-purple-200 to-orange-200 z-0" />
+          <div className="hidden lg:block absolute top-10 left-[12.5%] right-[12.5%] h-px bg-linear-to-r from-blue-200 via-purple-200 to-orange-200 z-0" />
 
           {STEPS.map(({ step, icon: Icon, title, description, color, border }, i) => (
             <motion.div
