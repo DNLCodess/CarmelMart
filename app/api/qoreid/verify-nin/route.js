@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rateLimiter";
 
 export async function POST(request) {
@@ -144,6 +145,21 @@ export async function POST(request) {
 
     // ✅ Step 3: Handle verified result
     if (data?.status?.status === "verified") {
+      // Mark vendor as NIN-verified server-side — never trust the client to do this
+      const admin = createAdminClient();
+      await admin
+        .from("vendors")
+        .update({
+          nin_verified: true,
+          nin_data: {
+            first_name: data.summary?.firstname || firstName,
+            last_name: data.summary?.lastname || lastName,
+            nin,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
       return Response.json({
         success: true,
         verified: true,

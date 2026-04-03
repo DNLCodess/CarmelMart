@@ -35,7 +35,7 @@ function VendorSuccessContent() {
   const amount = isPremium ? "₦10,000" : "₦5,000";
 
   // Telegram community link for vendor updates
-  const telegramLink = process.env.TG_LINK;
+  const telegramLink = process.env.NEXT_PUBLIC_TG_LINK;
 
   const benefits = isPremium
     ? [
@@ -95,7 +95,7 @@ function VendorSuccessContent() {
             >
               {isPremium ? (
                 <>
-                  <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-linear-to-br from-primary to-accent flex items-center justify-center">
                     <Star className="w-5 h-5 text-white" fill="currentColor" />
                   </div>
                   <div className="text-left">
@@ -180,7 +180,7 @@ function VendorSuccessContent() {
                     verification link to activate your account.
                   </p>
                   <div className="flex items-start gap-2 pt-2 bg-white/60 rounded-lg p-3">
-                    <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5" />
+                    <div className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5" />
                     <p className="font-semibold text-gray-900">
                       You must verify your email before attempting to log in
                     </p>
@@ -304,7 +304,7 @@ function VendorSuccessContent() {
                   <CheckCircle2
                     className={`w-5 h-5 ${
                       isPremium ? "text-primary" : "text-green-600"
-                    } flex-shrink-0 mt-0.5`}
+                    } shrink-0 mt-0.5`}
                     strokeWidth={2}
                   />
                   <span className="text-gray-700 text-sm">{benefit}</span>
@@ -357,7 +357,7 @@ function VendorSuccessContent() {
                   transition={{ delay: 0.9 + index * 0.1, duration: 0.3 }}
                   className="flex gap-4"
                 >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-linear-to-br from-primary/20 to-accent/20 text-primary flex items-center justify-center text-sm font-bold shadow-sm">
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-linear-to-br from-primary/20 to-accent/20 text-primary flex items-center justify-center text-sm font-bold shadow-sm">
                     {item.step}
                   </div>
                   <div>

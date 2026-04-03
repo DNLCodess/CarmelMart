@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@/lib/supabase/admin";
 
 const REFERRAL_BONUS = 500;
-const VERIFICATION_FEE = 5000;
+const MIN_VERIFICATION_FEE = 5000; // Standard tier; Premium (₦10,000) also passes this check
 
 /**
  * API Route: POST /api/vendor/complete-registration
@@ -19,12 +20,11 @@ export async function POST(request) {
     }
     const userId = user.id;
 
-    const { transactionId, verificationData, referralCode } = await request.json();
+    const { transactionId } = await request.json();
 
-    // Validate required fields
-    if (!transactionId || !verificationData) {
+    if (!transactionId) {
       return NextResponse.json(
-        { success: false, message: "Missing required fields" },
+        { success: false, message: "transactionId is required" },
         { status: 400 }
       );
     }
@@ -43,7 +43,7 @@ export async function POST(request) {
     }
 
     // Check if payment amount matches
-    if (paymentVerified.amount < VERIFICATION_FEE) {
+    if (paymentVerified.amount < MIN_VERIFICATION_FEE) {
       return NextResponse.json(
         {
           success: false,
@@ -53,31 +53,15 @@ export async function POST(request) {
       );
     }
 
-    // Step 2: Generate unique referral code for new vendor
-    const newReferralCode = await generateUniqueReferralCode(userId);
+    // Step 2: Process referral bonus if applicable
+    const referralBonusProcessed = await processReferralBonus(userId);
 
-    // Step 3: Process referral bonus if applicable
-    let referralBonusProcessed = null;
-    if (referralCode) {
-      referralBonusProcessed = await processReferralBonus(referralCode);
-    }
-
-    // Step 4: Complete vendor registration
+    // Step 3: Complete vendor registration
     const vendorData = await completeVendorRegistration({
       userId,
-      verificationData,
-      referralCode: newReferralCode,
       transactionId,
-      referredBy: referralCode || null,
       registrationDate: new Date().toISOString(),
       status: "active",
-    });
-
-    // Step 5: Send welcome email
-    await sendWelcomeEmail({
-      email: verificationData.email,
-      name: verificationData.fullName,
-      referralCode: newReferralCode,
     });
 
     return NextResponse.json({
@@ -85,7 +69,6 @@ export async function POST(request) {
       message: "Vendor registration completed successfully",
       data: {
         vendorId: vendorData.id,
-        referralCode: newReferralCode,
         referralBonusProcessed: !!referralBonusProcessed,
         dashboardUrl: "/vendor/dashboard",
       },
@@ -138,224 +121,50 @@ async function verifyFlutterwavePayment(transactionId) {
   }
 }
 
-/**
- * Generate unique referral code for vendor
- */
-async function generateUniqueReferralCode(userId) {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let code = "";
-
-  // Generate 8-character code
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  for (let i = 0; i < 8; i++) {
-    code += characters.charAt(bytes[i] % characters.length);
-  }
-
-  // Add prefix for vendors
-  const referralCode = `VND${code}`;
-
-  // Check if code already exists in database
-  // If it does, generate a new one recursively
-  const exists = await checkReferralCodeExists(referralCode);
-  if (exists) {
-    return generateUniqueReferralCode(userId);
-  }
-
-  return referralCode;
-}
-
-/**
- * Check if referral code exists
- */
-async function checkReferralCodeExists(code) {
-  // Replace with your actual database query
-  // Example using Supabase:
-  // const { data } = await supabase
-  //   .from('vendors')
-  //   .select('id')
-  //   .eq('referral_code', code)
-  //   .single();
-  // return !!data;
-
-  return false; // For now, assume code doesn't exist
-}
-
-/**
- * Process referral bonus
- */
-async function processReferralBonus(referralCode) {
+async function processReferralBonus(userId) {
+  const supabase = createAdminClient();
   try {
-    // Find the vendor who owns this referral code
-    const referrer = await findVendorByReferralCode(referralCode);
+    const { data: referral } = await supabase
+      .from("referrals")
+      .select("id, referrer_id")
+      .eq("referred_id", userId)
+      .eq("status", "pending")
+      .single();
 
-    if (!referrer) {
-      console.warn(`Referral code ${referralCode} not found`);
-      return null;
-    }
+    if (!referral) return null;
 
-    // Update referrer's wallet balance
-    const updatedBalance = await updateVendorWallet({
-      vendorId: referrer.id,
+    await supabase
+      .from("referrals")
+      .update({ status: "completed" })
+      .eq("id", referral.id);
+
+    await supabase.rpc("credit_wallet", {
+      user_id: referral.referrer_id,
       amount: REFERRAL_BONUS,
-      type: "referral_bonus",
-      description: `Referral bonus for new vendor signup`,
+      description: "Referral bonus — new vendor verified",
     });
 
-    // Create referral record
-    const referralRecord = await createReferralRecord({
-      referrerId: referrer.id,
-      referredUserId: null, // Will be set after registration
-      bonusAmount: REFERRAL_BONUS,
-      status: "completed",
-      createdAt: new Date().toISOString(),
-    });
-
-    // Send notification to referrer
-    await sendReferralBonusNotification({
-      email: referrer.email,
-      amount: REFERRAL_BONUS,
-    });
-
-    return {
-      referrerId: referrer.id,
-      bonusAmount: REFERRAL_BONUS,
-      newBalance: updatedBalance,
-    };
+    return { referrerId: referral.referrer_id, bonusAmount: REFERRAL_BONUS };
   } catch (error) {
     console.error("Referral Bonus Processing Error:", error);
     return null;
   }
 }
 
-/**
- * Find vendor by referral code
- */
-async function findVendorByReferralCode(code) {
-  // Replace with your actual database query
-  // Example using Supabase:
-  // const { data, error } = await supabase
-  //   .from('vendors')
-  //   .select('*')
-  //   .eq('referral_code', code)
-  //   .single();
-
-  // if (error) return null;
-  // return data;
-
-  // For now, return mock data
-  return {
-    id: "vendor_123",
-    email: "[email protected]",
-    referralCode: code,
-  };
-}
-
-/**
- * Update vendor wallet balance
- */
-async function updateVendorWallet({ vendorId, amount, type, description }) {
-  // Replace with your actual database query
-  // Example using Supabase:
-  // const { data: vendor } = await supabase
-  //   .from('vendors')
-  //   .select('wallet_balance')
-  //   .eq('id', vendorId)
-  //   .single();
-
-  // const newBalance = (vendor?.wallet_balance || 0) + amount;
-
-  // await supabase
-  //   .from('vendors')
-  //   .update({ wallet_balance: newBalance })
-  //   .eq('id', vendorId);
-
-  // // Create transaction record
-  // await supabase
-  //   .from('wallet_transactions')
-  //   .insert([{
-  //     vendor_id: vendorId,
-  //     amount: amount,
-  //     type: type,
-  //     description: description,
-  //     created_at: new Date().toISOString(),
-  //   }]);
-
-  // return newBalance;
-
-  return amount; // Mock new balance
-}
-
-/**
- * Create referral record
- */
-async function createReferralRecord(data) {
-  // Replace with your actual database query
-  // Example using Supabase:
-  // const { data: record, error } = await supabase
-  //   .from('referrals')
-  //   .insert([data])
-  //   .select()
-  //   .single();
-
-  // if (error) throw error;
-  // return record;
-
-  return { ...data, id: `ref_${Date.now()}` };
-}
-
-/**
- * Complete vendor registration
- */
 async function completeVendorRegistration(data) {
-  // Replace with your actual database query
-  // Example using Supabase:
-  // const { data: vendor, error } = await supabase
-  //   .from('vendors')
-  //   .update({
-  //     nin_number: data.verificationData.nin,
-  //     cac_number: data.verificationData.cac,
-  //     company_name: data.verificationData.companyName,
-  //     referral_code: data.referralCode,
-  //     referred_by: data.referredBy,
-  //     verification_status: 'verified',
-  //     payment_status: 'paid',
-  //     transaction_id: data.transactionId,
-  //     status: data.status,
-  //     registration_completed_at: data.registrationDate,
-  //   })
-  //   .eq('user_id', data.userId)
-  //   .select()
-  //   .single();
+  const supabase = createAdminClient();
+  const { data: vendor, error } = await supabase
+    .from("vendors")
+    .update({
+      payment_verified: true,
+      transaction_id: data.transactionId,
+      status: data.status,
+      registration_completed_at: data.registrationDate,
+    })
+    .eq("id", data.userId)
+    .select()
+    .single();
 
-  // if (error) throw error;
-  // return vendor;
-
-  return { id: `vendor_${Date.now()}`, ...data };
-}
-
-/**
- * Send welcome email
- */
-async function sendWelcomeEmail({ email, name, referralCode }) {
-  // Implement your email sending logic here
-  // Example using SendGrid, Resend, or other email service
-
-  // await emailService.send({
-  //   to: email,
-  //   subject: "Welcome to CarmelMart - Your Vendor Account is Active!",
-  //   html: generateWelcomeEmailTemplate(name, referralCode),
-  // });
-}
-
-/**
- * Send referral bonus notification
- */
-async function sendReferralBonusNotification({ email, amount }) {
-  // Implement your notification logic here
-  // await emailService.send({
-  //   to: email,
-  //   subject: "You've earned a referral bonus!",
-  //   html: `You've earned ₦${amount} from your referral!`,
-  // });
+  if (error) throw error;
+  return vendor;
 }

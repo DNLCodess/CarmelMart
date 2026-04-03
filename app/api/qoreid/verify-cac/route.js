@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rateLimiter";
 
 export async function POST(request) {
@@ -128,6 +129,17 @@ export async function POST(request) {
 
     if (isVerified) {
       const cac = data.cac;
+
+      // Mark vendor as CAC-verified server-side — never trust the client to do this
+      const admin = createAdminClient();
+      await admin
+        .from("vendors")
+        .update({
+          cac_verified: true,
+          cac_number: trimmed,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
 
       return Response.json({
         success: true,

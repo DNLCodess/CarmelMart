@@ -261,8 +261,9 @@ function RegisterPageContent() {
         setVendorData({
           userId: result.userId,
           email: formData.email,
-          phone: formData.phone,
-          referralCode: formData.referralCode || null,
+          // referralCode entered is the code of whoever referred them,
+          // passed as referredBy so VendorVerification shows the bonus banner
+          referredBy: formData.referralCode?.trim().toUpperCase() || null,
         });
         setStep(3);
         toast.success(
@@ -572,7 +573,7 @@ function RegisterPageContent() {
                   <VendorVerification
                     userId={vendorData.userId}
                     email={vendorData.email}
-                    referralCode={vendorData.referralCode}
+                    referredBy={vendorData.referredBy}
                   />
                 </motion.div>
               )}
