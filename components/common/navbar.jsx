@@ -973,7 +973,7 @@ export default function Navbar() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.15 }}
-                className="absolute left-0 right-0 top-full bg-white shadow-2xl border-t-2 border-accent z-50"
+                className="hidden md:block absolute left-0 right-0 top-full bg-white shadow-2xl border-t-2 border-accent z-50"
                 onMouseEnter={() => clearTimeout(megaMenuTimer.current)}
                 onMouseLeave={() => { megaMenuTimer.current = setTimeout(() => setHoveredCategory(null), 150); }}
               >
