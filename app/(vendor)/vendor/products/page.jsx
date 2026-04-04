@@ -113,7 +113,7 @@ export default function VendorProductsPage() {
             </button>
             {bulkMenuOpen && (
               <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg z-10 overflow-hidden w-36">
-                {["active", "draft", "inactive"].map((s) => (
+                {["draft", "inactive"].map((s) => (
                   <button
                     key={s}
                     onClick={() => bulkStatus({ ids: selected, status: s })}
@@ -246,13 +246,34 @@ export default function VendorProductsPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-center">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
-                        p.status === "active"   ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"  :
-                        p.status === "draft"    ? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"   :
-                                                  "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-                      }`}>
-                        {p.status}
-                      </span>
+                      {p.moderation_status === "pending" ? (
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+                          Pending Review
+                        </span>
+                      ) : p.moderation_status === "rejected" ? (
+                        <div>
+                          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+                            Rejected
+                          </span>
+                          {p.moderation_reason && (
+                            <p className="text-[11px] text-red-500 dark:text-red-400 mt-1 max-w-[120px] mx-auto" title={p.moderation_reason}>
+                              {p.moderation_reason.length > 40 ? p.moderation_reason.slice(0, 40) + "…" : p.moderation_reason}
+                            </p>
+                          )}
+                        </div>
+                      ) : p.moderation_status === "flagged" ? (
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400">
+                          Flagged
+                        </span>
+                      ) : (
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+                          p.status === "active"
+                            ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                        }`}>
+                          {p.status === "active" ? "Live" : p.status}
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-center">
                       <div className="flex items-center justify-center gap-1">

@@ -15,7 +15,6 @@ import TrustStrip              from "@/components/shared/home/TrustStrip";
 import HowItWorksSection      from "@/components/shared/home/HowItWorksSection";
 import TestimonialsSection    from "@/components/shared/home/TestimonialsSection";
 import CtaSection             from "@/components/shared/home/CtaSection";
-import NewsletterSection      from "@/components/shared/home/NewsletterSection";
 
 export default function LandingPage() {
   return (
@@ -62,8 +61,6 @@ export default function LandingPage() {
       {/* 10. CTA banner */}
       <CtaSection />
 
-      {/* 11. Newsletter */}
-      <NewsletterSection />
     </div>
   );
 }

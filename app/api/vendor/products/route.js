@@ -14,24 +14,26 @@ export async function GET() {
 
     const { data: products, error } = await admin
       .from("products")
-      .select("*, categories(id, name, slug)")
+      .select("*, moderation_status, moderation_reason, categories(id, name, slug)")
       .eq("vendor_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
     const normalized = (products || []).map((p) => ({
-      id:         p.id,
-      name:       p.name,
-      price:      p.price,
-      sale_price: p.sale_price,
-      stock:      p.stock,
-      status:     p.status,
-      image:      Array.isArray(p.images) ? p.images[0] : null,
-      images:     Array.isArray(p.images) ? p.images : [],
-      sold_count: p.sold_count,
-      avg_rating: p.avg_rating,
-      category:   p.categories ?? null,
+      id:                p.id,
+      name:              p.name,
+      price:             p.price,
+      sale_price:        p.sale_price,
+      stock:             p.stock,
+      status:            p.status,
+      moderation_status: p.moderation_status ?? "pending",
+      moderation_reason: p.moderation_reason ?? null,
+      image:             Array.isArray(p.images) ? p.images[0] : null,
+      images:            Array.isArray(p.images) ? p.images : [],
+      sold_count:        p.sold_count,
+      avg_rating:        p.avg_rating,
+      category:          p.categories ?? null,
     }));
 
     return NextResponse.json({ products: normalized });
@@ -53,8 +55,9 @@ export async function PATCH(request) {
 
     const { ids, status } = await request.json();
     if (!ids?.length) return NextResponse.json({ error: "ids required" }, { status: 400 });
-    if (!["active", "inactive", "draft"].includes(status))
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    // Vendors can only set inactive/draft — "active" requires admin approval
+    if (!["inactive", "draft"].includes(status))
+      return NextResponse.json({ error: "Invalid status. Products can only be set to inactive or draft by vendors." }, { status: 400 });
 
     const { error } = await admin
       .from("products")
@@ -80,7 +83,7 @@ export async function POST(request) {
     if (!profile || profile.role !== "vendor") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { name, description, price, sale_price, stock, category_id, status, images, condition, attributes } = body;
+    const { name, description, price, sale_price, stock, category_id, images, condition, attributes } = body;
 
     if (!name || !price) return NextResponse.json({ error: "Name and price are required" }, { status: 400 });
     if (sale_price && Number(sale_price) >= Number(price)) {
@@ -91,19 +94,20 @@ export async function POST(request) {
     const { data: product, error } = await admin
       .from("products")
       .insert({
-        vendor_id:   user.id,
-        name:        name.trim(),
-        description: description?.trim() ?? null,
-        price:       Number(price),
-        sale_price:  sale_price ? Number(sale_price) : null,
-        stock:       Number(stock ?? 0),
-        category_id: category_id || null,
-        status:      status ?? "active",
-        images:      images ?? [],
-        condition:   VALID_CONDITIONS.includes(condition) ? condition : "new",
-        attributes:  attributes && typeof attributes === "object" ? attributes : {},
-        created_at:  new Date().toISOString(),
-        updated_at:  new Date().toISOString(),
+        vendor_id:         user.id,
+        name:              name.trim(),
+        description:       description?.trim() ?? null,
+        price:             Number(price),
+        sale_price:        sale_price ? Number(sale_price) : null,
+        stock:             Number(stock ?? 0),
+        category_id:       category_id || null,
+        status:            "inactive",        // not live until admin approves
+        moderation_status: "pending",
+        images:            images ?? [],
+        condition:         VALID_CONDITIONS.includes(condition) ? condition : "new",
+        attributes:        attributes && typeof attributes === "object" ? attributes : {},
+        created_at:        new Date().toISOString(),
+        updated_at:        new Date().toISOString(),
       })
       .select()
       .single();

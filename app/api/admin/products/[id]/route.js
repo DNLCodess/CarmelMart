@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendVendorProductDecision } from "@/lib/email";
 
 export async function PATCH(request, { params }) {
   try {
@@ -16,6 +17,8 @@ export async function PATCH(request, { params }) {
     const { action, reason } = await request.json();
 
     let update = {};
+    const notifyVendor = ["approve", "reject", "flag"].includes(action);
+
     if (action === "approve") {
       update = { moderation_status: "approved", moderation_reason: null, status: "active" };
     } else if (action === "reject") {
@@ -34,6 +37,38 @@ export async function PATCH(request, { params }) {
 
     const { error: updateErr } = await admin.from("products").update(update).eq("id", id);
     if (updateErr) throw updateErr;
+
+    // Notify vendor of approval/rejection
+    if (notifyVendor) {
+      try {
+        // Fetch product name and vendor info
+        const { data: product } = await admin
+          .from("products")
+          .select("name, vendor_id")
+          .eq("id", id)
+          .single();
+
+        if (product?.vendor_id) {
+          const { data: vendor } = await admin
+            .from("vendors")
+            .select("business_name, email")
+            .eq("id", product.vendor_id)
+            .single();
+
+          if (vendor?.email) {
+            await sendVendorProductDecision({
+              to:          vendor.email,
+              vendorName:  vendor.business_name ?? "Vendor",
+              productName: product.name,
+              approved:    action === "approve",
+              reason:      reason ?? null,
+            });
+          }
+        }
+      } catch {
+        // Email failure should not block the response
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

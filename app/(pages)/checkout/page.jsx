@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Script from "next/script";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -29,7 +30,7 @@ import { formatNigerianPhone } from "@/lib/utils";
 import StateLgaPicker from "@/components/ui/StateLgaPicker";
 
 const DELIVERY_FALLBACK = [
-  { id: "standard", label: "Standard Delivery", duration: "3–7 business days", fee: 1500 },
+  { id: "free",     label: "Free Delivery",     duration: "3–7 business days", fee: 0    },
   { id: "express",  label: "Express Delivery",  duration: "1–2 business days", fee: 3500 },
 ];
 
@@ -110,7 +111,7 @@ export default function CheckoutPage() {
     deliveryInstructions: "",
   });
 
-  const [delivery, setDelivery] = useState("standard");
+  const [delivery, setDelivery] = useState("free");
   const [payment, setPayment] = useState("flutterwave");
 
   // Fetch delivery zones for the selected state
@@ -124,16 +125,16 @@ export default function CheckoutPage() {
   // Build delivery options with real fees when zone data is available
   const DELIVERY_OPTIONS = useMemo(() => {
     const zones = zoneData?.zones ?? [];
-    // Use state-level zone (LGA = null or first result) as base fee
-    const zone = zones.find((z) => !z.lga || z.lga.trim() === "") ?? zones[0];
-    if (!zone) return DELIVERY_FALLBACK;
+    const zone  = zones.find((z) => !z.lga || z.lga.trim() === "") ?? zones[0];
+    const days  = zone?.estimated_days ?? "3–7";
+    const expressFee = zone ? Math.round((zone.base_fee ?? 1500) * 2) : 3500;
     return [
-      { id: "standard", label: "Standard Delivery", duration: `${zone.estimated_days ?? "3–7"} business days`, fee: zone.base_fee ?? 1500 },
-      { id: "express",  label: "Express Delivery",  duration: "1–2 business days",                             fee: Math.round((zone.base_fee ?? 1500) * 2) },
+      { id: "free",    label: "Free Delivery",    duration: `${days} business days`, fee: 0,          badge: "FREE" },
+      { id: "express", label: "Express Delivery", duration: "1–2 business days",     fee: expressFee },
     ];
   }, [zoneData]);
 
-  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.id === delivery)?.fee ?? 1500;
+  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.id === delivery)?.fee ?? 0;
   const discount = appliedPromo?.discount ?? 0;
   const discountedSubtotal = Math.max(0, total - discount);
   const requiresPODDeposit = payment === "pod" && discountedSubtotal > 10000;
@@ -304,19 +305,18 @@ export default function CheckoutPage() {
     setLoading(true);
     if (payment === "flutterwave") {
       initiateFlutterwave();
-      // loading reset handled in onclose / callback
-    } else {
-      // POD without deposit — create order directly, no payment gateway needed
-      try {
-        const orderId = await createOrder({ paymentRef: null, paymentStatus: "pending", podDeposit: 0 });
-        clearCart();
-        router.push(`/checkout/success?order_id=${orderId}&pod=1`);
-      } catch (err) {
-        toast.error(err.message || "Could not place order. Please try again.");
-        setLoading(false);
-      }
+      // loading is reset in onclose / callback — do not call setLoading(false) here
+      return;
     }
-    setLoading(false);
+    // POD without deposit — create order directly, no payment gateway needed
+    try {
+      const orderId = await createOrder({ paymentRef: null, paymentStatus: "pending", podDeposit: 0 });
+      clearCart();
+      router.push(`/checkout/success?order_id=${orderId}&pod=1`);
+    } catch (err) {
+      toast.error(err.message || "Could not place order. Please try again.");
+      setLoading(false);
+    }
   };
 
   if (items.length === 0) {
@@ -332,8 +332,8 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Flutterwave SDK */}
-      <script src="https://checkout.flutterwave.com/v3.js" async />
+      {/* Flutterwave SDK — must use next/script, not plain <script>, to execute on client-side navigation */}
+      <Script src="https://checkout.flutterwave.com/v3.js" strategy="lazyOnload" />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="text-2xl font-bold text-gray-900 text-center mb-6">Checkout</h1>
@@ -439,11 +439,18 @@ export default function CheckoutPage() {
                       <div className="flex items-center gap-3">
                         <input type="radio" value={opt.id} checked={delivery === opt.id} onChange={() => setDelivery(opt.id)} className="accent-primary" />
                         <div>
-                          <p className="font-semibold text-gray-900 text-sm">{opt.label}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-gray-900 text-sm">{opt.label}</p>
+                            {opt.badge && (
+                              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">{opt.badge}</span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500">{opt.duration}</p>
                         </div>
                       </div>
-                      <span className="font-bold text-gray-900 text-sm">₦{opt.fee.toLocaleString()}</span>
+                      <span className={`font-bold text-sm ${opt.fee === 0 ? "text-green-600" : "text-gray-900"}`}>
+                        {opt.fee === 0 ? "FREE" : `₦${opt.fee.toLocaleString()}`}
+                      </span>
                     </label>
                   ))}
                 </motion.div>
@@ -610,7 +617,9 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex justify-between text-gray-600">
                   <span>Delivery</span>
-                  <span className="font-medium text-gray-900">₦{deliveryFee.toLocaleString()}</span>
+                  <span className={`font-medium ${deliveryFee === 0 ? "text-green-600" : "text-gray-900"}`}>
+                    {deliveryFee === 0 ? "FREE" : `₦${deliveryFee.toLocaleString()}`}
+                  </span>
                 </div>
                 {requiresPODDeposit && (
                   <div className="flex justify-between text-amber-700">

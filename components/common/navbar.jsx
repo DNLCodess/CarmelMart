@@ -176,9 +176,9 @@ export default function Navbar() {
   const accountLinks = isAuthenticated ? [
     ...(isCustomer ? [{ label: "My Account",       href: "/my-account",            icon: User        }] : []),
     ...(isVendor   ? [{ label: "Vendor Dashboard", href: "/vendor/dashboard",      icon: TrendingUp  }] : []),
-    ...(isAdmin    ? [{ label: "Admin Panel",       href: "/admin",                 icon: Settings    }] : []),
-    { label: "My Orders",      href: "/my-account/orders",        icon: Package  },
-    { label: "Notifications",  href: "/my-account/notifications", icon: Bell     },
+    ...(isAdmin    ? [{ label: "Admin Panel",       href: "/admin/dashboard",       icon: Settings    }] : []),
+    ...(!isAdmin   ? [{ label: "My Orders",      href: "/my-account/orders",        icon: Package  }] : []),
+    ...(!isAdmin   ? [{ label: "Notifications",  href: "/my-account/notifications", icon: Bell     }] : []),
     { label: "Settings",       href: "/my-account/settings",      icon: Settings },
   ] : [];
 
