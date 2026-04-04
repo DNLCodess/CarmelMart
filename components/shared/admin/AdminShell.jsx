@@ -6,7 +6,7 @@ import NextImage from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Store, ShoppingCart, Users, Shield,
-  Settings, Bell, Menu, X, LogOut, Sun, Moon, Package, Tag, AlertTriangle, Truck, BarChart2, Ticket, Wallet, ShieldOff, Zap, Percent, Image, Flag,
+  Settings, Bell, Menu, X, LogOut, Sun, Moon, Package, Tag, AlertTriangle, Truck, BarChart2, Ticket, Wallet, ShieldOff, Zap, Percent, Image, Flag, Mail,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { logoutAction } from "@/app/actions/auth";
@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/admin/pod-blacklist",  label: "POD Blacklist",icon: ShieldOff      },
   { href: "/admin/fraud-flags",    label: "Fraud Flags", icon: Flag            },
   { href: "/admin/hero-banners",   label: "Hero Banners",icon: Image           },
+  { href: "/admin/bulk-mail",       label: "Bulk Mail",   icon: Mail            },
   { href: "/admin/users",          label: "Users",       icon: Users           },
   { href: "/admin/kyc",       label: "KYC Reviews", icon: Shield          },
   { href: "/admin/settings",  label: "Settings",    icon: Settings        },
