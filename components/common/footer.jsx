@@ -70,7 +70,7 @@ export default function Footer() {
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
-    <footer className="bg-primary text-gray-300">
+    <footer className="bg-[#111111] text-gray-400 border-t-2 border-primary">
 
       {/* ══════════════════════ MAIN FOOTER BODY ══════════════════════════════ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -228,10 +228,10 @@ export default function Footer() {
 
           {/* Legal links */}
           <div className="flex items-center flex-wrap justify-center gap-4">
-            <Link href="/help" className="hover:text-accent transition-colors">Privacy Policy</Link>
-            <Link href="/help" className="hover:text-accent transition-colors">Terms of Use</Link>
-            <Link href="/help" className="hover:text-accent transition-colors">Cookie Policy</Link>
-            <Link href="/help" className="hover:text-accent transition-colors">Sitemap</Link>
+            <Link href="/help#privacy" className="hover:text-accent transition-colors">Privacy Policy</Link>
+            <Link href="/help#terms" className="hover:text-accent transition-colors">Terms of Use</Link>
+            <Link href="/help#cookies" className="hover:text-accent transition-colors">Cookie Policy</Link>
+            <Link href="/sitemap.xml" className="hover:text-accent transition-colors">Sitemap</Link>
           </div>
 
           {/* Copyright */}

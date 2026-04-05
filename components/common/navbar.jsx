@@ -120,7 +120,6 @@ export default function Navbar() {
   const { user, role, isAuthenticated, isLoading, isVendor, isCustomer, isAdmin } = useAuth();
 
   const cartItems  = useCartStore((s) => s.items);
-  const cartItems  = useCartStore((s) => s.items);
   const cartCount  = cartItems.reduce((sum, i) => sum + i.quantity, 0);
   const cartTotal  = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const wishlistCount       = useUIStore((s) => s.wishlist.length);
@@ -179,7 +178,6 @@ export default function Navbar() {
     ...(isVendor   ? [{ label: "Vendor Dashboard", href: "/vendor/dashboard",  icon: TrendingUp }] : []),
     ...(isAdmin    ? [{ label: "Admin Panel",       href: "/admin/dashboard",   icon: Settings   }] : []),
     ...(isAdmin    ? [] : [{ label: "My Orders",     href: "/orders",   icon: Package }]),
-    ...(isAdmin    ? [] : [{ label: "Notifications", href: "/my-account/notifications", icon: Bell }]),
     { label: "Settings", href: "/settings", icon: Settings },
   ] : [];
 

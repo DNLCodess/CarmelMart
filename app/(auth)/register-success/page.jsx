@@ -13,6 +13,7 @@ import {
   LogIn,
   Home,
 } from "lucide-react";
+import Image from "next/image";
 import Button from "@/components/ui/button";
 import Link from "next/link";
 
@@ -59,7 +60,13 @@ function VendorSuccessContent() {
     <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-100">
       {/* Header with Success State */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12 text-center">
+          {/* Logo */}
+          <div className="flex justify-center mb-8">
+            <Link href="/">
+              <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
+            </Link>
+          </div>
           {/* Success Icon */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}

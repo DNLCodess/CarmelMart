@@ -23,6 +23,7 @@ import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { signupAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+
 import VendorVerification from "@/components/shared/auth/VendorVerification";
 import { formatNigerianPhone } from "@/lib/utils";
 
@@ -145,6 +146,7 @@ function RegisterPageContent() {
   const [step, setStep] = useState(1);
   const [selectedRole, setSelectedRole] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [vendorData, setVendorData] = useState(null);
   const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const [isValidatingReferral, setIsValidatingReferral] = useState(false);
@@ -246,6 +248,24 @@ function RegisterPageContent() {
     },
   ];
 
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/`,
+        },
+      });
+      if (error) throw error;
+      // Browser will redirect to Google
+    } catch (err) {
+      toast.error(err.message || "Google sign-up failed. Please try again.");
+      setGoogleLoading(false);
+    }
+  };
+
   const onSubmit = async (formData) => {
     // If a referral code was entered, it must be verified before proceeding
     if (formData.referralCode?.trim()) {
@@ -302,38 +322,44 @@ function RegisterPageContent() {
   return (
     <div className="min-h-screen flex bg-linear-to-br from-gray-50 via-white to-gray-100">
       {/* Left: Banner */}
-      <div className="hidden lg:flex flex-1 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[45%] relative flex-col overflow-hidden">
         <Image
           src="/auth-banner.jpg"
           alt="CarmelMart"
           fill
-          className="object-cover scale-105 hover:scale-110 transition-transform duration-700"
+          className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-linear-to-br from-black/70 via-black/40 to-transparent" />
-        <div className="absolute bottom-0 left-0 p-12 text-white max-w-lg">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
-          >
-            <h1 className="text-5xl font-extrabold tracking-tight mb-3 leading-tight">
-              Welcome to CarmelMart
-            </h1>
-            <p className="text-lg font-medium opacity-90 leading-relaxed">
-              Nigeria's most trusted marketplace for authentic, quality goods.
-            </p>
-          </motion.div>
+        <div className="absolute inset-0 bg-linear-to-br from-black/75 via-black/50 to-primary/60" />
+        <div className="relative z-10 flex flex-col h-full px-10 py-10">
+          <Link href="/" className="inline-block">
+            <Image src="/logo-white.png" alt="CarmelMart" width={140} height={44} className="object-contain" />
+          </Link>
+          <div className="flex-1 flex flex-col justify-center">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <h1 className="text-4xl font-bold text-white leading-tight mb-3">
+                Join CarmelMart
+              </h1>
+              <p className="text-base text-white/80 max-w-xs">
+                Nigeria&apos;s most trusted marketplace for authentic, quality goods.
+              </p>
+            </motion.div>
+          </div>
+          <p className="text-xs text-white/40">© {new Date().getFullYear()} CarmelMart. All rights reserved.</p>
         </div>
       </div>
 
       {/* Right: Form */}
-      <div className="flex-1 flex items-center justify-center px-0 lg:px-12 py-10 relative">
-        <div className="absolute inset-0 bg-linear-to-tl from-primary/5 via-transparent to-accent/10 blur-3xl opacity-40" />
+      <div className="flex-1 flex items-center justify-center px-4 lg:px-12 py-10 bg-gray-50 relative">
         <div className="relative w-full max-w-5xl z-10">
-          <h1 className="my-4 text-primary-dark font-extrabold text-2xl text-center">
-            Welcome to CarmelMart
-          </h1>
+          {/* Mobile logo */}
+          <div className="lg:hidden flex justify-center mb-6">
+            <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
+          </div>
 
           <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-lg border border-gray-100 p-8 lg:p-10">
             <AnimatePresence mode="wait">
@@ -406,6 +432,36 @@ function RegisterPageContent() {
                   >
                     <ArrowLeft className="w-4 h-4" /> Change account type
                   </button>
+
+                  {/* Google sign-up — customers only (vendors need phone/KYC) */}
+                  {selectedRole === "customer" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleGoogleSignUp}
+                        disabled={googleLoading || isLoading}
+                        className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-semibold text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                      >
+                        {googleLoading ? (
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          </svg>
+                        )}
+                        {googleLoading ? "Redirecting…" : "Continue with Google"}
+                      </button>
+
+                      <div className="flex items-center gap-3 my-1">
+                        <div className="flex-1 h-px bg-gray-100" />
+                        <span className="text-xs font-medium text-gray-400">or sign up with email</span>
+                        <div className="flex-1 h-px bg-gray-100" />
+                      </div>
+                    </>
+                  )}
 
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                     <Input

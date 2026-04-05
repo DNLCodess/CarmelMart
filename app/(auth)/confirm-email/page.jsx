@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
@@ -60,7 +62,13 @@ function ConfirmEmailContent() {
         transition={{ duration: 0.4 }}
         className="max-w-md w-full"
       >
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+        <div className="flex justify-center mb-6">
+          <Link href="/">
+            <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
+          </Link>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
           {status === "verifying" && (
             <>
               <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto mb-4" />

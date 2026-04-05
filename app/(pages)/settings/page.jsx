@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   User, MapPin, Bell, Shield, ChevronRight, Camera,
@@ -270,37 +271,103 @@ function AddressesTab() {
   );
 }
 
+const NOTIF_ITEMS = [
+  { key: "orderUpdates", label: "Order Updates",      desc: "Status changes, dispatch & delivery" },
+  { key: "promotions",   label: "Promotions & Deals", desc: "Flash sales, discount codes" },
+  { key: "newArrivals",  label: "New Arrivals",        desc: "When vendors list new products" },
+  { key: "priceDrops",   label: "Price Drops",         desc: "When wishlisted items go on sale" },
+  { key: "reviews",      label: "Review Reminders",    desc: "Prompts to review delivered orders" },
+  { key: "newsletter",   label: "Weekly Newsletter",   desc: "CarmelMart updates & highlights" },
+  { key: "smsAlerts",    label: "SMS Alerts",          desc: "Delivery notifications via SMS" },
+  { key: "emailDigest",  label: "Email Digest",        desc: "Weekly summary of your activity" },
+];
+
+const NOTIF_DEFAULTS = {
+  orderUpdates: true, promotions: true, newArrivals: false, priceDrops: true,
+  reviews: false, newsletter: true, smsAlerts: true, emailDigest: false,
+};
+
 function NotificationsTab() {
-  const [prefs, setPrefs] = useState({
-    orderUpdates:  true,
-    promotions:    true,
-    newArrivals:   false,
-    priceDrops:    true,
-    reviews:       false,
-    newsletter:    true,
-    smsAlerts:     true,
-    emailDigest:   false,
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["notification-preferences"],
+    queryFn: async () => {
+      const res = await fetch("/api/customer/notification-preferences");
+      if (!res.ok) throw new Error("Failed to load preferences");
+      const json = await res.json();
+      return json.prefs;
+    },
   });
 
+  const { mutate: savePrefs, isPending } = useMutation({
+    mutationFn: async (prefs) => {
+      const res = await fetch("/api/customer/notification-preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prefs }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Failed to save");
+      }
+    },
+    onMutate: async (newPrefs) => {
+      // Optimistic update
+      await queryClient.cancelQueries({ queryKey: ["notification-preferences"] });
+      const previous = queryClient.getQueryData(["notification-preferences"]);
+      queryClient.setQueryData(["notification-preferences"], newPrefs);
+      return { previous };
+    },
+    onError: (_err, _newPrefs, context) => {
+      queryClient.setQueryData(["notification-preferences"], context.previous);
+      toast.error("Failed to save preference");
+    },
+    onSuccess: () => {
+      toast.success("Preference updated");
+    },
+  });
+
+  const prefs = data ?? NOTIF_DEFAULTS;
+
   const toggle = (key) => {
-    setPrefs((p) => ({ ...p, [key]: !p[key] }));
-    toast.success("Preference updated");
+    const updated = { ...prefs, [key]: !prefs[key] };
+    savePrefs(updated);
   };
 
-  const items = [
-    { key: "orderUpdates",  label: "Order Updates",     desc: "Status changes, dispatch & delivery" },
-    { key: "promotions",    label: "Promotions & Deals", desc: "Flash sales, discount codes" },
-    { key: "newArrivals",   label: "New Arrivals",       desc: "When vendors list new products" },
-    { key: "priceDrops",    label: "Price Drops",        desc: "When wishlisted items go on sale" },
-    { key: "reviews",       label: "Review Reminders",   desc: "Prompts to review delivered orders" },
-    { key: "newsletter",    label: "Weekly Newsletter",  desc: "CarmelMart updates & highlights" },
-    { key: "smsAlerts",     label: "SMS Alerts",         desc: "Delivery notifications via SMS" },
-    { key: "emailDigest",   label: "Email Digest",       desc: "Weekly summary of your activity" },
-  ];
+  if (isLoading) {
+    return (
+      <div className="space-y-1">
+        {NOTIF_ITEMS.map(({ key }) => (
+          <div key={key} className="flex items-center justify-between gap-4 py-4 border-b border-gray-100 last:border-0">
+            <div className="space-y-1.5">
+              <div className="h-3.5 w-32 bg-gray-200 rounded animate-pulse" />
+              <div className="h-2.5 w-48 bg-gray-100 rounded animate-pulse" />
+            </div>
+            <div className="h-6 w-11 bg-gray-200 rounded-full animate-pulse shrink-0" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-sm text-gray-500">
+        Failed to load preferences.{" "}
+        <button
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["notification-preferences"] })}
+          className="text-primary font-semibold hover:underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-1">
-      {items.map(({ key, label, desc }) => (
+      {NOTIF_ITEMS.map(({ key, label, desc }) => (
         <div key={key} className="flex items-center justify-between gap-4 py-4 border-b border-gray-100 last:border-0">
           <div>
             <p className="text-sm font-semibold text-gray-900">{label}</p>
@@ -308,7 +375,8 @@ function NotificationsTab() {
           </div>
           <button
             onClick={() => toggle(key)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${prefs[key] ? "bg-primary" : "bg-gray-200"}`}
+            disabled={isPending}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 disabled:opacity-70 ${prefs[key] ? "bg-primary" : "bg-gray-200"}`}
           >
             <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${prefs[key] ? "translate-x-6" : "translate-x-1"}`} />
           </button>

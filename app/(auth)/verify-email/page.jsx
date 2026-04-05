@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Check, ArrowRight } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -21,9 +23,9 @@ export default function VerifyEmailPage() {
       });
     }, 1000);
 
-    // Redirect after 3 seconds
+    // Redirect after 3 seconds — ?verify=1 shows the "check inbox" banner on login
     const redirectTimer = setTimeout(() => {
-      router.push("/login");
+      router.push("/login?verify=1");
     }, 3000);
 
     return () => {
@@ -40,8 +42,15 @@ export default function VerifyEmailPage() {
         transition={{ duration: 0.4 }}
         className="max-w-md w-full"
       >
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <Link href="/">
+            <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
+          </Link>
+        </div>
+
         {/* Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
           {/* Icon */}
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-6">
             <Check className="w-8 h-8 text-green-600" strokeWidth={2.5} />
@@ -80,7 +89,7 @@ export default function VerifyEmailPage() {
 
           {/* Manual Link */}
           <button
-            onClick={() => router.push("/login")}
+            onClick={() => router.push("/login?verify=1")}
             className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
           >
             Go to login now
