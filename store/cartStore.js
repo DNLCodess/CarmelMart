@@ -37,14 +37,6 @@ export const useCartStore = create(
         })),
 
       clearCart: () => set({ items: [] }),
-
-      get total() {
-        return get().items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-      },
-
-      get itemCount() {
-        return get().items.reduce((sum, i) => sum + i.quantity, 0);
-      },
     }),
     { name: "carmelmart-cart" },
   ),

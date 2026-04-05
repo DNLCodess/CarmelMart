@@ -51,7 +51,7 @@ const RATING_OPTIONS = [
 ];
 
 const CONDITION_OPTIONS = ["All", "New", "Used", "Refurbished"];
-const DELIVERY_OPTIONS  = ["All", "Express (24hrs)", "Standard (2-5 days)", "Free Delivery"];
+const DELIVERY_OPTIONS  = ["All", "Express (24hrs)", "Standard (2-5 days)"];
 
 const BRAND_OPTIONS = [
   "Apple", "Samsung", "Nike", "Adidas", "Sony", "LG", "HP", "Lenovo",
@@ -336,19 +336,16 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
             <span className="text-xs text-gray-500">({product.reviewCount})</span>
             {product.soldCount > 0 && <span className="text-xs text-gray-400">· {product.soldCount} sold</span>}
           </div>
-          {/* Delivery badge */}
-          <div className="flex items-center gap-1.5 mb-3">
-            <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Truck className="w-3 h-3" /> Free Delivery
-            </span>
-            {product.stock > 0 && product.stock <= 10 && (
+          {/* Stock badge */}
+          {product.stock > 0 && product.stock <= 10 && (
+            <div className="flex items-center gap-1.5 mb-3">
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                 product.stock <= 3 ? "text-red-600 bg-red-50" : "text-amber-600 bg-amber-50"
               }`}>
                 Only {product.stock} left
               </span>
-            )}
-          </div>
+            </div>
+          )}
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-lg font-bold text-gray-900">
               ₦{(product.salePrice ?? product.price).toLocaleString()}
@@ -491,17 +488,12 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
           <Stars rating={product.avgRating} />
           <span className="text-xs text-gray-500">({product.reviewCount})</span>
         </div>
-        {/* Delivery + sold */}
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {product.price >= 10000 && (
-            <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-              <Truck className="w-2.5 h-2.5" /> Free delivery
-            </span>
-          )}
-          {product.soldCount > 0 && (
+        {/* Sold count */}
+        {product.soldCount > 0 && (
+          <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] text-gray-400">{product.soldCount} sold</span>
-          )}
-        </div>
+          </div>
+        )}
         {/* Color swatches from product attributes */}
         {(() => {
           const colors = product.attributes?.colors ?? [];

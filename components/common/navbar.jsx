@@ -37,7 +37,7 @@ function HighlightMatch({ text, query }) {
 // ─── Static data ──────────────────────────────────────────────────────────────
 
 const PROMO_MESSAGES = [
-  { text: "Free delivery on orders above ₦10,000", icon: "🚚" },
+  { text: "Shop from verified Nigerian vendors — nationwide delivery", icon: "🚚" },
   { text: "Flash Sale is LIVE — Up to 70% off today only", icon: "⚡" },
   { text: "Sell on CarmelMart — Join thousands of verified vendors", icon: "🏪" },
 ];
@@ -120,8 +120,9 @@ export default function Navbar() {
   const { user, role, isAuthenticated, isLoading, isVendor, isCustomer, isAdmin } = useAuth();
 
   const cartItems  = useCartStore((s) => s.items);
-  const cartCount  = useCartStore((s) => s.itemCount);
-  const cartTotal  = useCartStore((s) => s.total);
+  const cartItems  = useCartStore((s) => s.items);
+  const cartCount  = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const cartTotal  = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const wishlistCount       = useUIStore((s) => s.wishlist.length);
   const deliveryLocation    = useUIStore((s) => s.deliveryLocation);
   const setDeliveryLocation = useUIStore((s) => s.setDeliveryLocation);
@@ -174,12 +175,12 @@ export default function Navbar() {
     : SEARCH_SUGGESTIONS.slice(0, 5);
 
   const accountLinks = isAuthenticated ? [
-    ...(isCustomer ? [{ label: "My Account",       href: "/my-account",            icon: User        }] : []),
-    ...(isVendor   ? [{ label: "Vendor Dashboard", href: "/vendor/dashboard",      icon: TrendingUp  }] : []),
-    ...(isAdmin    ? [{ label: "Admin Panel",       href: "/admin/dashboard",       icon: Settings    }] : []),
-    ...(!isAdmin   ? [{ label: "My Orders",      href: "/my-account/orders",        icon: Package  }] : []),
-    ...(!isAdmin   ? [{ label: "Notifications",  href: "/my-account/notifications", icon: Bell     }] : []),
-    { label: "Settings",       href: "/my-account/settings",      icon: Settings },
+    ...(isCustomer ? [{ label: "My Account",       href: "/my-account",        icon: User       }] : []),
+    ...(isVendor   ? [{ label: "Vendor Dashboard", href: "/vendor/dashboard",  icon: TrendingUp }] : []),
+    ...(isAdmin    ? [{ label: "Admin Panel",       href: "/admin/dashboard",   icon: Settings   }] : []),
+    ...(isAdmin    ? [] : [{ label: "My Orders",     href: "/orders",   icon: Package }]),
+    ...(isAdmin    ? [] : [{ label: "Notifications", href: "/my-account/notifications", icon: Bell }]),
+    { label: "Settings", href: "/settings", icon: Settings },
   ] : [];
 
   // ── Callbacks ────────────────────────────────────────────────────────────────

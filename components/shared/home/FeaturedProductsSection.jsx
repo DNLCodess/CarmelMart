@@ -102,14 +102,6 @@ function ProductCard({ product, rank, index }) {
               {sold > 0 && <span className="text-xs text-gray-400 ml-auto flex items-center gap-0.5"><TrendingUp className="w-3 h-3" />{sold} sold</span>}
             </div>
 
-            {/* Free delivery */}
-            {displayPrice >= 10000 && (
-              <div className="flex items-center gap-1 mb-2">
-                <Truck className="w-3 h-3 text-emerald-500" />
-                <span className="text-[10px] font-semibold text-emerald-600">Free Delivery</span>
-              </div>
-            )}
-
             {/* Price */}
             <div className="flex items-baseline gap-2">
               <span className="text-lg font-black text-gray-900">₦{displayPrice.toLocaleString()}</span>

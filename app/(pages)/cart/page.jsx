@@ -19,9 +19,9 @@ export default function CartPage() {
   const items = useCartStore((s) => s.items);
   const removeItem = useCartStore((s) => s.removeItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
-  const total = useCartStore((s) => s.total);
+  const total = useCartStore((s) => s.items.reduce((sum, i) => sum + i.price * i.quantity, 0));
 
-  const deliveryFee = items.length > 0 ? 1500 : 0;
+  const deliveryFee = items.length > 0 ? 1500 : 0; // shown as estimate; final fee set at checkout
   const grandTotal = total + deliveryFee;
 
   const handleRemove = (item) => {

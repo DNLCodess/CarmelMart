@@ -30,7 +30,7 @@ import { formatNigerianPhone } from "@/lib/utils";
 import StateLgaPicker from "@/components/ui/StateLgaPicker";
 
 const DELIVERY_FALLBACK = [
-  { id: "free",     label: "Free Delivery",     duration: "3–7 business days", fee: 0    },
+  { id: "standard", label: "Standard Delivery", duration: "3–7 business days", fee: 1500 },
   { id: "express",  label: "Express Delivery",  duration: "1–2 business days", fee: 3500 },
 ];
 
@@ -86,7 +86,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
   const items = useCartStore((s) => s.items);
-  const total = useCartStore((s) => s.total);
+  const total = useCartStore((s) => s.items.reduce((sum, i) => sum + i.price * i.quantity, 0));
   const clearCart = useCartStore((s) => s.clearCart);
   const savedDeliveryState = useUIStore((s) => s.deliveryLocation);
 
@@ -111,7 +111,7 @@ export default function CheckoutPage() {
     deliveryInstructions: "",
   });
 
-  const [delivery, setDelivery] = useState("free");
+  const [delivery, setDelivery] = useState("standard");
   const [payment, setPayment] = useState("flutterwave");
 
   // Fetch delivery zones for the selected state
@@ -126,15 +126,17 @@ export default function CheckoutPage() {
   const DELIVERY_OPTIONS = useMemo(() => {
     const zones = zoneData?.zones ?? [];
     const zone  = zones.find((z) => !z.lga || z.lga.trim() === "") ?? zones[0];
-    const days  = zone?.estimated_days ?? "3–7";
-    const expressFee = zone ? Math.round((zone.base_fee ?? 1500) * 2) : 3500;
+    if (!zone) return DELIVERY_FALLBACK;
+    const days       = zone.estimated_days ?? "3–7";
+    const baseFee    = zone.base_fee ?? 1500;
+    const expressFee = Math.round(baseFee * 2);
     return [
-      { id: "free",    label: "Free Delivery",    duration: `${days} business days`, fee: 0,          badge: "FREE" },
-      { id: "express", label: "Express Delivery", duration: "1–2 business days",     fee: expressFee },
+      { id: "standard", label: "Standard Delivery", duration: `${days} business days`, fee: baseFee    },
+      { id: "express",  label: "Express Delivery",  duration: "1–2 business days",     fee: expressFee },
     ];
   }, [zoneData]);
 
-  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.id === delivery)?.fee ?? 0;
+  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.id === delivery)?.fee ?? 1500;
   const discount = appliedPromo?.discount ?? 0;
   const discountedSubtotal = Math.max(0, total - discount);
   const requiresPODDeposit = payment === "pod" && discountedSubtotal > 10000;
@@ -348,9 +350,14 @@ export default function CheckoutPage() {
                 <motion.div key="address" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                   className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5"
                 >
-                  <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-primary" /> Delivery Address
-                  </h2>
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-primary" /> Delivery Address
+                    </h2>
+                    {address.state && (
+                      <span className="text-xs text-gray-400 mt-0.5">All fields are editable</span>
+                    )}
+                  </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <Field label="Full Name" required>
@@ -411,8 +418,8 @@ export default function CheckoutPage() {
                   <StateLgaPicker
                     stateValue={address.state}
                     lgaValue={address.lga}
-                    onStateChange={(val) => setAddress({ ...address, state: val, lga: "" })}
-                    onLgaChange={(val) => setAddress({ ...address, lga: val })}
+                    onStateChange={(val) => setAddress((prev) => ({ ...prev, state: val, lga: "" }))}
+                    onLgaChange={(val) => setAddress((prev) => ({ ...prev, lga: val }))}
                   />
 
                   <Field label="Delivery Instructions" hint="Optional: gate colour, floor, call on arrival">
@@ -439,18 +446,11 @@ export default function CheckoutPage() {
                       <div className="flex items-center gap-3">
                         <input type="radio" value={opt.id} checked={delivery === opt.id} onChange={() => setDelivery(opt.id)} className="accent-primary" />
                         <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-900 text-sm">{opt.label}</p>
-                            {opt.badge && (
-                              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">{opt.badge}</span>
-                            )}
-                          </div>
+                          <p className="font-semibold text-gray-900 text-sm">{opt.label}</p>
                           <p className="text-xs text-gray-500">{opt.duration}</p>
                         </div>
                       </div>
-                      <span className={`font-bold text-sm ${opt.fee === 0 ? "text-green-600" : "text-gray-900"}`}>
-                        {opt.fee === 0 ? "FREE" : `₦${opt.fee.toLocaleString()}`}
-                      </span>
+                      <span className="font-bold text-gray-900 text-sm">₦{opt.fee.toLocaleString()}</span>
                     </label>
                   ))}
                 </motion.div>
@@ -617,9 +617,7 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex justify-between text-gray-600">
                   <span>Delivery</span>
-                  <span className={`font-medium ${deliveryFee === 0 ? "text-green-600" : "text-gray-900"}`}>
-                    {deliveryFee === 0 ? "FREE" : `₦${deliveryFee.toLocaleString()}`}
-                  </span>
+                  <span className="font-medium text-gray-900">₦{deliveryFee.toLocaleString()}</span>
                 </div>
                 {requiresPODDeposit && (
                   <div className="flex justify-between text-amber-700">

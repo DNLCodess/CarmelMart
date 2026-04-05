@@ -10,8 +10,8 @@ const TRUST_ITEMS = [
   },
   {
     icon: Truck,
-    label: "Free Delivery",
-    sub: "On orders above ₦10,000",
+    label: "Fast Delivery",
+    sub: "Standard & express options",
   },
   {
     icon: RotateCcw,

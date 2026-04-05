@@ -247,6 +247,23 @@ function RegisterPageContent() {
   ];
 
   const onSubmit = async (formData) => {
+    // If a referral code was entered, it must be verified before proceeding
+    if (formData.referralCode?.trim()) {
+      if (isValidatingReferral) {
+        toast.error("Please wait while we verify the referral code.");
+        return;
+      }
+      if (referralValid === false) {
+        toast.error("Invalid referral code. Please enter a valid code or leave it empty.");
+        return;
+      }
+      if (referralValid === null) {
+        // Code was typed but validation hasn't resolved yet — run it now
+        toast.error("Please wait for the referral code to be verified.");
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
       const result = await signupAction({
@@ -254,7 +271,7 @@ function RegisterPageContent() {
         password: formData.password,
         phone: formData.phone,
         role: selectedRole,
-        referralCode: formData.referralCode || null,
+        referralCode: formData.referralCode?.trim() || null,
       });
 
       if (selectedRole === "vendor") {

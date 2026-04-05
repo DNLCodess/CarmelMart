@@ -18,8 +18,8 @@ const BANNERS = [
   },
   {
     id: 2,
-    title: "Free Delivery",
-    subtitle: "On all orders above ₦10,000 nationwide",
+    title: "Nationwide Delivery",
+    subtitle: "We deliver to all 36 states across Nigeria",
     cta: "Start Shopping",
     href: "/shop",
     bg: "from-green-600 to-emerald-700",

@@ -16,7 +16,7 @@ const NAV_ITEMS = [
 
 export default function MobileBottomNav() {
   const pathname   = usePathname();
-  const cartCount  = useCartStore((s) => s.itemCount);
+  const cartCount  = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
   const { isAuthenticated, isVendor } = useAuth();
 
   // Build items, swap Account link for vendors

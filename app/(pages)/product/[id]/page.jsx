@@ -588,19 +588,6 @@ export default function ProductDetailPage() {
                       </>
                     )}
                   </div>
-                  {/* Free delivery threshold */}
-                  {price >= 10000 && (
-                    <p className="text-xs text-green-600 font-semibold flex items-center gap-1">
-                      <Truck className="w-3.5 h-3.5" /> Free delivery on this
-                      order
-                    </p>
-                  )}
-                  {price < 10000 && (
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      <Truck className="w-3.5 h-3.5" /> Add ₦
-                      {(10000 - price).toLocaleString()} more for free delivery
-                    </p>
-                  )}
                 </div>
 
                 {/* Stock + delivery */}

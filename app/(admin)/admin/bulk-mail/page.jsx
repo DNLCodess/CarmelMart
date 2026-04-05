@@ -114,7 +114,7 @@ const TEMPLATES = [
       subject:      "🎊 Season's Greetings from CarmelMart!",
       headline:     "Wishing You a Season of Joy",
       subheadline:  "Celebrate with the best gifts at the best prices.",
-      body:         "From all of us at CarmelMart, we wish you and your loved ones a wonderful celebration. Shop our curated seasonal gift guide — free delivery on qualifying orders.",
+      body:         "From all of us at CarmelMart, we wish you and your loved ones a wonderful celebration. Shop our curated seasonal gift guide and find the perfect gift for everyone on your list.",
       ctaText:      "Shop Seasonal Gifts",
       ctaUrl:       `${BASE_URL}/shop`,
       badge:        "SEASON SALE",
