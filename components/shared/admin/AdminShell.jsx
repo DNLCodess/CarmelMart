@@ -5,8 +5,31 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, Store, ShoppingCart, Users, Shield,
-  Settings, Bell, Menu, X, LogOut, Sun, Moon, Package, Tag, AlertTriangle, Truck, BarChart2, Ticket, Wallet, ShieldOff, Zap, Percent, Image, Flag, Mail,
+  LayoutDashboard,
+  Store,
+  ShoppingCart,
+  Users,
+  Shield,
+  Settings,
+  Bell,
+  Menu,
+  X,
+  LogOut,
+  Sun,
+  Moon,
+  Package,
+  Tag,
+  AlertTriangle,
+  Truck,
+  BarChart2,
+  Ticket,
+  Wallet,
+  ShieldOff,
+  Zap,
+  Percent,
+  Image,
+  Flag,
+  Mail,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { logoutAction } from "@/app/actions/auth";
@@ -14,39 +37,44 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useDashboardTheme } from "@/lib/useDashboardTheme";
 
 const NAV_ITEMS = [
-  { href: "/admin/dashboard", label: "Overview",    icon: LayoutDashboard },
-  { href: "/admin/vendors",   label: "Vendors",     icon: Store           },
-  { href: "/admin/products",    label: "Products",    icon: Package         },
-  { href: "/admin/categories", label: "Categories",  icon: Tag             },
-  { href: "/admin/orders",     label: "Orders",      icon: ShoppingCart    },
-  { href: "/admin/disputes",        label: "Disputes",    icon: AlertTriangle   },
-  { href: "/admin/delivery-zones", label: "Delivery",    icon: Truck           },
-  { href: "/admin/financials",     label: "Financials",  icon: BarChart2       },
-  { href: "/admin/promo-codes",    label: "Promo Codes", icon: Ticket          },
-  { href: "/admin/flash-sales",    label: "Flash Sales", icon: Zap             },
-  { href: "/admin/payouts",        label: "Payouts",     icon: Wallet          },
-  { href: "/admin/commission",     label: "Commission",  icon: Percent         },
-  { href: "/admin/pod-blacklist",  label: "POD Blacklist",icon: ShieldOff      },
-  { href: "/admin/fraud-flags",    label: "Fraud Flags", icon: Flag            },
-  { href: "/admin/hero-banners",   label: "Hero Banners",icon: Image           },
-  { href: "/admin/bulk-mail",       label: "Bulk Mail",   icon: Mail            },
-  { href: "/admin/users",          label: "Users",       icon: Users           },
-  { href: "/admin/kyc",       label: "KYC Reviews", icon: Shield          },
-  { href: "/admin/settings",  label: "Settings",    icon: Settings        },
+  { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/vendors", label: "Vendors", icon: Store },
+  { href: "/admin/products", label: "Products", icon: Package },
+  { href: "/admin/categories", label: "Categories", icon: Tag },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
+  { href: "/admin/delivery-zones", label: "Delivery", icon: Truck },
+  { href: "/admin/financials", label: "Financials", icon: BarChart2 },
+  { href: "/admin/promo-codes", label: "Promo Codes", icon: Ticket },
+  { href: "/admin/flash-sales", label: "Flash Sales", icon: Zap },
+  { href: "/admin/payouts", label: "Payouts", icon: Wallet },
+  { href: "/admin/commission", label: "Commission", icon: Percent },
+  { href: "/admin/pod-blacklist", label: "POD Blacklist", icon: ShieldOff },
+  { href: "/admin/fraud-flags", label: "Fraud Flags", icon: Flag },
+  { href: "/admin/hero-banners", label: "Hero Banners", icon: Image },
+  { href: "/admin/bulk-mail", label: "Bulk Mail", icon: Mail },
+  { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/kyc", label: "KYC Reviews", icon: Shield },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AdminShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  const router   = useRouter();
-  const qc       = useQueryClient();
+  const router = useRouter();
+  const qc = useQueryClient();
   const { user } = useAuth();
   const { dark, toggle, mounted } = useDashboardTheme("cm-admin-theme");
 
   const displayName = user?.user_metadata?.first_name
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name ?? ""}`.trim()
-    : user?.email ?? "Admin";
-  const initials = displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+    : (user?.email ?? "Admin");
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   const handleLogout = async () => {
     await logoutAction();
@@ -57,11 +85,13 @@ export default function AdminShell({ children }) {
   const isActive = (href) =>
     href === "/admin/dashboard" ? pathname === href : pathname.startsWith(href);
 
-  const currentLabel = NAV_ITEMS.find((n) => isActive(n.href))?.label ?? "Admin";
+  const currentLabel =
+    NAV_ITEMS.find((n) => isActive(n.href))?.label ?? "Admin";
 
   return (
-    <div className={`flex min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-200 ${mounted && dark ? "dark" : ""}`}>
-
+    <div
+      className={`flex min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-200 ${mounted && dark ? "dark" : ""}`}
+    >
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -95,7 +125,9 @@ export default function AdminShell({ children }) {
                 priority
               />
             </div>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wide">Admin Console</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wide">
+              Admin Console
+            </p>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -134,8 +166,12 @@ export default function AdminShell({ children }) {
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{displayName}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Administrator</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                {displayName}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                Administrator
+              </p>
             </div>
           </div>
           <button
@@ -149,7 +185,6 @@ export default function AdminShell({ children }) {
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
       <div className="flex-1 lg:ml-64 flex flex-col min-h-screen min-w-0">
-
         {/* Top bar */}
         <header className="sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-5 sm:px-8 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -160,8 +195,12 @@ export default function AdminShell({ children }) {
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="font-bold text-gray-900 dark:text-gray-100">{currentLabel}</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">CarmelMart Administration</p>
+              <h1 className="font-bold text-gray-900 dark:text-gray-100">
+                {currentLabel}
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
+                CarmelMart Administration
+              </p>
             </div>
           </div>
 
@@ -172,12 +211,11 @@ export default function AdminShell({ children }) {
               title={dark ? "Switch to light mode" : "Switch to dark mode"}
               className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
             >
-              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-
-            <button className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+              {dark ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
             </button>
 
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs shrink-0">
@@ -187,9 +225,7 @@ export default function AdminShell({ children }) {
         </header>
 
         {/* Content */}
-        <main className="flex-1 px-5 sm:px-8 py-8">
-          {children}
-        </main>
+        <main className="flex-1 px-5 sm:px-8 py-8">{children}</main>
       </div>
     </div>
   );
