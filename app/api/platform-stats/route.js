@@ -8,7 +8,7 @@ export async function GET() {
     const admin = createAdminClient();
 
     const [vendorsRes, productsRes, ordersRes] = await Promise.all([
-      admin.from("vendors").select("id", { count: "exact", head: true }).eq("verified", true),
+      admin.from("vendors").select("id", { count: "exact", head: true }).eq("verification_status", "verified"),
       admin.from("products").select("id", { count: "exact", head: true }).eq("status", "active"),
       admin.from("orders").select("id", { count: "exact", head: true }),
     ]);

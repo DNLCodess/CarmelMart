@@ -22,19 +22,25 @@ export async function PATCH(request, { params }) {
     const { action, reason } = await request.json();
 
     const statusMap = {
-      approve:  "verified",
-      reject:   "rejected",
-      suspend:  "suspended",
-      unsuspend:"verified",
+      approve:   "verified",
+      reject:    "rejected",
+      suspend:   "suspended",
+      unsuspend: "verified",
     };
 
     const newStatus = statusMap[action];
     if (!newStatus) return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 
     const admin = createAdminClient();
+
+    // Only set rejection_reason on reject; clear it on approve / unsuspend.
+    const update = { verification_status: newStatus };
+    if (action === "reject")   update.rejection_reason = reason ?? null;
+    if (action === "approve" || action === "unsuspend") update.rejection_reason = null;
+
     const { error } = await admin
       .from("vendors")
-      .update({ verification_status: newStatus, rejection_reason: reason ?? null })
+      .update(update)
       .eq("id", id);
 
     if (error) throw error;
