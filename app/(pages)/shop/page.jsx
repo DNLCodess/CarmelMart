@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -940,6 +940,9 @@ function ShopContent() {
   const [view, setView]               = useState("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Guards the URL→filters sync from re-firing when WE changed the URL internally
+  const internalNavRef = useRef(false);
+
   const setFilter = useCallback((key, value) => {
     setFiltersState((prev) => {
       const next = { ...prev, [key]: value };
@@ -948,8 +951,9 @@ function ShopContent() {
     });
   }, []);
 
-  // Sync filters → URL
+  // Sync filters → URL (internal filter changes)
   useEffect(() => {
+    internalNavRef.current = true;
     const params = new URLSearchParams();
     if (filters.category)  params.set("category",   filters.category);
     if (filters.search)    params.set("q",           filters.search);
@@ -967,6 +971,31 @@ function ShopContent() {
     if (filters.page > 1)  params.set("page",        filters.page);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [filters, pathname, router]);
+
+  // Sync URL → filters (external navigation e.g. navbar category links)
+  // Only fires when the URL is changed from outside this component
+  useEffect(() => {
+    if (internalNavRef.current) {
+      internalNavRef.current = false;
+      return;
+    }
+    setFiltersState({
+      category:     sp.get("category")      || null,
+      search:       sp.get("q")             || "",
+      minPrice:     sp.get("min_price")     ? Number(sp.get("min_price"))    : null,
+      maxPrice:     sp.get("max_price")     ? Number(sp.get("max_price"))    : null,
+      minRating:    sp.get("min_rating")    ? Number(sp.get("min_rating"))   : null,
+      condition:    sp.get("condition")     || null,
+      delivery:     sp.get("delivery")      || null,
+      brand:        sp.get("brand")         || null,
+      color:        sp.get("color")         || null,
+      size:         sp.get("size")          || null,
+      verifiedOnly: sp.get("verified_only") === "true",
+      minDiscount:  sp.get("min_discount")  ? Number(sp.get("min_discount")) : null,
+      sort:         sp.get("sort")          || (sp.get("q") ? "relevance" : "popular"),
+      page:         sp.get("page")          ? Number(sp.get("page"))         : 1,
+    });
+  }, [sp]);
 
   const { data: productsData, isLoading, isError } = useQuery({
     queryKey: ["products", filters],

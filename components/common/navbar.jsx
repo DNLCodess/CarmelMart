@@ -1090,7 +1090,7 @@ export default function Navbar() {
               </div>
 
               {/* Drawer body */}
-              <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-5">
+              <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-5">
 
                 {/* Quick-action tiles */}
                 <div className="grid grid-cols-2 gap-2.5">
