@@ -940,8 +940,9 @@ function ShopContent() {
   const [view, setView]               = useState("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Guards the URL→filters sync from re-firing when WE changed the URL internally
-  const internalNavRef = useRef(false);
+  // Tracks the last URL string this component set via router.replace.
+  // Used to distinguish our own URL updates from external navigation (navbar links).
+  const lastSetUrlRef = useRef("");
 
   const setFilter = useCallback((key, value) => {
     setFiltersState((prev) => {
@@ -953,7 +954,6 @@ function ShopContent() {
 
   // Sync filters → URL (internal filter changes)
   useEffect(() => {
-    internalNavRef.current = true;
     const params = new URLSearchParams();
     if (filters.category)  params.set("category",   filters.category);
     if (filters.search)    params.set("q",           filters.search);
@@ -969,16 +969,15 @@ function ShopContent() {
     if (filters.minDiscount)  params.set("min_discount",   filters.minDiscount);
     if (filters.sort !== "popular") params.set("sort",     filters.sort);
     if (filters.page > 1)  params.set("page",        filters.page);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    const newSearch = params.toString();
+    lastSetUrlRef.current = newSearch;
+    router.replace(`${pathname}?${newSearch}`, { scroll: false });
   }, [filters, pathname, router]);
 
-  // Sync URL → filters (external navigation e.g. navbar category links)
-  // Only fires when the URL is changed from outside this component
+  // Sync URL → filters (external navigation e.g. navbar category links).
+  // Skipped when sp changed because of our own router.replace above.
   useEffect(() => {
-    if (internalNavRef.current) {
-      internalNavRef.current = false;
-      return;
-    }
+    if (sp.toString() === lastSetUrlRef.current) return; // our own update — ignore
     setFiltersState({
       category:     sp.get("category")      || null,
       search:       sp.get("q")             || "",
