@@ -6,8 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart3,
   Wallet, Settings, Bell, Menu, X, LogOut, Store, Sun, Moon, Users, Gift, Truck,
-  ShoppingBag, AlertTriangle, CheckCircle, Info,
+  ShoppingBag, AlertTriangle, CheckCircle, Info, Crown,
 } from "lucide-react";
+import SubscriptionBadge from "@/components/shared/vendor/SubscriptionBadge";
 import { useAuth } from "@/lib/auth-context";
 import { logoutAction } from "@/app/actions/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -123,15 +124,16 @@ function NotificationBell() {
 }
 
 const NAV_ITEMS = [
-  { href: "/vendor/dashboard",  label: "Overview",   icon: LayoutDashboard },
-  { href: "/vendor/products",   label: "Products",   icon: Package          },
-  { href: "/vendor/orders",     label: "Orders",     icon: ShoppingCart     },
-  { href: "/vendor/analytics",  label: "Analytics",  icon: BarChart3        },
-  { href: "/vendor/customers",  label: "Customers",  icon: Users            },
-  { href: "/vendor/referrals",  label: "Referrals",  icon: Gift             },
-  { href: "/vendor/shipping",   label: "Shipping",   icon: Truck            },
-  { href: "/vendor/wallet",     label: "Wallet",     icon: Wallet           },
-  { href: "/vendor/settings",   label: "Settings",   icon: Settings         },
+  { href: "/vendor/dashboard",     label: "Overview",      icon: LayoutDashboard },
+  { href: "/vendor/products",      label: "Products",      icon: Package          },
+  { href: "/vendor/orders",        label: "Orders",        icon: ShoppingCart     },
+  { href: "/vendor/analytics",     label: "Analytics",     icon: BarChart3        },
+  { href: "/vendor/customers",     label: "Customers",     icon: Users            },
+  { href: "/vendor/referrals",     label: "Referrals",     icon: Gift             },
+  { href: "/vendor/shipping",      label: "Shipping",      icon: Truck            },
+  { href: "/vendor/wallet",        label: "Wallet",        icon: Wallet           },
+  { href: "/vendor/subscription",  label: "Subscription",  icon: Crown            },
+  { href: "/vendor/settings",      label: "Settings",      icon: Settings         },
 ];
 
 export default function VendorShell({ children }) {
@@ -146,6 +148,15 @@ export default function VendorShell({ children }) {
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name ?? ""}`.trim()
     : user?.email ?? "Vendor";
   const initials = displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  // Fetch subscription tier for the badge in the user card (soft fail — never blocks)
+  const { data: subData } = useQuery({
+    queryKey: ["vendor-subscription"],
+    queryFn: () => fetch("/api/vendor/subscription").then((r) => r.json()),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const vendorTier = subData?.tier ?? "free";
 
   const handleSignOut = async () => {
     await logoutAction();
@@ -225,7 +236,10 @@ export default function VendorShell({ children }) {
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{displayName}</p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{displayName}</p>
+                <SubscriptionBadge tier={vendorTier} />
+              </div>
               <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{user?.email}</p>
             </div>
             <button

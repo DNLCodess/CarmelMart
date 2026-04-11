@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkProductLimit } from "@/lib/subscription";
 
 export async function GET() {
   try {
@@ -81,6 +82,35 @@ export async function POST(request) {
     const admin = createAdminClient();
     const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
     if (!profile || profile.role !== "vendor") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    // Enforce product limit based on subscription tier
+    const { data: vendor } = await admin
+      .from("vendors")
+      .select("subscription_tier")
+      .eq("id", user.id)
+      .single();
+
+    const tier = vendor?.subscription_tier ?? "free";
+
+    // Count all non-rejected products (pending, approved, flagged, inactive, draft all count)
+    const { count: productCount } = await admin
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("vendor_id", user.id)
+      .neq("moderation_status", "rejected");
+
+    const limitCheck = checkProductLimit(tier, productCount ?? 0);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: `Product limit reached. Your ${tier} plan allows up to ${limitCheck.limit} products. Upgrade your plan to add more.`,
+          code: "PRODUCT_LIMIT_REACHED",
+          limit: limitCheck.limit,
+          current: limitCheck.current,
+        },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
     const { name, description, price, sale_price, stock, category_id, images, condition, attributes } = body;

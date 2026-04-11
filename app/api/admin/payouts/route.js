@@ -97,24 +97,36 @@ export async function POST(request) {
     // Mark as processing immediately to prevent double-approvals
     await ctx.admin.from("vendor_payouts").update({ status: "processing" }).eq("id", payoutId);
 
-    // Initiate Flutterwave transfer
-    const flwRes = await fetch("https://api.flutterwave.com/v3/transfers", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
-      },
-      body: JSON.stringify({
-        account_bank:    bank_code,
-        account_number:  bank_account_number,
-        amount:          payout.amount,
-        currency:        "NGN",
-        narration:       `CarmelMart payout – ${business_name}`,
-        reference:       payout.reference,
-      }),
-    });
-
-    const flwData = await flwRes.json();
+    // Initiate Flutterwave transfer (10-second timeout)
+    let flwData;
+    try {
+      const flwRes = await fetch("https://api.flutterwave.com/v3/transfers", {
+        method: "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+        },
+        body: JSON.stringify({
+          account_bank:    bank_code,
+          account_number:  bank_account_number,
+          amount:          payout.amount,
+          currency:        "NGN",
+          narration:       `CarmelMart payout – ${business_name}`,
+          reference:       payout.reference,
+          callback_url:    `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/webhooks/flutterwave`,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      flwData = await flwRes.json();
+    } catch (fetchErr) {
+      // Revert to pending on network/timeout errors
+      await ctx.admin.from("vendor_payouts").update({ status: "pending" }).eq("id", payoutId);
+      const isTimeout = fetchErr.name === "TimeoutError" || fetchErr.name === "AbortError";
+      return NextResponse.json(
+        { error: isTimeout ? "Payment provider timed out. Please try again." : "Transfer failed. Please try again." },
+        { status: 502 }
+      );
+    }
 
     if (flwData.status !== "success") {
       // Revert to pending if FLW rejected it
@@ -122,9 +134,10 @@ export async function POST(request) {
       return NextResponse.json({ error: flwData.message ?? "Transfer failed" }, { status: 502 });
     }
 
-    // Mark completed + store FLW reference
+    // Mark as processing — the transfer.completed webhook will set it to "completed"
+    // when Flutterwave confirms delivery (1-2 business days).
     await ctx.admin.from("vendor_payouts").update({
-      status:  "completed",
+      status:  "processing",
       flw_ref: flwData.data?.id?.toString() ?? null,
     }).eq("id", payoutId);
 

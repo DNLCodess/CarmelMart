@@ -31,8 +31,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files
+# .env.development and .env.production hold non-secret defaults — safe to commit
+# .env.local, .env*.local, and .env.vercel hold secrets — NEVER commit these
+.env.local
+.env*.local
+.env.vercel
 
 # vercel
 .vercel
@@ -54,3 +58,6 @@ tdl.md
 post-prod.md
 docs/admin-manual.md
 docs/vendor-manual.md
+.env.example
+.env.production
+.env.development

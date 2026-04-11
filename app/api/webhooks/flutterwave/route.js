@@ -1,308 +1,281 @@
-import { NextResponse } from "next/server";
-import crypto from "crypto";
-
 /**
- * API Route: POST /api/webhooks/flutterwave
- * Handles Flutterwave webhook notifications for payment events
+ * POST /api/webhooks/flutterwave
  *
- * This is critical for production as it provides server-side confirmation
- * of successful payments, even if the user closes the browser.
+ * Receives Flutterwave event notifications and executes the business
+ * logic that the client-side callback may have missed (e.g. browser
+ * crashed, network drop after payment).
+ *
+ * Security:
+ *   - Validates the `verif-hash` header against FLUTTERWAVE_WEBHOOK_HASH
+ *   - Every handler is idempotent — safe to receive the same event twice
+ *   - Only the service-role admin client is used (no user session)
  */
+
+import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { computeExpiryDate } from "@/lib/subscription";
+
+// ── Signature verification ────────────────────────────────────────────────────
+
+function verifySignature(signature) {
+  const secret = process.env.FLUTTERWAVE_WEBHOOK_HASH;
+  if (!secret) {
+    console.error("[flw-webhook] FLUTTERWAVE_WEBHOOK_HASH env var not set — rejecting all webhooks");
+    return false;
+  }
+  return signature === secret;
+}
+
+// ── Entry point ───────────────────────────────────────────────────────────────
+
 export async function POST(request) {
   try {
-    const body = await request.text();
+    const rawBody  = await request.text();
     const signature = request.headers.get("verif-hash");
 
-    // Verify webhook signature for security
-    if (!verifyWebhookSignature(body, signature)) {
-      console.error("Invalid webhook signature");
-      return NextResponse.json(
-        { success: false, message: "Invalid signature" },
-        { status: 401 }
-      );
+    if (!verifySignature(signature)) {
+      console.warn("[flw-webhook] Invalid signature — request rejected");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    const payload = JSON.parse(body);
-    const event = payload.event;
-    const data = payload.data;
+    let payload;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
 
-    // Handle different event types
+    const { event, data } = payload;
+
+    // Always return 200 so Flutterwave doesn't retry endlessly.
+    // Each handler swallows its own errors and logs them.
     switch (event) {
       case "charge.completed":
-        await handlePaymentCompleted(data);
+        await handleChargeCompleted(data);
         break;
-
-      case "charge.failed":
-        await handlePaymentFailed(data);
-        break;
-
       case "transfer.completed":
         await handleTransferCompleted(data);
         break;
-
       default:
-        // Unhandled event type — no action needed
+        // Silently ignore unhandled event types
+        break;
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Webhook Processing Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+    console.error("[flw-webhook] Unhandled error:", error);
+    // Still return 200 — a 500 would cause Flutterwave to retry
+    return NextResponse.json({ received: true });
+  }
+}
+
+// ── charge.completed ──────────────────────────────────────────────────────────
+
+async function handleChargeCompleted(data) {
+  const {
+    id:     flwTransactionId,
+    tx_ref,
+    amount,
+    currency,
+    status,
+    flw_ref,
+  } = data;
+
+  // Only process successful NGN charges
+  if (status !== "successful") return;
+  if (currency !== "NGN") {
+    console.warn(`[flw-webhook] Non-NGN charge ignored (${currency}) for tx_ref=${tx_ref}`);
+    return;
+  }
+
+  const admin = createAdminClient();
+
+  // Look up the pending payment record by reference (tx_ref)
+  const { data: payment, error: lookupErr } = await admin
+    .from("payments")
+    .select("id, user_id, amount, status, type, verification_type, reference")
+    .eq("reference", tx_ref)
+    .maybeSingle();
+
+  if (lookupErr) {
+    console.error(`[flw-webhook] payments lookup error for tx_ref=${tx_ref}:`, lookupErr);
+    return;
+  }
+
+  if (!payment) {
+    // Could be an older vendor-registration payment that pre-dates the payments table.
+    // Nothing to do — the client-side complete-registration route handles those.
+    return;
+  }
+
+  // Idempotency guard — already processed
+  if (payment.status === "success") {
+    return;
+  }
+
+  // Amount integrity — reject if Flutterwave amount is less than what we recorded
+  if (Number(amount) < Number(payment.amount)) {
+    console.error(
+      `[flw-webhook] Amount mismatch for tx_ref=${tx_ref}: ` +
+      `expected ${payment.amount}, got ${amount}`
     );
+    return;
+  }
+
+  // Dispatch by payment type
+  switch (payment.type) {
+    case "subscription":
+      await activateSubscription({ payment, flwTransactionId, tx_ref, flw_ref, admin });
+      break;
+
+    case "vendor_fee":
+      await completeVendorRegistration({ payment, flwTransactionId, tx_ref, admin });
+      break;
+
+    default:
+      console.warn(`[flw-webhook] Unhandled payment type="${payment.type}" for tx_ref=${tx_ref}`);
   }
 }
 
-/**
- * Verify webhook signature
- */
-function verifyWebhookSignature(body, signature) {
-  // Env var is FLUTTERWAVE_WEBHOOK_HASH (matches CLAUDE.md / .env convention)
-  const secretHash = process.env.FLUTTERWAVE_WEBHOOK_HASH;
+// ── Subscription activation ───────────────────────────────────────────────────
 
-  if (!secretHash) {
-    console.error("FLUTTERWAVE_WEBHOOK_HASH not set — webhook verification skipped");
-    return false;
-  }
-
-  // For Flutterwave, the verif-hash header must equal the secret hash
-  return signature === secretHash;
-}
-
-/**
- * Handle successful payment
- */
-async function handlePaymentCompleted(data) {
+async function activateSubscription({ payment, flwTransactionId, tx_ref, flw_ref, admin }) {
   try {
-    const { id, tx_ref, amount, currency, customer, status } = data;
+    // verification_type is stored as "premium_monthly" or "vip_annual" etc.
+    const parts = (payment.verification_type ?? "").split("_");
+    // tier = parts[0], billing_cycle = everything after (handles "vip_annual")
+    const tier          = parts[0];
+    const billing_cycle = parts.slice(1).join("_") || "monthly";
 
-    // Only process successful payments
-    if (status !== "successful") {
+    if (!["premium", "vip"].includes(tier)) {
+      console.error(`[flw-webhook] Unknown tier "${tier}" for tx_ref=${tx_ref}`);
       return;
     }
 
-    // Check if this payment was already processed
-    const alreadyProcessed = await checkPaymentProcessed(id);
-    if (alreadyProcessed) {
-      return;
-    }
+    const expiresAt = computeExpiryDate(billing_cycle, new Date());
 
-    // Extract user ID from transaction reference
-    // Format: VENDOR_{userId}_{timestamp}
-    const userId = extractUserIdFromTxRef(tx_ref);
-
-    if (!userId) {
-      console.error(`Could not extract user ID from tx_ref: ${tx_ref}`);
-      return;
-    }
-
-    // Get verification data from pending registrations
-    const verificationData = await getPendingVerification(userId);
-
-    if (!verificationData) {
-      console.error(`No pending verification found for user: ${userId}`);
-      return;
-    }
-
-    // Generate referral code
-    const referralCode = await generateUniqueReferralCode(userId);
-
-    // Process referral bonus if applicable
-    let referralBonus = null;
-    if (verificationData.referralCode) {
-      referralBonus = await processReferralBonus(
-        verificationData.referralCode,
-        amount * 0.1 // 10% of payment as bonus
-      );
-    }
-
-    // Complete vendor registration
-    await completeVendorRegistration({
-      userId,
-      transactionId: id,
-      amount,
-      currency,
-      verificationData,
-      referralCode,
-      referralBonus,
+    // Use the atomic DB function — this is the same function called by the
+    // client-side subscription/verify route, so duplicate webhook calls are
+    // harmless (the UPDATE WHERE status='pending' guard makes it idempotent).
+    const { error: rpcErr } = await admin.rpc("activate_vendor_subscription", {
+      p_vendor_id:     payment.user_id,
+      p_tier:          tier,
+      p_billing_cycle: billing_cycle,
+      p_amount:        Number(payment.amount),
+      p_expires_at:    expiresAt.toISOString(),
+      p_flw_tx_ref:    tx_ref,
+      p_flw_tx_id:     String(flwTransactionId),
+      p_flw_ref:       flw_ref ?? null,
+      p_payment_ref:   payment.reference,
     });
 
-    // Mark payment as processed
-    await markPaymentProcessed(id);
-
-    // Send confirmation email
-    await sendPaymentConfirmationEmail({
-      email: customer.email,
-      name: customer.name,
-      amount,
-      transactionId: id,
-    });
-
-  } catch (error) {
-    console.error("Error handling payment completion:", error);
-    // Don't throw - we want to return 200 to Flutterwave even if processing fails
-    // We can retry later based on the processed status
+    if (rpcErr) {
+      console.error(`[flw-webhook] activate_vendor_subscription RPC error for tx_ref=${tx_ref}:`, rpcErr);
+    }
+  } catch (err) {
+    console.error(`[flw-webhook] activateSubscription error for tx_ref=${tx_ref}:`, err);
   }
 }
 
-/**
- * Handle failed payment
- */
-async function handlePaymentFailed(data) {
+// ── Vendor registration completion ────────────────────────────────────────────
+
+async function completeVendorRegistration({ payment, flwTransactionId, tx_ref, admin }) {
   try {
-    const { id, tx_ref, customer } = data;
+    // Mark payment as success
+    await admin
+      .from("payments")
+      .update({
+        status:         "success",
+        transaction_id: String(flwTransactionId),
+        updated_at:     new Date().toISOString(),
+      })
+      .eq("reference", tx_ref)
+      .eq("status", "pending"); // idempotency guard
 
-    const userId = extractUserIdFromTxRef(tx_ref);
+    // Complete vendor registration — mark payment_verified and set status active
+    const { error: vendorErr } = await admin
+      .from("vendors")
+      .update({
+        payment_verified: true,
+        updated_at:       new Date().toISOString(),
+      })
+      .eq("id", payment.user_id);
 
-    // Update registration status
-    await updateRegistrationStatus(userId, "payment_failed");
+    if (vendorErr) {
+      console.error(`[flw-webhook] vendor update error for tx_ref=${tx_ref}:`, vendorErr);
+      return;
+    }
 
-    // Send notification
-    await sendPaymentFailedEmail({
-      email: customer.email,
-      name: customer.name,
-      transactionId: id,
-    });
+    // Process referral bonus if there is a pending referral for this user
+    try {
+      const { data: referral } = await admin
+        .from("referrals")
+        .select("id, referrer_id")
+        .eq("referred_id", payment.user_id)
+        .eq("status", "pending")
+        .maybeSingle();
 
-  } catch (error) {
-    console.error("Error handling payment failure:", error);
+      if (referral) {
+        await admin
+          .from("referrals")
+          .update({ status: "completed" })
+          .eq("id", referral.id);
+
+        // ₦500 referral bonus — matches the constant in complete-registration
+        await admin.rpc("credit_wallet", {
+          user_id:     referral.referrer_id,
+          amount:      500,
+          description: "Referral bonus — new vendor verified",
+        });
+      }
+    } catch (refErr) {
+      // Referral bonus is non-critical — log and continue
+      console.error(`[flw-webhook] Referral bonus error for user=${payment.user_id}:`, refErr);
+    }
+  } catch (err) {
+    console.error(`[flw-webhook] completeVendorRegistration error for tx_ref=${tx_ref}:`, err);
   }
 }
 
-/**
- * Handle completed transfer (for payouts)
- */
+// ── transfer.completed ────────────────────────────────────────────────────────
+
 async function handleTransferCompleted(data) {
+  /**
+   * Flutterwave sends transfer.completed for both successful and failed transfers.
+   * The `data.status` field will be "SUCCESSFUL" or "FAILED".
+   * We update vendor_payouts to reflect the final state so the UI stays accurate.
+   */
+  const { reference, status } = data;
+
+  if (!reference) {
+    console.warn("[flw-webhook] transfer.completed event missing reference — skipping");
+    return;
+  }
+
+  const admin        = createAdminClient();
+  const finalStatus  = status === "SUCCESSFUL" ? "completed" : "failed";
+  const errorMessage = status !== "SUCCESSFUL" ? (data.complete_message ?? "Transfer failed") : null;
+
   try {
-    // Implement transfer completion logic if you have vendor payouts
-  } catch (error) {
-    console.error("Error handling transfer completion:", error);
+    const { error } = await admin
+      .from("vendor_payouts")
+      .update({
+        status:     finalStatus,
+        ...(errorMessage && { error: errorMessage }),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("reference", reference);
+
+    if (error) {
+      console.error(`[flw-webhook] vendor_payouts update error for ref=${reference}:`, error);
+    }
+  } catch (err) {
+    console.error(`[flw-webhook] handleTransferCompleted error for ref=${reference}:`, err);
   }
 }
 
-/**
- * Extract user ID from transaction reference
- */
-function extractUserIdFromTxRef(txRef) {
-  // Format: VENDOR_{userId}_{timestamp}
-  const match = txRef.match(/^VENDOR_([^_]+)_\d+$/);
-  return match ? match[1] : null;
-}
-
-/**
- * Check if payment was already processed
- */
-async function checkPaymentProcessed(transactionId) {
-  // Check your database for this transaction
-  // Example using Supabase:
-  // const { data } = await supabase
-  //   .from('processed_payments')
-  //   .select('id')
-  //   .eq('transaction_id', transactionId)
-  //   .single();
-
-  // return !!data;
-
-  return false; // Mock - implement with your database
-}
-
-/**
- * Mark payment as processed
- */
-async function markPaymentProcessed(transactionId) {
-  // Store in database to prevent duplicate processing
-  // Example using Supabase:
-  // await supabase
-  //   .from('processed_payments')
-  //   .insert([{
-  //     transaction_id: transactionId,
-  //     processed_at: new Date().toISOString(),
-  //   }]);
-
-}
-
-/**
- * Get pending verification data
- */
-async function getPendingVerification(userId) {
-  // Fetch from your database
-  // Example using Supabase:
-  // const { data } = await supabase
-  //   .from('pending_verifications')
-  //   .select('*')
-  //   .eq('user_id', userId)
-  //   .single();
-
-  // return data;
-
-  return null; // Mock - implement with your database
-}
-
-/**
- * Update registration status
- */
-async function updateRegistrationStatus(userId, status) {
-  // Update in your database
-  // Example using Supabase:
-  // await supabase
-  //   .from('vendors')
-  //   .update({ status: status })
-  //   .eq('user_id', userId);
-
-}
-
-/**
- * Generate unique referral code
- */
-async function generateUniqueReferralCode(userId) {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let code = "";
-
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  for (let i = 0; i < 8; i++) {
-    code += characters.charAt(bytes[i] % characters.length);
-  }
-
-  return `VND${code}`;
-}
-
-/**
- * Process referral bonus
- */
-async function processReferralBonus(referralCode, bonusAmount) {
-  // Implement referral bonus logic
-  return { referralCode, bonusAmount };
-}
-
-/**
- * Complete vendor registration
- */
-async function completeVendorRegistration(data) {
-  // Complete the registration in your database
-}
-
-/**
- * Send payment confirmation email
- */
-async function sendPaymentConfirmationEmail(data) {
-  // Send email using your email service
-}
-
-/**
- * Send payment failed email
- */
-async function sendPaymentFailedEmail(data) {
-  // Send email using your email service
-}
-
-/**
- * GET handler - for webhook verification
- */
-export async function GET(request) {
-  return NextResponse.json({
-    message: "Flutterwave webhook endpoint is active",
-    timestamp: new Date().toISOString(),
-  });
+// ── GET — liveness probe ──────────────────────────────────────────────────────
+// Returns 200 without leaking any internal info.
+export async function GET() {
+  return NextResponse.json({ ok: true });
 }
