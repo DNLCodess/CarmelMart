@@ -14,7 +14,14 @@ export async function GET() {
   try {
     const supabase = createAdminClient();
 
-    const { data, error } = await supabase
+    // Exclude products from suspended or rejected vendors
+    const { data: excludedVendors } = await supabase
+      .from("vendors")
+      .select("id")
+      .in("verification_status", ["suspended", "rejected"]);
+    const excludedVendorIds = (excludedVendors ?? []).map((v) => v.id);
+
+    let dealsQuery = supabase
       .from("products")
       .select(`
         id, name, slug, price, sale_price, stock,
@@ -26,6 +33,12 @@ export async function GET() {
       .not("sale_price", "is", null)
       .gt("sale_price", 0)
       .limit(40); // fetch more, sort by discount in JS, slice to 8
+
+    if (excludedVendorIds.length > 0) {
+      dealsQuery = dealsQuery.not("vendor_id", "in", `(${excludedVendorIds.join(",")})`);
+    }
+
+    const { data, error } = await dealsQuery;
 
     if (error) throw error;
 

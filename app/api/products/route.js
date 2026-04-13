@@ -43,6 +43,13 @@ export async function GET(request) {
 
     const supabase = createAdminClient();
 
+    // ── Fetch suspended/rejected vendor IDs to always exclude ────────────────
+    const { data: excludedVendors } = await supabase
+      .from("vendors")
+      .select("id")
+      .in("verification_status", ["suspended", "rejected"]);
+    const excludedVendorIds = (excludedVendors ?? []).map((v) => v.id);
+
     // ── Resolve verified vendor IDs (if filter requested) ────────────────────
     let verifiedVendorIds = null;
     if (verifiedOnly) {
@@ -93,6 +100,7 @@ export async function GET(request) {
     if (badge)                  query = query.eq("badge", badge);
     if (condition)              query = query.eq("condition", condition);
     if (verifiedVendorIds)      query = query.in("vendor_id", verifiedVendorIds);
+    if (excludedVendorIds.length > 0) query = query.not("vendor_id", "in", `(${excludedVendorIds.join(",")})`);
     if (minDiscount !== null)   query = query.not("sale_price", "is", null);
 
     // featured column may not exist in older DB instances — try it, fall back gracefully

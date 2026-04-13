@@ -121,13 +121,17 @@ function LoginContent() {
 
     setIsLoading(true);
     try {
-      await loginAction({ email: formData.email, password: formData.password });
+      const result = await loginAction({ email: formData.email, password: formData.password });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
       await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
       toast.success("Welcome back!");
       const from = searchParams.get("from");
       router.push(from?.startsWith("/") ? from : "/");
     } catch (err) {
-      toast.error(err.message || "Login failed. Please check your credentials.");
+      toast.error("Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

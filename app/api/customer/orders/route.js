@@ -113,13 +113,15 @@ export async function POST(request) {
 
     const orderId = order.id;
 
-    // Create order items
+    // Create order items — fall back to the vendor_id from the DB if cart item is missing it
     const orderItems = items.map((item) => {
       const unitPrice = Math.round(item.price);
+      const vendorId  = item.vendorId ?? productMap[item.productId]?.vendor_id ?? null;
+      if (!vendorId) throw new Error(`Could not resolve vendor for product: ${item.name}`);
       return {
         order_id:   orderId,
         product_id: item.productId,
-        vendor_id:  item.vendorId,
+        vendor_id:  vendorId,
         quantity:   item.quantity,
         unit_price: unitPrice,
         total:      unitPrice * item.quantity,

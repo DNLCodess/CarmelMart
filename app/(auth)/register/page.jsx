@@ -294,6 +294,11 @@ function RegisterPageContent() {
         referralCode: formData.referralCode?.trim() || null,
       });
 
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+
       if (selectedRole === "vendor") {
         setVendorData({
           userId: result.userId,
@@ -313,7 +318,7 @@ function RegisterPageContent() {
         router.push("/verify-email");
       }
     } catch (err) {
-      toast.error(err.message || "Failed to create account. Please try again.");
+      toast.error("Failed to create account. Please try again.");
     } finally {
       setIsLoading(false);
     }

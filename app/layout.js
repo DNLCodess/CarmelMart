@@ -1,6 +1,8 @@
 import { Inter } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import Providers from "./providers";
+import InstallPrompt from "@/components/common/InstallPrompt";
+import ServiceWorkerRegistration from "@/components/common/ServiceWorkerRegistration";
 import "./globals.css";
 
 const inter = Inter({
@@ -65,6 +67,13 @@ export default function RootLayout({ children }) {
         />
         <script src="https://js.paystack.co/v1/inline.js" async></script>
         <link rel="icon" href="/favicon.ico" />
+        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="theme-color" content="#560238" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="CarmelMart" />
       </head>
       <body className="antialiased font-sans">
         <Providers>
@@ -90,6 +99,8 @@ export default function RootLayout({ children }) {
               />
             </div>
             {children}
+            <InstallPrompt />
+            <ServiceWorkerRegistration />
         </Providers>
       </body>
     </html>

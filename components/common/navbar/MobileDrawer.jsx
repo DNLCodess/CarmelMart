@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Heart, ShoppingCart, User, TrendingUp, RotateCcw,
-  BadgeCheck, ArrowRight, LogOut,
+  BadgeCheck, ArrowRight, LogOut, Download,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import { CATEGORIES } from "./navbar.data";
 import { SuggestionsDropdown } from "./SearchBar";
 import { Search } from "lucide-react";
 import { AnimatePresence as AP } from "framer-motion";
+import { usePWAInstall } from "@/lib/pwa-install-context";
 
 export default function MobileDrawer({
   isOpen, onClose,
@@ -29,6 +30,7 @@ export default function MobileDrawer({
   onSearchSubmit, onSuggestionClick, onProductClick, onSubmitAll, onSearchKeyDown,
 }) {
   const router = useRouter();
+  const { canInstall, isIOS, triggerInstall } = usePWAInstall() ?? {};
 
   const handleCategoryClick = (href) => {
     onClose();
@@ -153,6 +155,26 @@ export default function MobileDrawer({
                   );
                 })}
               </div>
+
+              {/* Install app card */}
+              {canInstall && (
+                <motion.button
+                  onClick={() => { onClose(); if (!isIOS) triggerInstall?.(); }}
+                  whileTap={{ scale: 0.97 }}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-linear-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/25"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                      <Download className="w-4.5 h-4.5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold leading-tight">Install CarmelMart App</p>
+                      <p className="text-xs text-white/70 mt-0.5">Faster • Offline • Free</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4.5 h-4.5 text-white/70 shrink-0" />
+                </motion.button>
+              )}
 
               {/* Category grid */}
               <div>

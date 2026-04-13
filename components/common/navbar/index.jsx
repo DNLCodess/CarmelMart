@@ -7,16 +7,17 @@ import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, ShoppingCart, User, Heart, Menu,
-  Package, Settings, TrendingUp, ChevronDown,
+  Package, Settings, TrendingUp, ChevronDown, Download,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
-import { useAuth }       from "@/lib/auth-context";
-import { useCartStore }  from "@/store/cartStore";
-import { useUIStore }    from "@/store/uiStore";
-import { logoutAction }  from "@/app/actions/auth";
+import { useAuth }        from "@/lib/auth-context";
+import { useCartStore }   from "@/store/cartStore";
+import { useUIStore }     from "@/store/uiStore";
+import { logoutAction }   from "@/app/actions/auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePWAInstall }  from "@/lib/pwa-install-context";
 
 import { PROMO_MESSAGES, SEARCH_SUGGESTIONS } from "./navbar.data";
 import PromoStrip        from "./PromoStrip";
@@ -52,6 +53,7 @@ export default function Navbar() {
   const queryClient = useQueryClient();
 
   const { user, role, isAuthenticated, isLoading, isVendor, isCustomer, isAdmin } = useAuth();
+  const { canInstall, isIOS, triggerInstall }  = usePWAInstall() ?? {};
 
   const cartItems  = useCartStore((s) => s.items);
   const cartCount  = cartItems.reduce((sum, i) => sum + i.quantity, 0);
@@ -351,6 +353,18 @@ export default function Navbar() {
                 <span className="text-[10px] text-gray-400 font-medium leading-none">Returns</span>
                 <span className="text-[13px] font-bold text-gray-900">&amp; Orders</span>
               </Link>
+
+              {/* Get App — shown when PWA is installable */}
+              {canInstall && (
+                <button
+                  onClick={() => isIOS ? null : triggerInstall?.()}
+                  className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-primary text-primary text-[12px] font-bold hover:bg-primary hover:text-white transition-colors shrink-0"
+                  aria-label="Install CarmelMart app"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Get App
+                </button>
+              )}
 
               {/* Cart */}
               <div className="relative" onMouseEnter={handleCartEnter} onMouseLeave={handleCartLeave}>

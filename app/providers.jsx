@@ -7,11 +7,16 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AuthProvider } from "@/lib/auth-context";
+import { PWAInstallProvider } from "@/lib/pwa-install-context";
 
 export default function Providers({ children }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <PWAInstallProvider>
+          {children}
+        </PWAInstallProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

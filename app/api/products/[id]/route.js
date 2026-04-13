@@ -35,6 +35,14 @@ export async function GET(request, { params }) {
         .gte("created_at", since24h),
     ]);
 
+    // Block products from suspended or rejected vendors
+    if (vendorData && ["suspended", "rejected"].includes(vendorData.verification_status)) {
+      return NextResponse.json(
+        { success: false, error: "Product not found" },
+        { status: 404 },
+      );
+    }
+
     const product = {
       id: data.id,
       name: data.name,
