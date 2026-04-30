@@ -66,7 +66,9 @@ export async function middleware(request) {
   // Authenticated user hitting /login → redirect away
   if (user && pathname === "/login") {
     const from = request.nextUrl.searchParams.get("from");
-    return redirect(from?.startsWith("/") ? from : "/");
+    // Reject protocol-relative URLs like //evil.com that start with / but aren't safe paths
+    const safePath = from && from.startsWith("/") && !from.startsWith("//") ? from : "/";
+    return redirect(safePath);
   }
 
   // Role checks (vendor/admin) are intentionally left to server layouts

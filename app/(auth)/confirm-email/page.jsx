@@ -7,8 +7,6 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-
-const supabase = createClient();
 import toast from "react-hot-toast";
 
 function ConfirmEmailContent() {
@@ -18,8 +16,9 @@ function ConfirmEmailContent() {
 
   useEffect(() => {
     const confirmEmail = async () => {
+      const supabase   = createClient();
       const token_hash = searchParams.get("token_hash");
-      const type = searchParams.get("type");
+      const type       = searchParams.get("type");
 
       if (!token_hash || !type) {
         setStatus("error");
@@ -29,24 +28,18 @@ function ConfirmEmailContent() {
       }
 
       try {
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash,
-          type: "email",
-        });
-
+        // Accept the type from the URL — Supabase uses "email" for signup confirmation
+        // and "recovery" for password-reset magic links. Whitelist to prevent injection.
+        const ALLOWED = new Set(["email", "signup", "recovery", "invite", "email_change"]);
+        const verifyType = ALLOWED.has(type) ? type : "email";
+        const { error } = await supabase.auth.verifyOtp({ token_hash, type: verifyType });
         if (error) throw error;
-
         setStatus("success");
         toast.success("Email verified successfully!");
-
-        // Redirect after 2 seconds
         setTimeout(() => router.push("/login"), 2000);
-      } catch (error) {
-        console.error("Email verification error:", error);
+      } catch {
         setStatus("error");
         toast.error("Email verification failed");
-
-        // Redirect after 2 seconds
         setTimeout(() => router.push("/login"), 2000);
       }
     };

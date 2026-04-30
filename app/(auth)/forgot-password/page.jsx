@@ -6,11 +6,12 @@ import { ArrowLeft, Mail, Lock, CheckCircle, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 // ─── Shared input ─────────────────────────────────────────────────────────────
 
-const Input = ({ label, type = "text", placeholder, icon: Icon, value, onChange, error }) => {
+const Input = ({ label, type = "text", placeholder, icon: Icon, value, onChange, error, autoComplete }) => {
   const [showPassword, setShowPassword] = useState(false);
   const inputType = type === "password" && showPassword ? "text" : type;
 
@@ -25,6 +26,7 @@ const Input = ({ label, type = "text", placeholder, icon: Icon, value, onChange,
         )}
         <input
           type={inputType}
+          autoComplete={autoComplete}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
@@ -100,30 +102,35 @@ const STEPS = [
   { label: "New password",   desc: "Choose a strong password"        },
 ];
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ForgotPassword() {
-  const [step, setStep]             = useState(1);
-  const [email, setEmail]           = useState("");
-  const [otp, setOtp]               = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [isLoading, setIsLoading]   = useState(false);
-  const [error, setError]           = useState("");
+  const router = useRouter();
+
+  const [step, setStep]                   = useState(1);
+  const [email, setEmail]                 = useState("");
+  const [otp, setOtp]                     = useState("");
+  const [newPassword, setNewPassword]     = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading]         = useState(false);
+  const [error, setError]                 = useState("");
 
   const sendOTP = async () => {
-    if (!email.includes("@")) return setError("Please enter a valid email address");
+    if (!EMAIL_RE.test(email.trim())) return setError("Please enter a valid email address");
     setError("");
     setIsLoading(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
         redirectTo: `${window.location.origin}/auth/callback?next=/settings`,
       });
-      if (error) throw error;
-      toast.success("Reset code sent — check your inbox");
+      // Always advance to step 2 — never reveal whether the email is registered
+      toast.success("If that email is registered, a reset code has been sent.");
       setStep(2);
-    } catch (err) {
-      toast.error(err.message);
+    } catch {
+      toast.error("Something went wrong. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -135,11 +142,11 @@ export default function ForgotPassword() {
     setIsLoading(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.verifyOtp({ email, token: otp, type: "recovery" });
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: otp, type: "recovery" });
       if (error) throw error;
       toast.success("Code verified");
       setStep(3);
-    } catch (err) {
+    } catch {
       toast.error("Invalid or expired code — please try again");
     } finally {
       setIsLoading(false);
@@ -148,6 +155,7 @@ export default function ForgotPassword() {
 
   const resetPassword = async () => {
     if (newPassword.length < 8) return setError("Password must be at least 8 characters");
+    if (newPassword !== confirmPassword) return setError("Passwords do not match");
     setError("");
     setIsLoading(true);
     try {
@@ -155,9 +163,9 @@ export default function ForgotPassword() {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       toast.success("Password reset successfully!");
-      window.location.href = "/login";
-    } catch (err) {
-      toast.error(err.message);
+      router.push("/login");
+    } catch {
+      toast.error("Failed to reset password. Your reset link may have expired — please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -259,6 +267,7 @@ export default function ForgotPassword() {
                   <Input
                     label="Email address"
                     type="email"
+                    autoComplete="email"
                     placeholder="you@example.com"
                     icon={Mail}
                     value={email}
@@ -341,12 +350,28 @@ export default function ForgotPassword() {
                   <Input
                     label="New password"
                     type="password"
+                    autoComplete="new-password"
                     placeholder="At least 8 characters"
                     icon={Lock}
                     value={newPassword}
                     onChange={(e) => { setNewPassword(e.target.value); setError(""); }}
-                    error={error}
+                    error={error && !confirmPassword ? error : undefined}
                   />
+
+                  <Input
+                    label="Confirm new password"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Re-enter password"
+                    icon={Lock}
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
+                    error={error && confirmPassword ? error : undefined}
+                  />
+
+                  {error && !newPassword && (
+                    <p className="text-xs text-red-500 font-medium">{error}</p>
+                  )}
 
                   <button
                     onClick={resetPassword}

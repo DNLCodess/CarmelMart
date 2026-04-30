@@ -58,7 +58,10 @@ export async function GET(request) {
 
     if (insertError) {
       console.error("[OAuth callback] profile insert error:", insertError.message);
-      // Don't block the user — profile can be completed later
+      // A user with no profile row has role=null and will fail every auth guard.
+      // Sign them out so they can retry cleanly rather than landing in a broken state.
+      await supabase.auth.signOut();
+      return NextResponse.redirect(`${origin}/login?oauth_error=profile_failed`);
     }
 
     // New users land on home
@@ -66,6 +69,7 @@ export async function GET(request) {
   }
 
   // Returning user — go where they were headed
-  const safe = next.startsWith("/") ? next : "/";
+  // Reject protocol-relative URLs like //evil.com that pass a startsWith("/") check
+  const safe = next.startsWith("/") && !next.startsWith("//") ? next : "/";
   return NextResponse.redirect(`${origin}${safe}`);
 }

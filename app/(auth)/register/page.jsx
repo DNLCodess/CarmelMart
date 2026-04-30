@@ -315,7 +315,7 @@ function RegisterPageContent() {
         // Invalidate auth query (session may not exist yet if email confirmation required)
         await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
         toast.success("Account created! Check your email to verify.");
-        router.push("/verify-email");
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim().toLowerCase())}`);
       }
     } catch (err) {
       toast.error("Failed to create account. Please try again.");

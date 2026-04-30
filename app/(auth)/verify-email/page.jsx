@@ -1,38 +1,69 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Check, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import toast from "react-hot-toast";
+import { createClient } from "@/lib/supabase/client";
 
-export default function VerifyEmailPage() {
-  const router = useRouter();
-  const [countdown, setCountdown] = useState(3);
+const RESEND_COOLDOWN_S = 60;
 
+function VerifyEmailContent() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const email        = searchParams.get("email") ?? "";
+
+  const [countdown, setCountdown]       = useState(3);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Redirect to login after 3 s
   useEffect(() => {
-    // Countdown timer
     const countdownInterval = setInterval(() => {
       setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdownInterval);
-          return 0;
-        }
+        if (prev <= 1) { clearInterval(countdownInterval); return 0; }
         return prev - 1;
       });
     }, 1000);
 
-    // Redirect after 3 seconds — ?verify=1 shows the "check inbox" banner on login
     const redirectTimer = setTimeout(() => {
-      router.push("/login?verify=1");
+      router.push(email ? `/login?verify=1` : "/login?verify=1");
     }, 3000);
 
     return () => {
       clearInterval(countdownInterval);
       clearTimeout(redirectTimer);
     };
-  }, [router]);
+  }, [router, email]);
+
+  // Resend cooldown ticker
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearInterval(id);
+  }, [resendCooldown]);
+
+  const handleResend = async () => {
+    if (!email) {
+      toast.error("Email address not found. Please register again.");
+      return;
+    }
+    setResendLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) throw error;
+      toast.success("Verification email resent — check your inbox.");
+      setResendCooldown(RESEND_COOLDOWN_S);
+    } catch {
+      toast.error("Failed to resend. Please try again in a moment.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -56,26 +87,18 @@ export default function VerifyEmailPage() {
             <Check className="w-8 h-8 text-green-600" strokeWidth={2.5} />
           </div>
 
-          {/* Heading */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">
-            Registration Successful
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Registration Successful</h1>
 
-          {/* Message */}
           <p className="text-gray-600 mb-6 leading-relaxed">
-            We've sent a verification email to your inbox. Please verify your
-            email address before signing in.
+            We&apos;ve sent a verification email{email ? <> to <span className="font-medium text-gray-800">{email}</span></> : " to your inbox"}.
+            Please verify your email address before signing in.
           </p>
 
           {/* Email Icon */}
           <div className="bg-gray-50 rounded-xl p-6 mb-6">
             <Mail className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-sm font-medium text-gray-700">
-              Check your email
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Click the verification link to activate your account
-            </p>
+            <p className="text-sm font-medium text-gray-700">Check your email</p>
+            <p className="text-xs text-gray-500 mt-1">Click the verification link to activate your account</p>
           </div>
 
           {/* Redirect Notice */}
@@ -97,14 +120,34 @@ export default function VerifyEmailPage() {
           </button>
         </div>
 
-        {/* Help Text */}
+        {/* Resend */}
         <p className="text-center text-sm text-gray-500 mt-6">
-          Didn't receive the email?{" "}
-          <button className="text-primary font-medium hover:underline">
-            Resend verification email
-          </button>
+          Didn&apos;t receive the email?{" "}
+          {resendCooldown > 0 ? (
+            <span className="text-gray-400">Resend in {resendCooldown}s</span>
+          ) : (
+            <button
+              onClick={handleResend}
+              disabled={resendLoading}
+              className="text-primary font-medium hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {resendLoading ? "Sending…" : "Resend verification email"}
+            </button>
+          )}
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-9 h-9 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

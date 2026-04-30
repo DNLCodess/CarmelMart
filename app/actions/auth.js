@@ -5,6 +5,34 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { generateReferralCode } from "@/lib/utils";
 
+// ─── Login rate limiter ───────────────────────────────────────────────────────
+// Per-email, in-memory. Works for single-instance; swap Map for Redis in multi-node.
+const _loginAttempts = new Map(); // normalizedEmail → { count, resetAt }
+const RATE_MAX    = 5;
+const RATE_WINDOW = 15 * 60 * 1000; // 15 min
+
+function _checkRate(email) {
+  const now    = Date.now();
+  const record = _loginAttempts.get(email);
+  if (!record || now > record.resetAt) {
+    _loginAttempts.set(email, { count: 1, resetAt: now + RATE_WINDOW });
+    return { limited: false };
+  }
+  if (record.count >= RATE_MAX) {
+    const mins = Math.ceil((record.resetAt - now) / 60_000);
+    return { limited: true, retryAfter: mins };
+  }
+  record.count++;
+  return { limited: false };
+}
+
+function _clearRate(email) {
+  _loginAttempts.delete(email);
+}
+
+// Nigerian phone: starts with +234 or 0, then 7/8/9, then 0/1, then 8 more digits
+const NIGERIAN_PHONE_RE = /^(\+234|0)[789][01]\d{8}$/;
+
 /**
  * Sign in with email + password.
  * Session is stored in HttpOnly cookies by @supabase/ssr — not in localStorage or Zustand.
@@ -12,19 +40,34 @@ import { generateReferralCode } from "@/lib/utils";
  * Only throws for unexpected server errors.
  */
 export async function loginAction({ email, password }) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const rateCheck = _checkRate(normalizedEmail);
+  if (rateCheck.limited) {
+    return {
+      error: `Too many login attempts. Please try again in ${rateCheck.retryAfter} minute${rateCheck.retryAfter === 1 ? "" : "s"}.`,
+    };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
+    email: normalizedEmail,
     password,
   });
-  if (error) return { error: error.message };
-  revalidatePath("/", "layout");
+
+  if (error) {
+    // Return a generic message — never distinguish between "wrong password" and
+    // "email not found / not confirmed" to prevent account enumeration.
+    return { error: "Invalid email or password." };
+  }
+
+  _clearRate(normalizedEmail);
   return { error: null };
 }
 
 /**
  * Create a new account (customer or vendor).
- * Rolls back the auth.users record if profile insert fails,
+ * Rolls back the auth.users record if any required profile insert fails,
  * so the email doesn't get permanently locked.
  *
  * Returns { userId, role, requiresEmailVerification } for the client to handle routing.
@@ -41,6 +84,9 @@ export async function signupAction({
   }
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
+  }
+  if (!NIGERIAN_PHONE_RE.test(phone.trim())) {
+    return { error: "Enter a valid Nigerian phone number (e.g. 08012345678 or +2348012345678)." };
   }
 
   const supabase = await createClient();
@@ -75,15 +121,21 @@ export async function signupAction({
     return { error: "Failed to complete registration. Please try again." };
   }
 
-  // If vendor, create the vendor record shell (pending verification)
+  // If vendor, create the vendor record shell (pending verification).
+  // Fatal: if this fails the user would have role="vendor" in users but no vendors row,
+  // breaking every vendor-specific query downstream.
   if (role === "vendor") {
-    await supabase.from("vendors").insert({
+    const { error: vendorError } = await supabase.from("vendors").insert({
       id: userId,
       verification_status: "pending",
       nin_verified: false,
       cac_verified: false,
     });
-    // Note: vendor profile errors are non-fatal; verification handles completion
+
+    if (vendorError) {
+      await admin.auth.admin.deleteUser(userId);
+      return { error: "Failed to complete vendor registration. Please try again." };
+    }
   }
 
   // Record referral relationship (non-fatal if it fails)

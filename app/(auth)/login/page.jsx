@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 
 // ─── Reusable input ───────────────────────────────────────────────────────────
 
-const Input = ({ label, type = "text", placeholder, icon: Icon, error, value, onChange, name }) => {
+const Input = ({ label, type = "text", placeholder, icon: Icon, error, value, onChange, name, autoComplete }) => {
   const [showPassword, setShowPassword] = useState(false);
   const inputType = type === "password" && showPassword ? "text" : type;
 
@@ -29,6 +29,7 @@ const Input = ({ label, type = "text", placeholder, icon: Icon, error, value, on
         <input
           type={inputType}
           name={name}
+          autoComplete={autoComplete}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
@@ -129,7 +130,9 @@ function LoginContent() {
       await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
       toast.success("Welcome back!");
       const from = searchParams.get("from");
-      router.push(from?.startsWith("/") ? from : "/");
+      // Reject protocol-relative URLs like //evil.com
+      const dest = from && from.startsWith("/") && !from.startsWith("//") ? from : "/";
+      router.push(dest);
     } catch (err) {
       toast.error("Login failed. Please try again.");
     } finally {
@@ -279,6 +282,7 @@ function LoginContent() {
                   label="Email address"
                   type="email"
                   name="email"
+                  autoComplete="email"
                   placeholder="you@example.com"
                   icon={Mail}
                   value={formData.email}
@@ -291,6 +295,7 @@ function LoginContent() {
                     label="Password"
                     type="password"
                     name="password"
+                    autoComplete="current-password"
                     placeholder="Enter your password"
                     icon={Lock}
                     value={formData.password}

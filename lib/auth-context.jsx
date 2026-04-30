@@ -9,6 +9,7 @@ import React, {
   useMemo,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAuthUser } from "@/lib/auth";
@@ -19,8 +20,13 @@ const IDLE_TIMEOUT_MS = 15 * 60 * 1000;  // 15 min
 const IDLE_WARNING_MS = 13 * 60 * 1000;  // warn at 13 min
 const IDLE_EVENTS = ["mousemove", "keydown", "click", "scroll", "touchstart"];
 
+// Paths that require authentication — used to decide whether a SIGNED_OUT event
+// from another tab should force-navigate the current tab to /login.
+const PROTECTED_PATH_RE = /^\/(account|checkout|cart|wishlist|dashboard|orders|settings|vendor|admin)/;
+
 export function AuthProvider({ children }) {
   const queryClient = useQueryClient();
+  const router      = useRouter();
 
   const query = useQuery({
     queryKey: ["auth-user"],
@@ -38,7 +44,7 @@ export function AuthProvider({ children }) {
   const isCustomer = role === "customer";
 
   // Admin idle timeout — auto-logout after 15 min inactivity
-  const idleTimerRef = useRef(null);
+  const idleTimerRef    = useRef(null);
   const warningTimerRef = useRef(null);
   const warningToastRef = useRef(null);
 
@@ -54,16 +60,20 @@ export function AuthProvider({ children }) {
     async (reason = "idle") => {
       clearTimers();
       const supabase = createClient();
-      await supabase.auth.signOut();
-      queryClient.invalidateQueries({ queryKey: ["auth-user"] });
-
+      // Show toast before signOut so it survives the navigation that follows
       if (reason === "idle") {
         toast("Logged out due to inactivity.");
       } else if (reason === "token") {
         toast.error("Session expired. Please sign in again.");
       }
+      await supabase.auth.signOut();
+      // SIGNED_OUT event fires above and handles cache + navigation for the
+      // "currently on a protected page" case. Unconditionally push here too
+      // so idle/token timeouts always land on /login regardless of current path.
+      queryClient.clear();
+      router.push("/login");
     },
-    [clearTimers, queryClient],
+    [clearTimers, queryClient, router],
   );
 
   const resetIdleTimer = useCallback(() => {
@@ -100,15 +110,28 @@ export function AuthProvider({ children }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "INITIAL_SESSION") return;
+
       if (event === "TOKEN_REFRESHED" && !session) {
         forceLogout("token");
         return;
       }
-      // Re-fetch user profile on any auth state change
+
+      if (event === "SIGNED_OUT") {
+        // Clear all cached queries so no stale user data is accessible after logout
+        queryClient.clear();
+        // If the user was on a protected page (e.g. signed out from another tab),
+        // redirect them to login. Public pages don't need a forced redirect.
+        if (PROTECTED_PATH_RE.test(window.location.pathname)) {
+          router.push("/login");
+        }
+        return;
+      }
+
+      // Re-fetch user profile on any other auth state change (sign-in, token refresh, etc.)
       queryClient.invalidateQueries({ queryKey: ["auth-user"] });
     });
     return () => subscription.unsubscribe();
-  }, [forceLogout, queryClient]);
+  }, [forceLogout, queryClient, router]);
 
   const value = useMemo(
     () => ({
