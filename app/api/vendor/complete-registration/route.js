@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const REFERRAL_BONUS = 500;
 const MIN_VERIFICATION_FEE = 5000; // Standard tier; Premium (₦10,000) also passes this check
