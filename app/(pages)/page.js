@@ -52,7 +52,7 @@ export default function LandingPage() {
         <PromoBannersSection />
       </SectionErrorBoundary>
 
-      <SectionErrorBoundary name="NewArrivalsSection">
+      {/* <SectionErrorBoundary name="NewArrivalsSection">
         <NewArrivalsSection />
       </SectionErrorBoundary>
 
@@ -62,7 +62,7 @@ export default function LandingPage() {
 
       <SectionErrorBoundary name="TopVendorsSection">
         <TopVendorsSection />
-      </SectionErrorBoundary>
+      </SectionErrorBoundary> */}
 
       <SectionErrorBoundary name="HowItWorksSection">
         <HowItWorksSection />
@@ -72,9 +72,9 @@ export default function LandingPage() {
         <TestimonialsSection />
       </SectionErrorBoundary>
 
-      <SectionErrorBoundary name="CtaSection">
+      {/* <SectionErrorBoundary name="CtaSection">
         <CtaSection />
-      </SectionErrorBoundary>
+      </SectionErrorBoundary> */}
     </div>
   );
 }
