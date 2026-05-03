@@ -1,66 +1,80 @@
 // Server Component — no "use client" directive
 // Interactive sections are extracted into focused client components
 
-import HeroSection            from "@/components/shared/home/hero";
-import CategoriesSection      from "@/components/shared/home/categories";
-import FlashSaleSection       from "@/components/shared/home/FlashSaleSection";
+import HeroSection             from "@/components/shared/home/hero";
+import CategoriesSection       from "@/components/shared/home/categories";
+import FlashSaleSection        from "@/components/shared/home/FlashSaleSection";
 import FeaturedProductsSection from "@/components/shared/home/FeaturedProductsSection";
-import PromoBannersSection    from "@/components/shared/home/PromoBannersSection";
-import DailyDealsSection      from "@/components/shared/home/DailyDealsSection";
-import NewArrivalsSection     from "@/components/shared/home/NewArrivalsSection";
-import ShopByBrandSection    from "@/components/shared/home/ShopByBrandSection";
-import LiveActivityTicker    from "@/components/shared/home/LiveActivityTicker";
-import TopVendorsSection      from "@/components/shared/home/TopVendorsSection";
+import PromoBannersSection     from "@/components/shared/home/PromoBannersSection";
+import DailyDealsSection       from "@/components/shared/home/DailyDealsSection";
+import NewArrivalsSection      from "@/components/shared/home/NewArrivalsSection";
+import ShopByBrandSection      from "@/components/shared/home/ShopByBrandSection";
+import LiveActivityTicker      from "@/components/shared/home/LiveActivityTicker";
+import TopVendorsSection       from "@/components/shared/home/TopVendorsSection";
 import TrustStrip              from "@/components/shared/home/TrustStrip";
-import HowItWorksSection      from "@/components/shared/home/HowItWorksSection";
-import TestimonialsSection    from "@/components/shared/home/TestimonialsSection";
-import CtaSection             from "@/components/shared/home/CtaSection";
+import HowItWorksSection       from "@/components/shared/home/HowItWorksSection";
+import TestimonialsSection     from "@/components/shared/home/TestimonialsSection";
+import CtaSection              from "@/components/shared/home/CtaSection";
+import SectionErrorBoundary    from "@/components/shared/home/SectionErrorBoundary";
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* 1. Hero with auto-play carousel */}
-      <HeroSection />
+      <SectionErrorBoundary name="HeroSection">
+        <HeroSection />
+      </SectionErrorBoundary>
 
-      {/* 1b. Trust strip — payment badges, returns, buyer protection */}
-      <TrustStrip />
+      <SectionErrorBoundary name="TrustStrip">
+        <TrustStrip />
+      </SectionErrorBoundary>
 
-      {/* 2. Categories — horizontal scroll mobile, grid desktop */}
-      <CategoriesSection />
+      <SectionErrorBoundary name="CategoriesSection">
+        <CategoriesSection />
+      </SectionErrorBoundary>
 
-      {/* 3. Flash Sale — countdown timer, up to 50% off */}
-      <FlashSaleSection />
+      <SectionErrorBoundary name="FlashSaleSection">
+        <FlashSaleSection />
+      </SectionErrorBoundary>
 
-      {/* 3b. Daily Deals — products with largest active discounts */}
-      <DailyDealsSection />
+      <SectionErrorBoundary name="DailyDealsSection">
+        <DailyDealsSection />
+      </SectionErrorBoundary>
 
-      {/* 4. Featured / Trending products */}
-      <FeaturedProductsSection />
+      <SectionErrorBoundary name="FeaturedProductsSection">
+        <FeaturedProductsSection />
+      </SectionErrorBoundary>
 
-      {/* 4b. Live activity ticker — "people are buying right now" */}
-      <LiveActivityTicker />
+      <SectionErrorBoundary name="LiveActivityTicker">
+        <LiveActivityTicker />
+      </SectionErrorBoundary>
 
-      {/* 5. Promotional banners — Electronics Week, Free Delivery, Buyer Protection */}
-      <PromoBannersSection />
+      <SectionErrorBoundary name="PromoBannersSection">
+        <PromoBannersSection />
+      </SectionErrorBoundary>
 
-      {/* 6. New Arrivals */}
-      <NewArrivalsSection />
+      <SectionErrorBoundary name="NewArrivalsSection">
+        <NewArrivalsSection />
+      </SectionErrorBoundary>
 
-      {/* 6b. Shop by Brand */}
-      <ShopByBrandSection />
+      <SectionErrorBoundary name="ShopByBrandSection">
+        <ShopByBrandSection />
+      </SectionErrorBoundary>
 
-      {/* 7. Top verified vendors */}
-      <TopVendorsSection />
+      <SectionErrorBoundary name="TopVendorsSection">
+        <TopVendorsSection />
+      </SectionErrorBoundary>
 
-      {/* 8. How It Works + trust strip */}
-      <HowItWorksSection />
+      <SectionErrorBoundary name="HowItWorksSection">
+        <HowItWorksSection />
+      </SectionErrorBoundary>
 
-      {/* 9. Customer testimonials */}
-      <TestimonialsSection />
+      <SectionErrorBoundary name="TestimonialsSection">
+        <TestimonialsSection />
+      </SectionErrorBoundary>
 
-      {/* 10. CTA banner */}
-      <CtaSection />
-
+      <SectionErrorBoundary name="CtaSection">
+        <CtaSection />
+      </SectionErrorBoundary>
     </div>
   );
 }

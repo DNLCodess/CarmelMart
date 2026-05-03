@@ -8,7 +8,12 @@ import { useQuery } from "@tanstack/react-query";
 
 async function fetchFeaturedVendors() {
   const r = await fetch("/api/vendors/featured");
-  return r.json();
+  const data = await r.json();
+  console.log("[CarmelMart] /api/vendors/featured response:", JSON.stringify(data?.vendors?.map(v => ({
+    id: v.id, name: v.name, image: v.image, banner_image: v.banner_image,
+    logo_image: v.logo_image, slug: v.slug,
+  }))));
+  return data;
 }
 
 export default function TopVendorsSection() {

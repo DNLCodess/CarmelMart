@@ -10,7 +10,12 @@ import { useCartStore } from "@/store/cartStore";
 
 async function fetchFeatured() {
   const r = await fetch("/api/products?featured=true&per_page=8");
-  return r.json();
+  const data = await r.json();
+  console.log("[CarmelMart] /api/products featured response:", JSON.stringify(data?.products?.map(p => ({
+    id: p.id, name: p.name, price: p.price, sale_price: p.sale_price,
+    salePrice: p.salePrice, images: p.images,
+  }))));
+  return data;
 }
 
 const RANK_STYLES = [
