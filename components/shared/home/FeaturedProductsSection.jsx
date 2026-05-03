@@ -104,8 +104,10 @@ function ProductCard({ product, rank, index }) {
 
             {/* Price */}
             <div className="flex items-baseline gap-2">
-              <span className="text-lg font-black text-gray-900">₦{displayPrice.toLocaleString()}</span>
-              {originalPrice && (
+              <span className="text-lg font-black text-gray-900">
+                {displayPrice != null ? `₦${displayPrice.toLocaleString()}` : "—"}
+              </span>
+              {originalPrice != null && (
                 <span className="text-xs text-gray-400 line-through">₦{originalPrice.toLocaleString()}</span>
               )}
             </div>

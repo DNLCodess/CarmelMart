@@ -42,7 +42,7 @@ export async function GET() {
         verified:     true,
         productCount: vProducts.length,
         image:        sampleImage,
-        slug:         v.slug ?? v.business_name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        slug:         v.slug ?? v.business_name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ?? v.id,
       };
     });
 

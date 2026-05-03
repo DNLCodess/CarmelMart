@@ -67,7 +67,7 @@ export default function TopVendorsSection() {
                 <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300 group">
                   <div className="relative h-40 overflow-hidden">
                     <Image
-                      src={vendor.banner_image ?? vendor.image ?? "https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?w=600"}
+                      src={vendor.banner_image || vendor.image || "https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?w=600"}
                       alt={vendor.business_name ?? vendor.name}
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -78,7 +78,7 @@ export default function TopVendorsSection() {
                   <div className="p-6 relative -mt-8">
                     <div className="w-16 h-16 rounded-xl bg-white shadow-lg mb-4 flex items-center justify-center border-4 border-white overflow-hidden">
                       <Image
-                        src={vendor.logo_image ?? vendor.image ?? "https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?w=120"}
+                        src={vendor.logo_image || vendor.image || "https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?w=120"}
                         alt={vendor.business_name ?? vendor.name}
                         width={56}
                         height={56}
