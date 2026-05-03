@@ -34,6 +34,7 @@
   "devDependencies": {
     "baseline-browser-mapping": "^2.10.18",
     "eslint": "^9",
-    "eslint-config-next": "16.0.0"
+    "eslint-config-next": "16.0.0",
+    "sharp": "^0.34.5"
   }
 }
