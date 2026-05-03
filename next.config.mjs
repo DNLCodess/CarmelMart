@@ -1,4 +1,10 @@
 const nextConfig = {
+  // Retry failed chunk loads once before surfacing an error (helps with flaky CDN)
+  webpack(config) {
+    config.output.chunkLoadTimeout = 30000;
+    return config;
+  },
+
   images: {
     remotePatterns: [
       {

@@ -6,7 +6,12 @@ import Link from "next/link";
 
 export default function GlobalError({ error, reset }) {
   useEffect(() => {
-    // Log to an error reporting service in production
+    // ChunkLoadError means a new deployment replaced old chunks — hard reload to get the fresh build
+    if (error?.name === "ChunkLoadError" || error?.message?.includes("Loading chunk")) {
+      window.location.reload();
+      return;
+    }
+
     if (process.env.NODE_ENV === "production") {
       // e.g. Sentry.captureException(error)
     }
