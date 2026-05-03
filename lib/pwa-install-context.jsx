@@ -7,19 +7,21 @@ const PWAInstallContext = createContext(null);
 export function PWAInstallProvider({ children }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled,    setIsInstalled]    = useState(false);
-
-  // Computed once — safe to derive outside state
-  const isIOS = typeof window !== "undefined"
-    ? /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
-    : false;
-
-  const isStandalone = typeof window !== "undefined"
-    ? window.matchMedia?.("(display-mode: standalone)").matches === true ||
-      window.navigator?.standalone === true
-    : false;
+  // Start false on both server and client to avoid hydration mismatch.
+  // Real values are set after mount in useEffect.
+  const [isIOS,        setIsIOS]        = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    if (isStandalone) { setIsInstalled(true); return; }
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const standalone =
+      window.matchMedia?.("(display-mode: standalone)").matches === true ||
+      window.navigator?.standalone === true;
+
+    setIsIOS(ios);
+    setIsStandalone(standalone);
+
+    if (standalone) { setIsInstalled(true); return; }
 
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -40,7 +42,7 @@ export function PWAInstallProvider({ children }) {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled",         handleAppInstalled);
     };
-  }, [isStandalone]);
+  }, []);
 
   const triggerInstall = useCallback(async () => {
     if (!deferredPrompt) return "unavailable";
