@@ -136,7 +136,9 @@ export default function NewArrivalsSection() {
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1.5 hover:text-primary transition-colors">
                         {p.name}
                       </h3>
-                      <p className="text-xs text-gray-500 mb-2 truncate">{p.vendor?.name ?? p.vendor ?? p.vendor_name}</p>
+                      <p className="text-xs text-gray-500 mb-2 truncate">
+                        {p.vendor?.name ?? p.vendor?.business_name ?? (typeof p.vendor === "string" ? p.vendor : null) ?? p.vendor_name}
+                      </p>
                       {(p.avgRating ?? p.avg_rating) > 0 && (
                         <div className="flex items-center gap-1 mb-2">
                           <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
@@ -145,8 +147,10 @@ export default function NewArrivalsSection() {
                         </div>
                       )}
                       <div className="flex items-baseline gap-2">
-                        <span className="text-base font-bold text-gray-900">₦{price.toLocaleString()}</span>
-                        {origPrice && <span className="text-xs text-gray-400 line-through">₦{origPrice.toLocaleString()}</span>}
+                        <span className="text-base font-bold text-gray-900">
+                          {price != null ? `₦${price.toLocaleString()}` : "—"}
+                        </span>
+                        {origPrice != null && <span className="text-xs text-gray-400 line-through">₦{origPrice.toLocaleString()}</span>}
                       </div>
                     </div>
                   </div>

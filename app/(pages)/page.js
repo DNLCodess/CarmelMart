@@ -47,6 +47,34 @@ export default function LandingPage() {
       <SectionErrorBoundary name="LiveActivityTicker">
         <LiveActivityTicker />
       </SectionErrorBoundary>
+
+      <SectionErrorBoundary name="PromoBannersSection">
+        <PromoBannersSection />
+      </SectionErrorBoundary>
+
+      <SectionErrorBoundary name="NewArrivalsSection">
+        <NewArrivalsSection />
+      </SectionErrorBoundary>
+
+      <SectionErrorBoundary name="ShopByBrandSection">
+        <ShopByBrandSection />
+      </SectionErrorBoundary>
+
+      <SectionErrorBoundary name="TopVendorsSection">
+        <TopVendorsSection />
+      </SectionErrorBoundary>
+
+      <SectionErrorBoundary name="HowItWorksSection">
+        <HowItWorksSection />
+      </SectionErrorBoundary>
+
+      <SectionErrorBoundary name="TestimonialsSection">
+        <TestimonialsSection />
+      </SectionErrorBoundary>
+
+      <SectionErrorBoundary name="CtaSection">
+        <CtaSection />
+      </SectionErrorBoundary>
     </div>
   );
 }
