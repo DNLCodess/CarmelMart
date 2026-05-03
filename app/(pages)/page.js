@@ -48,9 +48,9 @@ export default function LandingPage() {
         <LiveActivityTicker />
       </SectionErrorBoundary>
 
-      <SectionErrorBoundary name="PromoBannersSection">
+      {/* <SectionErrorBoundary name="PromoBannersSection">
         <PromoBannersSection />
-      </SectionErrorBoundary>
+      </SectionErrorBoundary> */}
 
       {/* <SectionErrorBoundary name="NewArrivalsSection">
         <NewArrivalsSection />
@@ -63,14 +63,14 @@ export default function LandingPage() {
       <SectionErrorBoundary name="TopVendorsSection">
         <TopVendorsSection />
       </SectionErrorBoundary> */}
-
+      {/* 
       <SectionErrorBoundary name="HowItWorksSection">
         <HowItWorksSection />
       </SectionErrorBoundary>
 
       <SectionErrorBoundary name="TestimonialsSection">
         <TestimonialsSection />
-      </SectionErrorBoundary>
+      </SectionErrorBoundary> */}
 
       {/* <SectionErrorBoundary name="CtaSection">
         <CtaSection />
