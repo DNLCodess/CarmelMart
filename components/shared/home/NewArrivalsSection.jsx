@@ -107,7 +107,7 @@ export default function NewArrivalsSection() {
                         New
                       </span>
                       {discount && (
-                        <span className="absolute top-3 right-10 text-xs font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full">
+                        <span className="absolute top-3 right-10 text-xs font-bold bg-accent text-white px-2 py-0.5 rounded-full">
                           -{discount}%
                         </span>
                       )}

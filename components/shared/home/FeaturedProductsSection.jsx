@@ -33,9 +33,9 @@ const RANK_STYLES = [
     glow: "shadow-slate-300/20",
   },
   {
-    badge: "bg-orange-400 text-white",
+    badge: "bg-accent text-white",
     label: "#3",
-    glow: "shadow-orange-400/20",
+    glow: "shadow-accent/20",
   },
 ];
 
@@ -81,7 +81,7 @@ function ProductCard({ product, rank, index }) {
       className="group relative snap-center shrink-0 w-[220px] sm:w-auto"
     >
       <Link href={`/product/${product.id}`}>
-        <div className="relative bg-white rounded-3xl overflow-hidden border border-white/10 hover:shadow-2xl hover:shadow-black/40 transition-all duration-300 hover:-translate-y-1">
+        <div className="relative bg-white rounded-3xl overflow-hidden border border-gray-200 hover:shadow-xl hover:shadow-black/10 transition-all duration-300 hover:-translate-y-1">
           {/* Rank badge */}
           {rankStyle && (
             <div
@@ -93,7 +93,7 @@ function ProductCard({ product, rank, index }) {
 
           {/* Discount badge */}
           {discount > 0 && (
-            <div className="absolute top-3 right-3 z-10 bg-rose-500 text-white text-[11px] font-black px-2 py-1 rounded-full">
+            <div className="absolute top-3 right-3 z-10 bg-accent text-white text-[11px] font-black px-2 py-1 rounded-full">
               -{discount}%
             </div>
           )}
@@ -129,7 +129,7 @@ function ProductCard({ product, rank, index }) {
                   {vendorName}
                 </span>
                 {verified && (
-                  <BadgeCheck className="w-3 h-3 text-blue-500 shrink-0" />
+                  <BadgeCheck className="w-3 h-3 text-primary shrink-0" />
                 )}
               </div>
             )}
@@ -175,13 +175,13 @@ function ProductCard({ product, rank, index }) {
 }
 
 const SkeletonCard = () => (
-  <div className="bg-white/5 rounded-3xl overflow-hidden animate-pulse shrink-0 w-[220px] sm:w-auto">
-    <div className="h-52 bg-white/10" />
+  <div className="bg-gray-200 rounded-3xl overflow-hidden animate-pulse shrink-0 w-[220px] sm:w-auto">
+    <div className="h-52 bg-gray-300" />
     <div className="p-4 space-y-2.5">
-      <div className="h-2.5 bg-white/10 rounded w-1/3" />
-      <div className="h-3.5 bg-white/10 rounded" />
-      <div className="h-3 bg-white/10 rounded w-2/3" />
-      <div className="h-5 bg-white/10 rounded w-1/2" />
+      <div className="h-2.5 bg-gray-300 rounded w-1/3" />
+      <div className="h-3.5 bg-gray-300 rounded" />
+      <div className="h-3 bg-gray-300 rounded w-2/3" />
+      <div className="h-5 bg-gray-300 rounded w-1/2" />
     </div>
   </div>
 );
@@ -198,11 +198,11 @@ export default function FeaturedProductsSection() {
   if (!isLoading && products.length === 0) return null;
 
   return (
-    <section className="py-20 bg-slate-950 relative overflow-hidden">
+    <section className="py-20 bg-gray-50 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-accent/8 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-accent/5 rounded-full blur-3xl" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -210,26 +210,26 @@ export default function FeaturedProductsSection() {
         <div className="flex items-end justify-between mb-10">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex items-center gap-1.5 bg-rose-500/15 border border-rose-500/30 px-3 py-1 rounded-full">
-                <Flame className="w-3.5 h-3.5 text-rose-400" />
-                <span className="text-xs font-bold text-rose-400 uppercase tracking-widest">
+              <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-3 py-1 rounded-full">
+                <Flame className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-bold text-primary uppercase tracking-widest">
                   Trending
                 </span>
               </div>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-white leading-tight">
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight">
               This Week&apos;s{" "}
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-yellow-400 to-orange-400">
+              <span className="text-primary">
                 Hot Picks
               </span>
             </h2>
-            <p className="text-gray-400 mt-2 text-sm sm:text-base">
+            <p className="text-gray-500 mt-2 text-sm sm:text-base">
               Ranked by sales, ratings, and customer love
             </p>
           </div>
           <Link
             href="/shop?sort=popular"
-            className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-white/70 hover:text-white transition-colors group"
+            className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors group"
           >
             See all
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -254,7 +254,7 @@ export default function FeaturedProductsSection() {
         <div className="mt-8 text-center sm:hidden">
           <Link
             href="/shop?sort=popular"
-            className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white font-semibold px-8 py-3 rounded-full border border-white/20 transition-colors text-sm"
+            className="inline-flex items-center gap-2 bg-primary text-white font-semibold px-8 py-3 rounded-full border border-primary hover:bg-primary-dark transition-colors text-sm"
           >
             See All Products <ArrowRight className="w-4 h-4" />
           </Link>

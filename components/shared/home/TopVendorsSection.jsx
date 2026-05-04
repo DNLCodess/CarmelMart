@@ -92,7 +92,7 @@ export default async function TopVendorsSection() {
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="font-bold text-gray-900 text-lg line-clamp-1">{vendor.name}</h3>
                     {vendor.verified && (
-                      <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
                         <BadgeCheck className="w-4 h-4 text-white" />
                       </div>
                     )}

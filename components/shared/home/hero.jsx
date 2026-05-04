@@ -22,7 +22,7 @@ const Button = ({
     outline:
       "border-2 border-white text-white hover:bg-white hover:text-primary backdrop-blur-sm",
     white:
-      "bg-accent text-white hover:bg-white hover:text-primary shadow-lg hover:shadow-xl backdrop-blur-sm",
+      "bg-white text-primary hover:bg-primary hover:text-white shadow-lg hover:shadow-xl backdrop-blur-sm",
   };
   const sizes = {
     lg: "px-8 py-4 text-base",
@@ -186,7 +186,7 @@ export default function HeroSection() {
     slides[Math.min(currentSlide, slides.length - 1)] ?? slides[0];
 
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
+    <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-primary-dark">
       {/* Animated Background Images */}
       <AnimatePresence mode="wait">
         <motion.div
@@ -206,16 +206,14 @@ export default function HeroSection() {
             placeholder="blur"
             blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
           />
-          {/* Multi-layer Gradient Overlay for Perfect Text Visibility */}
-          <div className="absolute inset-0 bg-linear-to-r from-slate-900/95 via-slate-900/85 to-slate-900/70" />
-          <div className="absolute inset-0 bg-linear-to-t from-slate-900 via-transparent to-transparent" />
-          <div className="absolute inset-0 bg-linear-to-b from-slate-900/40 via-transparent to-transparent" />
+          {/* Gradient overlay — left side dark for text legibility, image shows through on right */}
+          <div className="absolute inset-0 bg-linear-to-r from-primary-dark/95 via-primary-dark/80 to-primary-dark/30" />
+          <div className="absolute inset-0 bg-linear-to-t from-primary-dark/90 via-transparent to-transparent" />
         </motion.div>
       </AnimatePresence>
 
-      {/* Ambient Glow Effects */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse delay-1000" />
+      {/* Ambient Glow */}
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/25 rounded-full blur-3xl animate-pulse" />
 
       {/* Navigation Arrows */}
       <button
