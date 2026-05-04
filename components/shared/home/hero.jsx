@@ -1,38 +1,126 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BadgeCheck, Search, ShieldCheck, Store, Truck } from "lucide-react";
+import { ArrowRight, Star, ChevronLeft, ChevronRight, Tag } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-const FALLBACK_HERO = {
-  image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1920&q=80",
-  title: "Shop verified Nigerian vendors",
-  description:
-    "Find fashion, phones, home essentials, beauty products, and more from sellers checked for trust and delivery readiness.",
-  ctaLabel: "Shop now",
-  ctaHref: "/shop",
+const Button = ({
+  children,
+  variant = "primary",
+  size = "lg",
+  className = "",
+  ...props
+}) => {
+  const baseStyles =
+    "inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed";
+  const variants = {
+    primary:
+      "gradient-primary text-white hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5",
+    outline:
+      "border-2 border-white text-white hover:bg-white hover:text-primary backdrop-blur-sm",
+    white:
+      "bg-accent text-white hover:bg-white hover:text-primary shadow-lg hover:shadow-xl backdrop-blur-sm",
+  };
+  const sizes = {
+    lg: "px-8 py-4 text-base",
+  };
+
+  return (
+    <button
+      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
 };
 
-const QUICK_LINKS = [
-  { label: "Fashion", href: "/shop?category=fashion" },
-  { label: "Electronics", href: "/shop?category=electronics" },
-  { label: "Home & Living", href: "/shop?category=home-living" },
-  { label: "Beauty", href: "/shop?category=beauty" },
+const heroSlides = [
+  {
+    id: 1,
+    image:
+      "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1920&q=80",
+    badge: "Fashion Week",
+    title: "Dress to",
+    titleAccent: "Impress",
+    description:
+      "Shop the latest trends in fashion — African prints, sneakers, bags and more from verified Nigerian vendors.",
+    ctaLabel: "Shop Fashion",
+    ctaHref: "/shop?category=fashion",
+    stats: { vendors: "Verified", products: "Authentic", satisfaction: "100%" },
+    statLabels: {
+      vendors: "Vendors Only",
+      products: "Products",
+      satisfaction: "Buyer Protection",
+    },
+  },
+  {
+    id: 2,
+    image:
+      "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1920&q=80",
+    badge: "Electronics Sale",
+    title: "Up to 40% Off",
+    titleAccent: "Phones & Laptops",
+    description:
+      "Latest smartphones, laptops, earbuds and gadgets — all genuine, all delivered nationwide.",
+    ctaLabel: "Shop Electronics",
+    ctaHref: "/shop?category=electronics",
+    stats: { vendors: "KYC", products: "7-Day", satisfaction: "Secure" },
+    statLabels: {
+      vendors: "Verified Sellers",
+      products: "Easy Returns",
+      satisfaction: "Checkout",
+    },
+  },
+  {
+    id: 3,
+    image:
+      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1920&q=80",
+    badge: "Home & Living",
+    title: "Make Your Space",
+    titleAccent: "Feel Like Home",
+    description:
+      "Furniture, kitchen essentials, bedding and decor — find everything to build your dream home.",
+    ctaLabel: "Shop Home & Living",
+    ctaHref: "/shop?category=home-living",
+    stats: { vendors: "Fast", products: "Nationwide", satisfaction: "Safe" },
+    statLabels: {
+      vendors: "Delivery",
+      products: "Shipping",
+      satisfaction: "Payments",
+    },
+  },
 ];
 
-const TRUST_POINTS = [
-  { icon: BadgeCheck, label: "Verified sellers" },
-  { icon: ShieldCheck, label: "Buyer protection" },
-  { icon: Truck, label: "Nationwide delivery" },
+const featuredProducts = [
+  {
+    id: 1,
+    name: "Premium Wireless Headphones",
+    price: 45000,
+    rating: 4.8,
+    badge: "Bestseller",
+    image:
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80",
+  },
+  {
+    id: 2,
+    name: "Designer Leather Bag",
+    price: 35000,
+    rating: 4.9,
+    badge: "New",
+    image:
+      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
+  },
 ];
 
 export default function HeroSection() {
-  const router = useRouter();
-  const [query, setQuery] = useState("");
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
+  // Fetch DB banners — fall back to static slides if empty/unavailable
   const { data: bannerData } = useQuery({
     queryKey: ["hero-banners"],
     queryFn: () => fetch("/api/banners").then((r) => r.json()),
@@ -40,118 +128,334 @@ export default function HeroSection() {
     retry: false,
   });
 
-  const hero = useMemo(() => {
-    const banner = bannerData?.banners?.[0];
-    if (!banner) return FALLBACK_HERO;
-    return {
-      image: banner.image_url || FALLBACK_HERO.image,
-      title: banner.title || FALLBACK_HERO.title,
-      description: banner.description || banner.subtitle || FALLBACK_HERO.description,
-      ctaLabel: banner.cta_label || FALLBACK_HERO.ctaLabel,
-      ctaHref: banner.cta_href || FALLBACK_HERO.ctaHref,
-    };
+  const slides = useMemo(() => {
+    const db = bannerData?.banners ?? [];
+    if (db.length > 0) {
+      return db.map((b) => ({
+        id: b.id,
+        image: b.image_url,
+        badge: b.badge_text || "Featured",
+        title: b.title,
+        titleAccent: b.subtitle || "",
+        description: b.description || "",
+        ctaLabel: b.cta_label || "Shop Now",
+        ctaHref: b.cta_href || "/shop",
+        stats: {
+          vendors: "Verified",
+          products: "Authentic",
+          satisfaction: "100%",
+        },
+        statLabels: {
+          vendors: "Vendors Only",
+          products: "Products",
+          satisfaction: "Buyer Protection",
+        },
+      }));
+    }
+    return heroSlides.map((s) => ({
+      ...s,
+      ctaLabel: s.ctaLabel ?? "Shop Now",
+      ctaHref: s.ctaHref ?? "/shop",
+    }));
   }, [bannerData]);
 
-  const handleSearch = (event) => {
-    event.preventDefault();
-    const q = query.trim();
-    router.push(q ? `/shop?q=${encodeURIComponent(q)}` : "/shop");
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, slides.length]);
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index);
+    setIsAutoPlaying(false);
   };
 
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+    setIsAutoPlaying(false);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+    setIsAutoPlaying(false);
+  };
+
+  const currentHero =
+    slides[Math.min(currentSlide, slides.length - 1)] ?? slides[0];
+
   return (
-    <section className="relative overflow-hidden bg-white">
-      <div className="absolute inset-x-0 top-0 h-24 bg-gray-50" />
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
-        <div className="grid lg:grid-cols-[1.02fr_0.98fr] gap-8 lg:gap-12 items-center">
-          <div className="py-6 lg:py-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3.5 py-2 text-sm font-semibold text-primary mb-5">
-              <Store className="w-4 h-4" />
-              CarmelMart marketplace
-            </div>
+    <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Animated Background Images */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentSlide}
+          initial={{ opacity: 0, scale: 1.1 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.7 }}
+          className="absolute inset-0 z-0"
+        >
+          <Image
+            src={currentHero.image}
+            alt={`${currentHero.title} ${currentHero.titleAccent}`}
+            fill
+            className="object-cover"
+            priority={currentSlide === 0}
+            placeholder="blur"
+            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
+          />
+          {/* Multi-layer Gradient Overlay for Perfect Text Visibility */}
+          <div className="absolute inset-0 bg-linear-to-r from-slate-900/95 via-slate-900/85 to-slate-900/70" />
+          <div className="absolute inset-0 bg-linear-to-t from-slate-900 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-b from-slate-900/40 via-transparent to-transparent" />
+        </motion.div>
+      </AnimatePresence>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-normal text-gray-950 leading-tight max-w-3xl">
-              {hero.title}
-            </h1>
-            <p className="mt-5 text-base sm:text-lg text-gray-600 leading-relaxed max-w-2xl">
-              {hero.description}
-            </p>
+      {/* Ambient Glow Effects */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse delay-1000" />
 
-            <form
-              onSubmit={handleSearch}
-              className="mt-7 flex flex-col sm:flex-row gap-3 max-w-2xl"
+      {/* Navigation Arrows */}
+      <button
+        onClick={prevSlide}
+        className="hidden md:flex absolute left-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
+        aria-label="Previous slide"
+      >
+        <ChevronLeft className="w-6 h-6" />
+      </button>
+      <button
+        onClick={nextSlide}
+        className="hidden md:flex absolute right-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
+        aria-label="Next slide"
+      >
+        <ChevronRight className="w-6 h-6" />
+      </button>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left Content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentSlide}
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 30 }}
+              transition={{ duration: 0.6 }}
+              className="max-w-2xl"
             >
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  type="search"
-                  placeholder="Search products, brands, or vendors"
-                  className="w-full h-13 rounded-xl border border-gray-200 bg-white pl-12 pr-4 text-sm text-gray-900 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                />
-              </div>
-              <button
-                type="submit"
-                className="h-13 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-white hover:bg-primary-dark transition-colors"
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full mb-8 border border-white/20"
               >
-                Search
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
+                <Tag className="w-4 h-4 text-accent" />
+                <span className="text-sm font-semibold text-white">
+                  {currentHero.badge}
+                </span>
+                <span className="text-xs text-white/60">
+                  • Nigeria&apos;s Verified Marketplace
+                </span>
+              </motion.div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {QUICK_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-full border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:border-primary hover:text-primary transition-colors"
-                >
-                  {link.label}
+              {/* Heading */}
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6">
+                {currentHero.title}
+                <br />
+                <span className="gradient-text-hero">
+                  {currentHero.titleAccent}
+                </span>
+              </h1>
+
+              {/* Description */}
+              <p className="text-lg sm:text-xl text-gray-300 mb-10 leading-relaxed max-w-xl">
+                {currentHero.description}
+              </p>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col items-center sm:flex-row gap-4 mb-16">
+                <Link href={currentHero.ctaHref} className="w-[75%] sm:w-auto">
+                  <Button variant="primary" size="lg" className="w-full">
+                    {currentHero.ctaLabel}
+                    <ArrowRight className="w-5 h-5" />
+                  </Button>
                 </Link>
-              ))}
-            </div>
+                <Link href="/register" className="w-[75%] sm:w-auto">
+                  <Button variant="white" size="lg" className="w-full">
+                    Start Selling
+                  </Button>
+                </Link>
+              </div>
 
-            <div className="mt-8 grid sm:grid-cols-3 gap-3 max-w-2xl">
-              {TRUST_POINTS.map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2.5 text-sm font-semibold text-gray-700">
-                  <span className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center">
-                    <Icon className="w-4.5 h-4.5 text-primary" />
-                  </span>
-                  {label}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative min-h-[340px] lg:min-h-[520px]">
-            <div className="relative h-[340px] sm:h-[420px] lg:h-[520px] overflow-hidden rounded-2xl bg-gray-100 border border-gray-100">
-              <Image
-                src={hero.image}
-                alt={hero.title}
-                fill
-                priority
-                className="object-cover"
-                sizes="(max-width:1024px) 100vw, 50vw"
-              />
-              <div className="absolute inset-0 bg-linear-to-t from-black/45 via-black/5 to-transparent" />
-              <div className="absolute left-5 right-5 bottom-5 rounded-xl bg-white/94 p-4 shadow-xl backdrop-blur">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase text-gray-500">Ready to shop</p>
-                    <p className="mt-1 font-bold text-gray-950">Thousands of products from checked sellers</p>
+              {/* Trust Indicators with Glass Effect */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-6 p-4 sm:p-6 bg-primary/10 backdrop-blur-xl rounded-2xl border border-white/10">
+                <div>
+                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
+                    {currentHero.stats.vendors}
                   </div>
-                  <Link
-                    href={hero.ctaHref}
-                    className="shrink-0 rounded-lg bg-gray-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-primary transition-colors"
-                  >
-                    {hero.ctaLabel}
-                  </Link>
+                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
+                    {currentHero.statLabels?.vendors ?? "Verified Vendors"}
+                  </div>
+                </div>
+                <div className="border-x border-white/10 px-2 sm:px-0">
+                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
+                    {currentHero.stats.products}
+                  </div>
+                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
+                    {currentHero.statLabels?.products ?? "Products"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
+                    {currentHero.stats.satisfaction}
+                  </div>
+                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
+                    {currentHero.statLabels?.satisfaction ?? "Satisfaction"}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Right - Featured Products Showcase */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="hidden lg:block relative h-[600px]"
+          >
+            {/* Main Product Card */}
+            <Link
+              href="/shop"
+              className="animate-float absolute top-0 right-0 w-80 h-96 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm border border-white/10 transform rotate-3 hover:rotate-0 transition-transform duration-500 group"
+            >
+              <Image
+                src={featuredProducts[0].image}
+                alt={featuredProducts[0].name}
+                fill
+                className="object-cover group-hover:scale-110 transition-transform duration-700"
+                placeholder="blur"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
+              />
+              <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                <div className="inline-block gradient-accent px-3 py-1 rounded-full text-xs font-semibold mb-3 text-white">
+                  {featuredProducts[0].badge}
+                </div>
+                <h3 className="text-xl font-bold mb-2">
+                  {featuredProducts[0].name}
+                </h3>
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-bold">
+                    ₦{featuredProducts[0].price.toLocaleString()}
+                  </span>
+                  <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-sm font-semibold">
+                      {featuredProducts[0].rating}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            {/* Secondary Product Card */}
+            <Link
+              href="/shop"
+              className="animate-float-reverse absolute bottom-0 left-0 w-64 h-80 rounded-3xl overflow-hidden shadow-xl backdrop-blur-sm border border-white/10 transform -rotate-6 hover:rotate-0 transition-transform duration-500 group"
+            >
+              <Image
+                src={featuredProducts[1].image}
+                alt={featuredProducts[1].name}
+                fill
+                className="object-cover group-hover:scale-110 transition-transform duration-700"
+                placeholder="blur"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
+              />
+              <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                <div className="inline-block gradient-primary px-3 py-1 rounded-full text-xs font-semibold mb-2 text-white">
+                  {featuredProducts[1].badge}
+                </div>
+                <h3 className="text-lg font-bold mb-2 line-clamp-2">
+                  {featuredProducts[1].name}
+                </h3>
+                <span className="text-xl font-bold">
+                  ₦{featuredProducts[1].price.toLocaleString()}
+                </span>
+              </div>
+            </Link>
+
+            {/* Floating Stats Card */}
+            <div className="animate-float-sm absolute top-1/2 left-0 bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-52 border border-white/20">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full gradient-accent flex items-center justify-center shadow-lg">
+                  <span className="text-2xl text-white">✓</span>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-white">100%</div>
+                  <div className="text-xs text-gray-400">Buyer Protection</div>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
+
+      {/* Slide Indicators */}
+      <div
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3"
+        role="tablist"
+        aria-label="Hero slides"
+      >
+        {slides.map((_, index) => (
+          <button
+            key={index}
+            role="tab"
+            onClick={() => goToSlide(index)}
+            aria-selected={index === currentSlide}
+            aria-current={index === currentSlide ? "true" : undefined}
+            aria-label={`Go to slide ${index + 1}`}
+            className="group relative focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-full"
+          >
+            <div
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                index === currentSlide
+                  ? "w-12 bg-white"
+                  : "w-8 bg-white/40 hover:bg-white/60"
+              }`}
+            />
+          </button>
+        ))}
+      </div>
+
+      <style jsx>{`
+        @keyframes gradient {
+          0%,
+          100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+        .gradient-text-hero {
+          background: linear-gradient(
+            to right,
+            var(--color-accent),
+            var(--color-accent-light),
+            var(--color-primary-light)
+          );
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-size: 200% 200%;
+          animation: gradient 3s ease infinite;
+        }
+      `}</style>
     </section>
   );
 }

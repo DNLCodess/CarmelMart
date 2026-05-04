@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Package, RefreshCw, CheckCircle, XCircle, Flag, Image as ImageIcon, Star } from "lucide-react";
+import { Search, Package, RefreshCw, CheckCircle, XCircle, Flag, Image as ImageIcon, Star, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -66,6 +67,46 @@ function ReasonModal({ open, title, onConfirm, onCancel }) {
   );
 }
 
+function DeleteProductConfirm({ product, onConfirm, onCancel, saving }) {
+  if (!product) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center shrink-0 mt-0.5">
+            <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">Delete Product</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              Permanently delete <strong className="text-gray-700 dark:text-gray-200">{product.name}</strong>? This cannot be undone.
+            </p>
+          </div>
+        </div>
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-sm text-amber-700 dark:text-amber-300">
+          All associated reviews and order history referencing this product will lose their product link.
+        </div>
+        <div className="flex justify-end gap-3 pt-1">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={saving}
+            className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-xl transition-colors flex items-center gap-2"
+          >
+            {saving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+            Delete Product
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const MOD_TABS = [
   { value: "",         label: "All"      },
   { value: "pending",  label: "Pending"  },
@@ -77,10 +118,12 @@ const MOD_TABS = [
 
 export default function AdminProductsPage() {
   const qc = useQueryClient();
+  const urlParams = useSearchParams();
   const [modFilter, setModFilter] = useState("pending");
-  const [search, setSearch]       = useState("");
+  const [search, setSearch]       = useState(urlParams.get("search") ?? "");
   const [page, setPage]           = useState(1);
   const [modal, setModal]         = useState(null); // { id, action, title }
+  const [delProduct, setDelProduct] = useState(null); // { id, name }
 
   const params = new URLSearchParams({ page });
   if (modFilter === "featured") params.set("featured", "true");
@@ -101,6 +144,22 @@ export default function AdminProductsPage() {
       toast.success(`Product ${labels[action] ?? action}`);
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const r = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Delete failed");
+      return d;
+    },
+    onSuccess: () => {
+      toast.success("Product deleted");
+      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      setDelProduct(null);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -127,6 +186,12 @@ export default function AdminProductsPage() {
           setModal(null);
         }}
         onCancel={() => setModal(null)}
+      />
+      <DeleteProductConfirm
+        product={delProduct}
+        saving={deleteMutation.isPending}
+        onCancel={() => setDelProduct(null)}
+        onConfirm={() => deleteMutation.mutate(delProduct.id)}
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -280,6 +345,13 @@ export default function AdminProductsPage() {
                             <Flag className="w-4 h-4" />
                           </button>
                         )}
+                        <button
+                          onClick={() => setDelProduct({ id: p.id, name: p.name })}
+                          title="Delete product"
+                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>

@@ -44,20 +44,32 @@ export async function DELETE(request, { params }) {
     if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get("force") === "true";
 
-    // Check if any products are using this category
     const { count } = await ctx.admin
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("category_id", id);
 
-    if (count > 0)
-      return NextResponse.json({ error: `Cannot delete — ${count} product(s) use this category` }, { status: 409 });
+    if (count > 0 && !force)
+      return NextResponse.json(
+        { error: `Cannot delete — ${count} product(s) use this category`, productCount: count },
+        { status: 409 },
+      );
+
+    if (force && count > 0) {
+      const { error: delProductsErr } = await ctx.admin
+        .from("products")
+        .delete()
+        .eq("category_id", id);
+      if (delProductsErr) throw delProductsErr;
+    }
 
     const { error } = await ctx.admin.from("categories").delete().eq("id", id);
     if (error) throw error;
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deletedProducts: force ? (count ?? 0) : 0 });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

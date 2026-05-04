@@ -16,8 +16,9 @@ export async function GET(request) {
     const modStatus     = searchParams.get("moderation_status") || null;
     const featuredOnly  = searchParams.get("featured") === "true";
     const search        = searchParams.get("search") || null;
+    const categoryId    = searchParams.get("category_id") || null;
     const page          = Math.max(1, Number(searchParams.get("page") || 1));
-    const limit     = 25;
+    const limit         = Math.min(100, Math.max(1, Number(searchParams.get("limit") || 25)));
 
     let query = admin
       .from("products")
@@ -32,6 +33,7 @@ export async function GET(request) {
     if (featuredOnly)   query = query.eq("featured", true);
     else if (modStatus) query = query.eq("moderation_status", modStatus);
     if (search)         query = query.ilike("name", `%${search}%`);
+    if (categoryId)     query = query.eq("category_id", categoryId);
 
     const { data, error: qErr, count } = await query;
     if (qErr) throw qErr;

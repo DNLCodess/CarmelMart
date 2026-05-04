@@ -75,3 +75,24 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request, { params }) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const admin = createAdminClient();
+    const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
+    if (!profile || profile.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { id } = await params;
+
+    const { error: delErr } = await admin.from("products").delete().eq("id", id);
+    if (delErr) throw delErr;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
