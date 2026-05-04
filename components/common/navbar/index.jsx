@@ -6,81 +6,115 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, ShoppingCart, User, Heart, Menu,
-  Package, Settings, TrendingUp, ChevronDown, Download,
+  Search,
+  ShoppingCart,
+  User,
+  Heart,
+  Menu,
+  Package,
+  Settings,
+  TrendingUp,
+  ChevronDown,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
-import { useAuth }        from "@/lib/auth-context";
-import { useCartStore }   from "@/store/cartStore";
-import { useUIStore }     from "@/store/uiStore";
-import { logoutAction }   from "@/app/actions/auth";
+import { useAuth } from "@/lib/auth-context";
+import { useCartStore } from "@/store/cartStore";
+import { useUIStore } from "@/store/uiStore";
+import { logoutAction } from "@/app/actions/auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { usePWAInstall }  from "@/lib/pwa-install-context";
+import { usePWAInstall } from "@/lib/pwa-install-context";
 
 import { PROMO_MESSAGES, SEARCH_SUGGESTIONS } from "./navbar.data";
-import PromoStrip        from "./PromoStrip";
+import PromoStrip from "./PromoStrip";
 import SearchBar, { SuggestionsDropdown } from "./SearchBar";
-import CategoryBar       from "./CategoryBar";
-import CartPreview       from "./CartPreview";
-import AccountDropdown   from "./AccountDropdown";
-import MobileDrawer      from "./MobileDrawer";
+import CategoryBar from "./CategoryBar";
+import CartPreview from "./CartPreview";
+import AccountDropdown from "./AccountDropdown";
+import MobileDrawer from "./MobileDrawer";
 
 export default function Navbar() {
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [isScrolled,          setIsScrolled]          = useState(false);
-  const [promoIndex,          setPromoIndex]          = useState(0);
-  const [promoVisible,        setPromoVisible]        = useState(true);
-  const [isMobileMenuOpen,    setIsMobileMenuOpen]    = useState(false);
-  const [searchQuery,         setSearchQuery]         = useState("");
-  const [debouncedQuery,      setDebouncedQuery]      = useState("");
-  const [searchCategory,      setSearchCategory]      = useState("All Categories");
-  const [showSuggestions,     setShowSuggestions]     = useState(false);
-  const [activeIndex,         setActiveIndex]         = useState(-1);
-  const [showCartPreview,     setShowCartPreview]     = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [promoIndex, setPromoIndex] = useState(0);
+  const [promoVisible, setPromoVisible] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [searchCategory, setSearchCategory] = useState("All Categories");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [showCartPreview, setShowCartPreview] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
-  const [activeCategory,      setActiveCategory]      = useState("All Departments");
-  const [showLocationPicker,  setShowLocationPicker]  = useState(false);
+  const [activeCategory, setActiveCategory] = useState("All Departments");
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
-  const cartHoverTimer    = useRef(null);
+  const cartHoverTimer = useRef(null);
   const accountHoverTimer = useRef(null);
 
   // ── Stores / auth ─────────────────────────────────────────────────────────
-  const router      = useRouter();
-  const pathname    = usePathname();
+  const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
 
-  const { user, role, isAuthenticated, isLoading, isVendor, isCustomer, isAdmin } = useAuth();
-  const { canInstall, isIOS, triggerInstall }  = usePWAInstall() ?? {};
+  const {
+    user,
+    role,
+    isAuthenticated,
+    isLoading,
+    isVendor,
+    isCustomer,
+    isAdmin,
+  } = useAuth();
+  const { canInstall, isIOS, triggerInstall } = usePWAInstall() ?? {};
 
-  const cartItems  = useCartStore((s) => s.items);
-  const cartCount  = cartItems.reduce((sum, i) => sum + i.quantity, 0);
-  const cartTotal  = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const cartItems = useCartStore((s) => s.items);
+  const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const cartTotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  const wishlistCount       = useUIStore((s) => s.wishlist.length);
-  const deliveryLocation    = useUIStore((s) => s.deliveryLocation);
+  const wishlistCount = useUIStore((s) => s.wishlist.length);
+  const deliveryLocation = useUIStore((s) => s.deliveryLocation);
   const setDeliveryLocation = useUIStore((s) => s.setDeliveryLocation);
-  const recentSearches      = useUIStore((s) => s.recentSearches);
-  const addRecentSearch     = useUIStore((s) => s.addRecentSearch);
+  const recentSearches = useUIStore((s) => s.recentSearches);
+  const addRecentSearch = useUIStore((s) => s.addRecentSearch);
   const clearRecentSearches = useUIStore((s) => s.clearRecentSearches);
 
   // ── Derived display values ────────────────────────────────────────────────
-  const firstName   = user?.first_name ?? user?.email?.split("@")[0] ?? "Guest";
+  const firstName = user?.first_name ?? user?.email?.split("@")[0] ?? "Guest";
   const displayName = user?.first_name
     ? `${user.first_name} ${user.last_name ?? ""}`.trim()
-    : user?.email?.split("@")[0] ?? "Account";
-  const displayRole = role ? role.charAt(0).toUpperCase() + role.slice(1) : "Customer";
-  const initials    = displayName.slice(0, 2).toUpperCase();
+    : (user?.email?.split("@")[0] ?? "Account");
+  const displayRole = role
+    ? role.charAt(0).toUpperCase() + role.slice(1)
+    : "Customer";
+  const initials = displayName.slice(0, 2).toUpperCase();
 
-  const accountLinks = isAuthenticated ? [
-    ...(isCustomer ? [{ label: "My Account",       href: "/my-account",       icon: User       }] : []),
-    ...(isVendor   ? [{ label: "Vendor Dashboard", href: "/vendor/dashboard", icon: TrendingUp }] : []),
-    ...(isAdmin    ? [{ label: "Admin Panel",       href: "/admin/dashboard",  icon: Settings   }] : []),
-    ...(isAdmin    ? [] : [{ label: "My Orders",    href: "/orders",           icon: Package    }]),
-    { label: "Settings", href: "/settings", icon: Settings },
-  ] : [];
+  const accountLinks = isAuthenticated
+    ? [
+        ...(isCustomer
+          ? [{ label: "My Account", href: "/my-account", icon: User }]
+          : []),
+        ...(isVendor
+          ? [
+              {
+                label: "Vendor Dashboard",
+                href: "/vendor/dashboard",
+                icon: TrendingUp,
+              },
+            ]
+          : []),
+        ...(isAdmin
+          ? [{ label: "Admin Panel", href: "/admin/dashboard", icon: Settings }]
+          : []),
+        ...(isAdmin
+          ? []
+          : [{ label: "My Orders", href: "/orders", icon: Package }]),
+        { label: "Settings", href: "/settings", icon: Settings },
+      ]
+    : [];
 
   // ── Search autocomplete ───────────────────────────────────────────────────
   useEffect(() => {
@@ -88,14 +122,22 @@ export default function Navbar() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  useEffect(() => { setActiveIndex(-1); }, [searchQuery]);
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [searchQuery]);
 
   const { data: liveData, isFetching: liveLoading } = useQuery({
     queryKey: ["search-autocomplete", debouncedQuery, searchCategory],
     queryFn: async () => {
-      const params = new URLSearchParams({ search: debouncedQuery, per_page: "7" });
+      const params = new URLSearchParams({
+        search: debouncedQuery,
+        per_page: "7",
+      });
       if (searchCategory !== "All Categories")
-        params.set("category", searchCategory.toLowerCase().replace(/\s+/g, "-"));
+        params.set(
+          "category",
+          searchCategory.toLowerCase().replace(/\s+/g, "-"),
+        );
       const r = await fetch(`/api/products?${params}`);
       return r.json();
     },
@@ -107,72 +149,104 @@ export default function Navbar() {
   const liveResults = liveData?.products ?? [];
 
   const navItems = (() => {
-    if (debouncedQuery.length >= 2) return liveResults.map((p) => ({ type: "product", data: p }));
-    if (recentSearches.length > 0)  return recentSearches.map((s) => ({ type: "recent",   data: s }));
-    return SEARCH_SUGGESTIONS.slice(0, 5).map((s) => ({ type: "trending", data: s }));
+    if (debouncedQuery.length >= 2)
+      return liveResults.map((p) => ({ type: "product", data: p }));
+    if (recentSearches.length > 0)
+      return recentSearches.map((s) => ({ type: "recent", data: s }));
+    return SEARCH_SUGGESTIONS.slice(0, 5).map((s) => ({
+      type: "trending",
+      data: s,
+    }));
   })();
 
-  const filteredSuggestions = searchQuery.length >= 2
-    ? SEARCH_SUGGESTIONS.filter((s) => s.label.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 3)
-    : SEARCH_SUGGESTIONS.slice(0, 5);
+  const filteredSuggestions =
+    searchQuery.length >= 2
+      ? SEARCH_SUGGESTIONS.filter((s) =>
+          s.label.toLowerCase().includes(searchQuery.toLowerCase()),
+        ).slice(0, 3)
+      : SEARCH_SUGGESTIONS.slice(0, 5);
 
   // ── Search callbacks ──────────────────────────────────────────────────────
-  const handleSearchSubmit = useCallback((e) => {
-    e.preventDefault();
-    const q = searchQuery.trim();
-    if (q) addRecentSearch(q);
-    setShowSuggestions(false);
-    setActiveIndex(-1);
-    setIsMobileMenuOpen(false);
-    const catParam = searchCategory !== "All Categories"
-      ? `&category=${encodeURIComponent(searchCategory.toLowerCase())}`
-      : "";
-    router.push(q ? `/shop?q=${encodeURIComponent(q)}${catParam}` : "/shop");
-  }, [router, searchQuery, searchCategory, addRecentSearch]);
-
-  const handleSuggestionClick = useCallback((label) => {
-    addRecentSearch(label);
-    setSearchQuery(label);
-    setShowSuggestions(false);
-    setActiveIndex(-1);
-    setIsMobileMenuOpen(false);
-    router.push(`/shop?q=${encodeURIComponent(label)}`);
-  }, [router, addRecentSearch]);
-
-  const handleProductClick = useCallback((product) => {
-    addRecentSearch(product.name);
-    setShowSuggestions(false);
-    setActiveIndex(-1);
-    router.push(`/product/${product.id}`);
-  }, [router, addRecentSearch]);
-
-  const handleSubmitAll = useCallback((query) => {
-    addRecentSearch(query);
-    setShowSuggestions(false);
-    router.push(`/shop?q=${encodeURIComponent(query)}`);
-  }, [router, addRecentSearch]);
-
-  const handleSearchKeyDown = useCallback((e) => {
-    if (!showSuggestions || navItems.length === 0) return;
-    if (e.key === "ArrowDown") {
+  const handleSearchSubmit = useCallback(
+    (e) => {
       e.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, navItems.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex((i) => Math.max(i - 1, -1));
-    } else if (e.key === "Escape") {
+      const q = searchQuery.trim();
+      if (q) addRecentSearch(q);
       setShowSuggestions(false);
       setActiveIndex(-1);
-    } else if (e.key === "Enter" && activeIndex >= 0) {
-      e.preventDefault();
-      const item = navItems[activeIndex];
-      if (item.type === "product") {
-        handleProductClick(item.data);
-      } else {
-        handleSuggestionClick(item.type === "recent" ? item.data : item.data.label);
+      setIsMobileMenuOpen(false);
+      const catParam =
+        searchCategory !== "All Categories"
+          ? `&category=${encodeURIComponent(searchCategory.toLowerCase())}`
+          : "";
+      router.push(q ? `/shop?q=${encodeURIComponent(q)}${catParam}` : "/shop");
+    },
+    [router, searchQuery, searchCategory, addRecentSearch],
+  );
+
+  const handleSuggestionClick = useCallback(
+    (label) => {
+      addRecentSearch(label);
+      setSearchQuery(label);
+      setShowSuggestions(false);
+      setActiveIndex(-1);
+      setIsMobileMenuOpen(false);
+      router.push(`/shop?q=${encodeURIComponent(label)}`);
+    },
+    [router, addRecentSearch],
+  );
+
+  const handleProductClick = useCallback(
+    (product) => {
+      addRecentSearch(product.name);
+      setShowSuggestions(false);
+      setActiveIndex(-1);
+      router.push(`/product/${product.id}`);
+    },
+    [router, addRecentSearch],
+  );
+
+  const handleSubmitAll = useCallback(
+    (query) => {
+      addRecentSearch(query);
+      setShowSuggestions(false);
+      router.push(`/shop?q=${encodeURIComponent(query)}`);
+    },
+    [router, addRecentSearch],
+  );
+
+  const handleSearchKeyDown = useCallback(
+    (e) => {
+      if (!showSuggestions || navItems.length === 0) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIndex((i) => Math.min(i + 1, navItems.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIndex((i) => Math.max(i - 1, -1));
+      } else if (e.key === "Escape") {
+        setShowSuggestions(false);
+        setActiveIndex(-1);
+      } else if (e.key === "Enter" && activeIndex >= 0) {
+        e.preventDefault();
+        const item = navItems[activeIndex];
+        if (item.type === "product") {
+          handleProductClick(item.data);
+        } else {
+          handleSuggestionClick(
+            item.type === "recent" ? item.data : item.data.label,
+          );
+        }
       }
-    }
-  }, [showSuggestions, navItems, activeIndex, handleProductClick, handleSuggestionClick]);
+    },
+    [
+      showSuggestions,
+      navItems,
+      activeIndex,
+      handleProductClick,
+      handleSuggestionClick,
+    ],
+  );
 
   // ── Auth callbacks ────────────────────────────────────────────────────────
   const handleSignOut = useCallback(async () => {
@@ -183,10 +257,23 @@ export default function Navbar() {
   }, [queryClient]);
 
   // ── Cart / account hover ──────────────────────────────────────────────────
-  const handleCartEnter    = () => { clearTimeout(cartHoverTimer.current);    setShowCartPreview(true);     };
-  const handleCartLeave    = () => { cartHoverTimer.current    = setTimeout(() => setShowCartPreview(false),    180); };
-  const handleAccountEnter = () => { clearTimeout(accountHoverTimer.current); setShowAccountDropdown(true); };
-  const handleAccountLeave = () => { accountHoverTimer.current = setTimeout(() => setShowAccountDropdown(false), 180); };
+  const handleCartEnter = () => {
+    clearTimeout(cartHoverTimer.current);
+    setShowCartPreview(true);
+  };
+  const handleCartLeave = () => {
+    cartHoverTimer.current = setTimeout(() => setShowCartPreview(false), 180);
+  };
+  const handleAccountEnter = () => {
+    clearTimeout(accountHoverTimer.current);
+    setShowAccountDropdown(true);
+  };
+  const handleAccountLeave = () => {
+    accountHoverTimer.current = setTimeout(
+      () => setShowAccountDropdown(false),
+      180,
+    );
+  };
 
   // ── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -197,30 +284,46 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!promoVisible) return;
-    const t = setInterval(() => setPromoIndex((i) => (i + 1) % PROMO_MESSAGES.length), 4000);
+    const t = setInterval(
+      () => setPromoIndex((i) => (i + 1) % PROMO_MESSAGES.length),
+      4000,
+    );
     return () => clearInterval(t);
   }, [promoVisible]);
 
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? "hidden" : "";
-    const onKey = (e) => { if (e.key === "Escape") setIsMobileMenuOpen(false); };
+    const onKey = (e) => {
+      if (e.key === "Escape") setIsMobileMenuOpen(false);
+    };
     if (isMobileMenuOpen) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isMobileMenuOpen]);
 
-  useEffect(() => () => {
-    clearTimeout(cartHoverTimer.current);
-    clearTimeout(accountHoverTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      clearTimeout(cartHoverTimer.current);
+      clearTimeout(accountHoverTimer.current);
+    },
+    [],
+  );
 
   // ── Shared search props ───────────────────────────────────────────────────
   const searchProps = {
-    searchQuery, setSearchQuery,
-    searchCategory, setSearchCategory,
-    showSuggestions, setShowSuggestions,
-    activeIndex, setActiveIndex,
-    debouncedQuery, liveResults, liveLoading, filteredSuggestions,
-    recentSearches, clearRecentSearches,
+    searchQuery,
+    setSearchQuery,
+    searchCategory,
+    setSearchCategory,
+    showSuggestions,
+    setShowSuggestions,
+    activeIndex,
+    setActiveIndex,
+    debouncedQuery,
+    liveResults,
+    liveLoading,
+    filteredSuggestions,
+    recentSearches,
+    clearRecentSearches,
     onSubmit: handleSearchSubmit,
     onSuggestionClick: handleSuggestionClick,
     onProductClick: handleProductClick,
@@ -254,11 +357,16 @@ export default function Navbar() {
         {/* ── Main bar ── */}
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8">
           <div className="flex items-center justify-between sm:justify-start gap-3 lg:gap-5 h-14 sm:h-[70px]">
-
             {/* Logo */}
             <Link href="/" className="shrink-0">
               <div className="relative w-32 lg:w-36 h-9 sm:h-10">
-                <Image src="/logo-black.png" alt="CarmelMart" fill className="object-contain" priority />
+                <Image
+                  src="/logo-black.png"
+                  alt="CarmelMart"
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
             </Link>
 
@@ -273,7 +381,6 @@ export default function Navbar() {
 
             {/* Right actions */}
             <div className="flex items-center gap-1 shrink-0">
-
               {/* Wishlist */}
               <Link
                 href="/wishlist"
@@ -288,7 +395,9 @@ export default function Navbar() {
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-medium text-gray-600 hidden lg:block">Wishlist</span>
+                <span className="text-[10px] font-medium text-gray-600 hidden lg:block">
+                  Wishlist
+                </span>
               </Link>
 
               {/* Account */}
@@ -314,9 +423,10 @@ export default function Navbar() {
                     ) : (
                       <User className="w-6 h-6 text-gray-700 shrink-0" />
                     )}
-                    <div className="hidden lg:flex flex-col items-start leading-tight">
+                    <div className="hidden lg:flex flex-col items-start leading-tight gap-1.5">
                       <span className="text-[10px] text-gray-400 font-medium">
-                        Hello, {isAuthenticated ? firstName.split(" ")[0] : "sign in"}
+                        Hello,{" "}
+                        {isAuthenticated ? firstName.split(" ")[0] : "sign in"}
                       </span>
                       <span className="flex items-center gap-0.5 text-[13px] font-bold text-gray-900">
                         Account &amp; Lists
@@ -350,14 +460,18 @@ export default function Navbar() {
                 className="hidden lg:flex flex-col items-start gap-0.5 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors"
                 aria-label="Returns and Orders"
               >
-                <span className="text-[10px] text-gray-400 font-medium leading-none">Returns</span>
-                <span className="text-[13px] font-bold text-gray-900">&amp; Orders</span>
+                <span className="text-[10px] text-gray-400 font-medium leading-none">
+                  Returns
+                </span>
+                <span className="text-[13px] font-bold text-gray-900">
+                  &amp; Orders
+                </span>
               </Link>
 
               {/* Get App — shown when PWA is installable */}
               {canInstall && (
                 <button
-                  onClick={() => isIOS ? null : triggerInstall?.()}
+                  onClick={() => (isIOS ? null : triggerInstall?.())}
                   className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-primary text-primary text-[12px] font-bold hover:bg-primary hover:text-white transition-colors shrink-0"
                   aria-label="Install CarmelMart app"
                 >
@@ -367,7 +481,11 @@ export default function Navbar() {
               )}
 
               {/* Cart */}
-              <div className="relative" onMouseEnter={handleCartEnter} onMouseLeave={handleCartLeave}>
+              <div
+                className="relative"
+                onMouseEnter={handleCartEnter}
+                onMouseLeave={handleCartLeave}
+              >
                 <Link
                   href="/cart"
                   className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
@@ -388,11 +506,15 @@ export default function Navbar() {
                   </div>
                   <div className="hidden lg:flex flex-col items-start leading-tight">
                     {cartCount > 0 ? (
-                      <span className="text-[10px] text-gray-400">₦{cartTotal.toLocaleString()}</span>
+                      <span className="text-[10px] text-gray-400">
+                        ₦{cartTotal.toLocaleString()}
+                      </span>
                     ) : (
                       <span className="text-[10px] text-gray-400">Empty</span>
                     )}
-                    <span className="text-[13px] font-bold text-gray-900">Cart</span>
+                    <span className="text-[13px] font-bold text-gray-900">
+                      Cart
+                    </span>
                   </div>
                 </Link>
 
@@ -432,9 +554,17 @@ export default function Navbar() {
               <input
                 type="search"
                 value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSuggestions(true);
+                }}
                 onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => { setShowSuggestions(false); setActiveIndex(-1); }, 150)}
+                onBlur={() =>
+                  setTimeout(() => {
+                    setShowSuggestions(false);
+                    setActiveIndex(-1);
+                  }, 150)
+                }
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search products, brands, vendors…"
                 className="flex-1 min-w-0 px-4 bg-white outline-none text-sm placeholder:text-gray-400 text-gray-900"
@@ -449,9 +579,7 @@ export default function Navbar() {
               </button>
             </div>
             <AnimatePresence>
-              {showSuggestions && (
-                <SuggestionsDropdown {...searchProps} />
-              )}
+              {showSuggestions && <SuggestionsDropdown {...searchProps} />}
             </AnimatePresence>
           </form>
         </div>

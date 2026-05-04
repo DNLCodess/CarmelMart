@@ -5,11 +5,16 @@ import { BadgeCheck, LogOut } from "lucide-react";
 import Link from "next/link";
 
 export default function AccountDropdown({
-  onEnter, onLeave,
+  onEnter,
+  onLeave,
   isAuthenticated,
-  initials, displayName, displayRole, firstName,
+  initials,
+  displayName,
+  displayRole,
+  firstName,
   accountLinks,
-  onSignOut, onClose,
+  onSignOut,
+  onClose,
 }) {
   return (
     <motion.div
@@ -29,10 +34,14 @@ export default function AccountDropdown({
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {displayName}
+                </p>
                 <div className="flex items-center gap-1 mt-0.5">
                   <BadgeCheck className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="text-xs text-gray-500 capitalize">{displayRole}</span>
+                  <span className="text-xs text-gray-500 capitalize">
+                    {displayRole}
+                  </span>
                 </div>
               </div>
             </div>
@@ -64,14 +73,16 @@ export default function AccountDropdown({
         </>
       ) : (
         <div className="p-4 space-y-2">
-          <p className="text-xs text-gray-500 mb-3">Sign in for the best experience</p>
+          <p className="text-xs text-gray-500 mb-3">
+            Sign in for the best experience
+          </p>
           <Link href="/login" onClick={onClose}>
             <button className="w-full bg-primary text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-primary-dark transition-colors">
               Sign In
             </button>
           </Link>
           <Link href="/register" onClick={onClose}>
-            <button className="w-full border-2 border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-semibold hover:border-primary hover:text-primary transition-colors">
+            <button className="w-full border-2 border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-semibold hover:border-primary mt-1.5 hover:text-primary transition-colors">
               Create Account
             </button>
           </Link>
