@@ -200,7 +200,7 @@ export default function CheckoutPage() {
   };
 
   // ── Order creation ────────────────────────────────────────────────────────────
-  const createOrder = async ({ paymentRef, paymentStatus, podDeposit = 0 }) => {
+  const createOrder = async ({ paymentRef, paymentTransactionId, podDeposit = 0 }) => {
     const res = await fetch("/api/customer/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -229,11 +229,8 @@ export default function CheckoutPage() {
         },
         payment_method: payment === "pod" ? "pod" : "card",
         payment_ref:    paymentRef ?? null,
-        payment_status: paymentStatus ?? "pending",
+        payment_transaction_id: paymentTransactionId ?? null,
         promo_id:       appliedPromo?.promoId ?? null,
-        discount:       discount,
-        subtotal:       total,
-        total:          grandTotal,
         pod_deposit:    podDeposit,
       }),
     });
@@ -284,9 +281,9 @@ export default function CheckoutPage() {
             }
             // 2. Create the order in the database
             const orderId = await createOrder({
-              paymentRef:    txRef,
-              paymentStatus: "paid",
-              podDeposit:    requiresPODDeposit ? podDeposit : 0,
+              paymentRef: txRef,
+              paymentTransactionId: response.transaction_id,
+              podDeposit: requiresPODDeposit ? podDeposit : 0,
             });
             clearCart();
             router.push(`/checkout/success?order_id=${orderId}`);
@@ -305,14 +302,14 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     setLoading(true);
-    if (payment === "flutterwave") {
+    if (payment === "flutterwave" || amountDue > 0) {
       initiateFlutterwave();
       // loading is reset in onclose / callback — do not call setLoading(false) here
       return;
     }
-    // POD without deposit — create order directly, no payment gateway needed
+    // Zero-due POD orders can be created directly.
     try {
-      const orderId = await createOrder({ paymentRef: null, paymentStatus: "pending", podDeposit: 0 });
+      const orderId = await createOrder({ paymentRef: null, paymentTransactionId: null, podDeposit: 0 });
       clearCart();
       router.push(`/checkout/success?order_id=${orderId}&pod=1`);
     } catch (err) {

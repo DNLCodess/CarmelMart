@@ -20,12 +20,14 @@ export default function ServiceWorkerRegistration() {
           { scope: "/", updateViaCache: "none" }
         );
 
-        // Check for updates when the tab regains focus
-        document.addEventListener("visibilitychange", () => {
+        const handleVisibilityChange = () => {
           if (document.visibilityState === "visible") registration.update();
-        });
+        };
 
-        registration.addEventListener("updatefound", () => {
+        // Check for updates when the tab regains focus
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        const handleUpdateFound = () => {
           const newWorker = registration.installing;
           if (!newWorker) return;
           newWorker.addEventListener("statechange", () => {
@@ -40,24 +42,42 @@ export default function ServiceWorkerRegistration() {
               }
             }
           });
-        });
+        };
+
+        registration.addEventListener("updatefound", handleUpdateFound);
+
+        return () => {
+          document.removeEventListener("visibilitychange", handleVisibilityChange);
+          registration.removeEventListener("updatefound", handleUpdateFound);
+        };
       } catch (error) {
         console.error("[SW] Registration failed:", error);
+        return undefined;
       }
     };
 
+    let cleanupRegistration;
+    const registerAndStoreCleanup = () => {
+      register().then((cleanup) => {
+        cleanupRegistration = cleanup;
+      });
+    };
+
     if (document.readyState === "complete") {
-      register();
+      registerAndStoreCleanup();
     } else {
-      window.addEventListener("load", register);
+      window.addEventListener("load", registerAndStoreCleanup);
     }
 
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
+    const handleControllerChange = () => {
       window.location.reload();
-    });
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 
     return () => {
-      window.removeEventListener("load", register);
+      window.removeEventListener("load", registerAndStoreCleanup);
+      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+      cleanupRegistration?.();
     };
   }, []);
 

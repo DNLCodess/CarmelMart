@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+function sanitizeSearchTerm(value) {
+  if (!value) return null;
+  const cleaned = value
+    .trim()
+    .replace(/[%_*]/g, "")
+    .replace(/[(),]/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 80);
+  return cleaned || null;
+}
+
 /**
  * GET /api/products
  * Query params:
@@ -26,7 +37,7 @@ export async function GET(request) {
 
     const categorySlug = searchParams.get("category")    || null;
     const categoryId   = searchParams.get("category_id") || null;
-    const search     = searchParams.get("search")    || null;
+    const search     = sanitizeSearchTerm(searchParams.get("search"));
     const minPrice   = searchParams.get("min_price") ? Number(searchParams.get("min_price")) : null;
     const maxPrice   = searchParams.get("max_price") ? Number(searchParams.get("max_price")) : null;
     const minRating  = searchParams.get("min_rating") ? Number(searchParams.get("min_rating")) : null;
@@ -104,9 +115,7 @@ export async function GET(request) {
     if (minDiscount !== null)   query = query.not("sale_price", "is", null);
 
     // featured column may not exist in older DB instances — try it, fall back gracefully
-    if (featured) {
-      try { query = query.eq("featured", true); } catch { /* column may not exist */ }
-    }
+    if (featured) query = query.eq("featured", true);
 
     switch (sort) {
       case "price_asc":  query = query.order("price",      { ascending: true });  break;

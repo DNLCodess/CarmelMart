@@ -8,11 +8,10 @@ export async function GET() {
     // Step 1: Fetch verified vendors (no product join — products.vendor_id → users.id, not vendors.id)
     const { data: vendorRows, error } = await supabase
       .from("vendors")
-      .select("id, business_name, verification_status")
+      .select("id, business_name, description, image, logo_image, banner_image, slug, verification_status")
       .eq("verification_status", "verified")
       .limit(8);
 
-    console.log(vendorRows);
     if (error) throw error;
     if (!vendorRows || vendorRows.length === 0) {
       return NextResponse.json({ success: true, vendors: [] });
@@ -42,9 +41,14 @@ export async function GET() {
       return {
         id: v.id,
         name: v.business_name,
+        business_name: v.business_name,
+        description: v.description,
         verified: true,
         productCount: vProducts.length,
-        image: sampleImage,
+        product_count: vProducts.length,
+        image: v.image ?? sampleImage,
+        logo_image: v.logo_image,
+        banner_image: v.banner_image ?? sampleImage,
         slug:
           v.slug ??
           v.business_name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ??

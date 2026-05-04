@@ -6,7 +6,7 @@ import { persist } from "zustand/middleware";
 
 export const useUIStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Wishlist (local-first; stores full product snapshots for offline display)
       wishlist: [], // Product[]
       addToWishlist: (product) =>
@@ -19,8 +19,8 @@ export const useUIStore = create(
         set((state) => ({
           wishlist: state.wishlist.filter((w) => (w?.id ?? w) !== productId),
         })),
-      isWishlisted: (productId) => (state) =>
-        state.wishlist.some((w) => (w?.id ?? w) === productId),
+      isWishlisted: (productId) =>
+        get().wishlist.some((w) => (w?.id ?? w) === productId),
 
       // Recently viewed products (local only)
       recentlyViewed: [], // productId[]

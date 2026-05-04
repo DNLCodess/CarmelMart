@@ -3,11 +3,116 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderConfirmation, sendVendorNewOrder } from "@/lib/email";
 
+const FLUTTERWAVE_TIMEOUT_MS = 10_000;
+
+function jsonError(message, status = 400) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+function toPositiveInt(value, fallback = 0) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.floor(n));
+}
+
+async function verifyFlutterwaveTransaction(transactionId, expectedAmount, expectedTxRef, expectedEmail) {
+  if (!process.env.FLUTTERWAVE_SECRET_KEY) {
+    throw new Error("Payment verification is not configured.");
+  }
+
+  if (!transactionId) {
+    return { ok: false, error: "Payment transaction ID is required." };
+  }
+
+  const res = await fetch(
+    `https://api.flutterwave.com/v3/transactions/${encodeURIComponent(transactionId)}/verify`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(FLUTTERWAVE_TIMEOUT_MS),
+    },
+  );
+
+  const data = await res.json();
+  const tx = data?.data;
+
+  if (!res.ok || data.status !== "success" || tx?.status !== "successful") {
+    return { ok: false, error: "Payment verification failed." };
+  }
+
+  if (tx.currency !== "NGN") {
+    return { ok: false, error: "Invalid payment currency." };
+  }
+
+  if (expectedTxRef && tx.tx_ref !== expectedTxRef) {
+    return { ok: false, error: "Payment reference mismatch." };
+  }
+
+  if (
+    expectedEmail &&
+    tx.customer?.email &&
+    tx.customer.email.toLowerCase() !== expectedEmail.toLowerCase()
+  ) {
+    return { ok: false, error: "Payment customer mismatch." };
+  }
+
+  if (Number(tx.charged_amount ?? tx.amount) < expectedAmount) {
+    return { ok: false, error: "Verified payment amount is lower than the order amount." };
+  }
+
+  return { ok: true, data: tx };
+}
+
+async function calculatePromoDiscount(admin, userId, promoId, subtotal) {
+  if (!promoId) return { promoId: null, discount: 0 };
+
+  const { data: promo, error } = await admin
+    .from("promo_codes")
+    .select("id, type, value, min_order, max_uses, used_count, expires_at, active")
+    .eq("id", promoId)
+    .single();
+
+  if (error || !promo || !promo.active) {
+    throw new Error("Invalid promo code.");
+  }
+
+  if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+    throw new Error("Promo code has expired.");
+  }
+
+  if (promo.max_uses !== null && promo.used_count >= promo.max_uses) {
+    throw new Error("Promo code has reached its usage limit.");
+  }
+
+  if (subtotal < promo.min_order) {
+    throw new Error("Order total is below the promo code minimum.");
+  }
+
+  const { count } = await admin
+    .from("promo_code_uses")
+    .select("id", { count: "exact", head: true })
+    .eq("promo_id", promo.id)
+    .eq("user_id", userId);
+
+  if ((count ?? 0) > 0) {
+    throw new Error("You have already used this promo code.");
+  }
+
+  const rawDiscount = promo.type === "percentage"
+    ? Math.round(subtotal * (promo.value / 100))
+    : promo.value;
+
+  return { promoId: promo.id, discount: Math.min(subtotal, Math.max(0, rawDiscount)) };
+}
+
 export async function GET() {
   try {
     const supabase = await createClient();
     const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error || !user) return jsonError("Unauthorized", 401);
 
     const admin = createAdminClient();
     const { data: orders, error: qErr } = await admin
@@ -42,35 +147,36 @@ export async function GET() {
   }
 }
 
-// POST /api/customer/orders — create an order after payment
+// POST /api/customer/orders - create an order after verified payment/server-side pricing.
 export async function POST(request) {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (authErr || !user) return jsonError("Unauthorized", 401);
 
     const body = await request.json();
     const {
-      items,           // [{ productId, vendorId, name, price, quantity }]
+      items,
       delivery_address,
-      payment_method,  // "card" | "bank_transfer" | "ussd" | "pod"
+      payment_method,
       payment_ref,
-      payment_status,  // "paid" | "pending"
+      payment_transaction_id,
       promo_id,
-      discount,
-      subtotal,
-      total,
-      pod_deposit,
     } = body;
 
-    if (!items?.length) {
-      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
-    }
+    if (!items?.length) return jsonError("Cart is empty");
 
     const admin = createAdminClient();
+    const normalizedItems = items.map((item) => ({
+      productId: item.productId,
+      quantity: toPositiveInt(item.quantity, 1),
+    }));
 
-    // Validate products exist and have stock
-    const productIds = items.map((i) => i.productId);
+    const productIds = [...new Set(normalizedItems.map((i) => i.productId).filter(Boolean))];
+    if (productIds.length !== normalizedItems.length) {
+      return jsonError("Cart contains duplicate or invalid products.");
+    }
+
     const { data: products, error: prodErr } = await admin
       .from("products")
       .select("id, name, price, sale_price, stock, vendor_id")
@@ -81,96 +187,94 @@ export async function POST(request) {
 
     const productMap = Object.fromEntries((products ?? []).map((p) => [p.id, p]));
 
-    for (const item of items) {
+    for (const item of normalizedItems) {
       const prod = productMap[item.productId];
-      if (!prod) return NextResponse.json({ error: `Product not found: ${item.name}` }, { status: 400 });
-      if (prod.stock < item.quantity) {
-        return NextResponse.json({ error: `Insufficient stock for: ${item.name}` }, { status: 400 });
-      }
+      if (!prod) return jsonError("One or more products are no longer available.");
+      if (prod.stock < item.quantity) return jsonError(`Insufficient stock for: ${prod.name}`);
     }
 
-    // Determine order status
-    const orderStatus = payment_status === "paid" ? "confirmed" : "pending";
-
-    // Create order
-    const { data: order, error: orderErr } = await admin
-      .from("orders")
-      .insert({
-        customer_id:      user.id,
-        status:           orderStatus,
-        total:            total ?? subtotal,
-        payment_method:   payment_method ?? "card",
-        payment_status:   payment_status ?? "pending",
-        payment_ref:      payment_ref ?? null,
-        pod_deposit:      pod_deposit ?? 0,
-        delivery_address: delivery_address ?? {},
-        notes:            null,
-      })
-      .select("id")
-      .single();
-
-    if (orderErr) throw orderErr;
-
-    const orderId = order.id;
-
-    // Create order items — fall back to the vendor_id from the DB if cart item is missing it
-    const orderItems = items.map((item) => {
-      const unitPrice = Math.round(item.price);
-      const vendorId  = item.vendorId ?? productMap[item.productId]?.vendor_id ?? null;
-      if (!vendorId) throw new Error(`Could not resolve vendor for product: ${item.name}`);
+    const orderItems = normalizedItems.map((item) => {
+      const product = productMap[item.productId];
+      const unitPrice = Math.round(product.sale_price ?? product.price);
       return {
-        order_id:   orderId,
         product_id: item.productId,
-        vendor_id:  vendorId,
-        quantity:   item.quantity,
+        vendor_id: product.vendor_id,
+        quantity: item.quantity,
         unit_price: unitPrice,
-        total:      unitPrice * item.quantity,
+        total: unitPrice * item.quantity,
+        name: product.name,
       };
     });
 
-    const { error: itemsErr } = await admin.from("order_items").insert(orderItems);
-    if (itemsErr) throw itemsErr;
+    const subtotal = orderItems.reduce((sum, item) => sum + item.total, 0);
+    const deliveryFee = toPositiveInt(delivery_address?.delivery_fee, 0);
+    const { promoId, discount } = await calculatePromoDiscount(admin, user.id, promo_id, subtotal);
+    const discountedSubtotal = Math.max(0, subtotal - discount);
+    const total = discountedSubtotal + deliveryFee;
+    const isPod = payment_method === "pod";
+    const requiredPodDeposit = isPod && discountedSubtotal > 10_000
+      ? Math.ceil(discountedSubtotal * 0.1)
+      : 0;
+    const amountDueNow = isPod ? requiredPodDeposit + deliveryFee : total;
+    const requiresGatewayPayment = amountDueNow > 0 && (!isPod || requiredPodDeposit > 0 || deliveryFee > 0);
 
-    // Decrement stock for each product
-    for (const item of items) {
-      const prod = productMap[item.productId];
-      await admin
-        .from("products")
-        .update({ stock: Math.max(0, prod.stock - item.quantity) })
-        .eq("id", item.productId);
+    let paymentStatus = isPod ? "pending" : "paid";
+    let orderStatus = isPod ? "pending" : "confirmed";
+    let verifiedTransaction = null;
+
+    if (requiresGatewayPayment) {
+      const verification = await verifyFlutterwaveTransaction(
+        payment_transaction_id,
+        amountDueNow,
+        payment_ref,
+        delivery_address?.email ?? user.email,
+      );
+
+      if (!verification.ok) return jsonError(verification.error, 400);
+
+      verifiedTransaction = verification.data;
+      paymentStatus = isPod ? "deposit_paid" : "paid";
+      orderStatus = isPod ? "pending" : "confirmed";
+    } else if (!isPod) {
+      return jsonError("Online payment is required for this order.");
     }
 
-    // Record promo code usage
-    if (promo_id && discount > 0) {
-      await admin.from("promo_code_uses").insert({
-        promo_id,
-        user_id:  user.id,
-        order_id: orderId,
-        discount: discount,
-      });
-    }
+    const { data: orderId, error: createErr } = await admin.rpc("create_customer_order_atomic", {
+      p_customer_id: user.id,
+      p_items: orderItems,
+      p_delivery_address: {
+        ...(delivery_address ?? {}),
+        delivery_fee: deliveryFee,
+      },
+      p_payment_method: isPod ? "pod" : "card",
+      p_payment_status: paymentStatus,
+      p_payment_ref: payment_ref ?? verifiedTransaction?.tx_ref ?? null,
+      p_pod_deposit: requiredPodDeposit,
+      p_discount: discount,
+      p_promo_id: promoId,
+      p_total: total,
+      p_order_status: orderStatus,
+    });
 
-    // ── Fire-and-forget email notifications ───────────────────────────────────
+    if (createErr) throw createErr;
 
-    // Customer confirmation
     sendOrderConfirmation({
-      to:    user.email,
+      to: user.email,
       order: {
-        id:               orderId,
-        items,
+        id: orderId,
+        items: orderItems.map((item) => ({ ...item, productId: item.product_id })),
         delivery_address,
-        delivery_fee:     delivery_address?.delivery_fee ?? 0,
-        payment_method:   payment_method ?? "card",
-        discount:         discount ?? 0,
-        total:            total ?? subtotal,
+        delivery_fee: deliveryFee,
+        payment_method: isPod ? "pod" : "card",
+        discount,
+        total,
       },
     });
 
-    // Per-vendor new order email
     const vendorGroups = {};
-    for (const item of items) {
-      if (!vendorGroups[item.vendorId]) vendorGroups[item.vendorId] = [];
-      vendorGroups[item.vendorId].push(item);
+    for (const item of orderItems) {
+      if (!vendorGroups[item.vendor_id]) vendorGroups[item.vendor_id] = [];
+      vendorGroups[item.vendor_id].push({ ...item, productId: item.product_id, name: item.name });
     }
 
     const vendorIds = Object.keys(vendorGroups);
@@ -183,8 +287,8 @@ export async function POST(request) {
       for (const vendorUser of (vendorUsers ?? [])) {
         if (vendorUser.email) {
           sendVendorNewOrder({
-            to:          vendorUser.email,
-            order:       { id: orderId, delivery_address, payment_method: payment_method ?? "card" },
+            to: vendorUser.email,
+            order: { id: orderId, delivery_address, payment_method: isPod ? "pod" : "card" },
             vendorItems: vendorGroups[vendorUser.id],
           });
         }
