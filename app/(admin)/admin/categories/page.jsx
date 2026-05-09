@@ -2,19 +2,11 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CATEGORIES_QUERY_KEY } from "@/lib/useCategories";
 import { Fragment } from "react";
 import {
-  Tag,
-  Plus,
-  Pencil,
-  Trash2,
-  RefreshCw,
-  X,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Package,
-  ExternalLink,
+  Tag, Plus, Pencil, Trash2, RefreshCw, X, Check,
+  ChevronDown, ChevronRight, Package, ExternalLink, Folder,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,66 +19,42 @@ async function fetchCategories() {
 }
 
 async function fetchCategoryProducts(categoryId) {
-  const r = await fetch(
-    `/api/admin/products?category_id=${categoryId}&limit=100`,
-  );
+  const r = await fetch(`/api/admin/products?category_id=${categoryId}&limit=100`);
   return r.json();
 }
 
 // ─── Moderation badge ────────────────────────────────────────────────────────
 
 const MOD_CFG = {
-  pending: {
-    label: "Pending",
-    cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
-  },
-  approved: {
-    label: "Approved",
-    cls: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
-  },
-  rejected: {
-    label: "Rejected",
-    cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
-  },
-  flagged: {
-    label: "Flagged",
-    cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800",
-  },
+  pending:  { label: "Pending",  cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"  },
+  approved: { label: "Approved", cls: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"  },
+  rejected: { label: "Rejected", cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"              },
+  flagged:  { label: "Flagged",  cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800" },
 };
 
 function ModBadge({ status }) {
   const c = MOD_CFG[status] ?? MOD_CFG.pending;
   return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${c.cls}`}
-    >
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${c.cls}`}>
       {c.label}
     </span>
   );
 }
 
-// ─── Category create/edit modal ───────────────────────────────────────────────
+// ─── Category modal ───────────────────────────────────────────────────────────
 
-function CategoryModal({ open, initial, categories, onClose, onSave, saving }) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [image, setImage] = useState(initial?.image ?? "");
+function CategoryModal({ open, initial, parents, onClose, onSave, saving }) {
+  const [name, setName]       = useState(initial?.name ?? "");
+  const [slug, setSlug]       = useState(initial?.slug ?? "");
+  const [image, setImage]     = useState(initial?.image ?? "");
   const [parentId, setParentId] = useState(initial?.parentId ?? "");
 
   if (!open) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast.error("Name is required");
-      return;
-    }
-    onSave({
-      name: name.trim(),
-      slug: slug.trim(),
-      image: image.trim(),
-      parent_id: parentId || null,
-    });
+    if (!name.trim()) { toast.error("Name is required"); return; }
+    onSave({ name: name.trim(), slug: slug.trim(), image: image.trim(), parent_id: parentId || null });
   };
 
   return (
@@ -94,43 +62,30 @@ function CategoryModal({ open, initial, categories, onClose, onSave, saving }) {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold text-gray-900 dark:text-gray-100">
-            {initial ? "Edit Category" : "New Category"}
+            {initial ? "Edit Category" : parentId ? "New Subcategory" : "New Category"}
           </h3>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Name *
-            </label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Name *</label>
             <input
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                if (!initial)
-                  setSlug(
-                    e.target.value
-                      .toLowerCase()
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/^-|-$/g, ""),
-                  );
+                if (!initial) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
               }}
-              placeholder="e.g. Electronics"
+              placeholder="e.g. Women's Clothing"
               required
               className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Slug
-            </label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Slug</label>
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
@@ -140,29 +95,23 @@ function CategoryModal({ open, initial, categories, onClose, onSave, saving }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Parent Category
-            </label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Parent Category</label>
             <select
               value={parentId}
               onChange={(e) => setParentId(e.target.value)}
               className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
             >
-              <option value="">None (top-level)</option>
-              {categories
+              <option value="">None (top-level category)</option>
+              {parents
                 .filter((c) => !initial || c.id !== initial.id)
                 .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Category Image
-            </label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Category Image</label>
             <SingleImageUpload
               value={image || null}
               onChange={(url) => setImage(url ?? "")}
@@ -173,11 +122,7 @@ function CategoryModal({ open, initial, categories, onClose, onSave, saving }) {
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
-            >
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
               Cancel
             </button>
             <button
@@ -185,11 +130,7 @@ function CategoryModal({ open, initial, categories, onClose, onSave, saving }) {
               disabled={saving}
               className="px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark disabled:opacity-60 rounded-xl transition-colors flex items-center gap-2"
             >
-              {saving ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Check className="w-3.5 h-3.5" />
-              )}
+              {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               {initial ? "Save Changes" : "Create"}
             </button>
           </div>
@@ -199,11 +140,10 @@ function CategoryModal({ open, initial, categories, onClose, onSave, saving }) {
   );
 }
 
-// ─── Category delete modal ────────────────────────────────────────────────────
+// ─── Delete category confirm ──────────────────────────────────────────────────
 
 function DeleteCategoryConfirm({ category, onConfirm, onCancel, saving }) {
   const [checked, setChecked] = useState(false);
-
   if (!category) return null;
   const hasProd = category.productCount > 0;
 
@@ -215,9 +155,7 @@ function DeleteCategoryConfirm({ category, onConfirm, onCancel, saving }) {
             <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-gray-100">
-              Delete &ldquo;{category.name}&rdquo;
-            </h3>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">Delete &ldquo;{category.name}&rdquo;</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {hasProd
                 ? `This category contains ${category.productCount} product${category.productCount !== 1 ? "s" : ""}. Deleting it will permanently remove all of them.`
@@ -228,36 +166,19 @@ function DeleteCategoryConfirm({ category, onConfirm, onCancel, saving }) {
 
         {hasProd && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 space-y-2">
-            <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">
-              Destructive action
-            </p>
+            <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">Destructive action</p>
             <p className="text-sm text-red-600 dark:text-red-300">
-              <strong>{category.productCount}</strong> product
-              {category.productCount !== 1 ? "s" : ""} will be permanently
-              deleted and cannot be recovered.
+              <strong>{category.productCount}</strong> product{category.productCount !== 1 ? "s" : ""} will be permanently deleted.
             </p>
             <label className="flex items-start gap-2.5 cursor-pointer mt-1">
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => setChecked(e.target.checked)}
-                className="mt-0.5 accent-red-600 w-4 h-4 shrink-0"
-              />
-              <span className="text-sm text-red-700 dark:text-red-300 leading-snug">
-                I understand all products in this category will be permanently
-                deleted
-              </span>
+              <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-0.5 accent-red-600 w-4 h-4 shrink-0" />
+              <span className="text-sm text-red-700 dark:text-red-300 leading-snug">I understand all products in this category will be permanently deleted</span>
             </label>
           </div>
         )}
 
         <div className="flex justify-end gap-3 pt-1">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
-          >
-            Cancel
-          </button>
+          <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">Cancel</button>
           <button
             onClick={() => onConfirm(hasProd)}
             disabled={saving || (hasProd && !checked)}
@@ -272,7 +193,7 @@ function DeleteCategoryConfirm({ category, onConfirm, onCancel, saving }) {
   );
 }
 
-// ─── Product delete modal ─────────────────────────────────────────────────────
+// ─── Delete product confirm ───────────────────────────────────────────────────
 
 function DeleteProductConfirm({ product, onConfirm, onCancel, saving }) {
   if (!product) return null;
@@ -284,15 +205,9 @@ function DeleteProductConfirm({ product, onConfirm, onCancel, saving }) {
             <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-gray-100">
-              Delete Product
-            </h3>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">Delete Product</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              Permanently delete{" "}
-              <strong className="text-gray-700 dark:text-gray-200">
-                {product.name}
-              </strong>
-              ? This cannot be undone.
+              Permanently delete <strong className="text-gray-700 dark:text-gray-200">{product.name}</strong>? This cannot be undone.
             </p>
           </div>
         </div>
@@ -300,12 +215,7 @@ function DeleteProductConfirm({ product, onConfirm, onCancel, saving }) {
           Order history referencing this product will lose its product link.
         </div>
         <div className="flex justify-end gap-3 pt-1">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
-          >
-            Cancel
-          </button>
+          <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">Cancel</button>
           <button
             onClick={onConfirm}
             disabled={saving}
@@ -325,7 +235,7 @@ function DeleteProductConfirm({ product, onConfirm, onCancel, saving }) {
 function CategoryProducts({ categoryId, onDelete }) {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-cat-products", categoryId],
-    queryFn: () => fetchCategoryProducts(categoryId),
+    queryFn:  () => fetchCategoryProducts(categoryId),
     staleTime: 30_000,
   });
 
@@ -334,8 +244,7 @@ function CategoryProducts({ categoryId, onDelete }) {
   if (isLoading) {
     return (
       <div className="px-6 py-4 flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
-        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-        Loading products…
+        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading products…
       </div>
     );
   }
@@ -344,9 +253,7 @@ function CategoryProducts({ categoryId, onDelete }) {
     return (
       <div className="px-6 py-5 text-center">
         <Package className="w-7 h-7 text-gray-200 dark:text-gray-600 mx-auto mb-1.5" />
-        <p className="text-sm text-gray-400 dark:text-gray-500">
-          No products in this category
-        </p>
+        <p className="text-sm text-gray-400 dark:text-gray-500">No products in this category</p>
       </div>
     );
   }
@@ -355,90 +262,49 @@ function CategoryProducts({ categoryId, onDelete }) {
     <table className="w-full text-sm">
       <thead className="border-b border-gray-100 dark:border-gray-700">
         <tr>
-          <th className="pl-14 pr-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
-            Product
-          </th>
-          <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide hidden md:table-cell">
-            Vendor
-          </th>
-          <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
-            Price
-          </th>
-          <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide hidden sm:table-cell">
-            Status
-          </th>
-          <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
-            Actions
-          </th>
+          <th className="pl-14 pr-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Product</th>
+          <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide hidden md:table-cell">Vendor</th>
+          <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Price</th>
+          <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide hidden sm:table-cell">Status</th>
+          <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Actions</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
         {products.map((p) => (
-          <tr
-            key={p.id}
-            className="hover:bg-white dark:hover:bg-gray-800/60 transition-colors"
-          >
+          <tr key={p.id} className="hover:bg-white dark:hover:bg-gray-800/60 transition-colors">
             <td className="pl-14 pr-5 py-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
                   {p.image ? (
-                    <Image
-                      src={p.image}
-                      alt={p.name}
-                      fill
-                      className="object-cover"
-                      sizes="36px"
-                    />
+                    <Image src={p.image} alt={p.name} fill className="object-cover" sizes="36px" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Package className="w-4 h-4 text-gray-300 dark:text-gray-600" />
                     </div>
                   )}
                 </div>
-                <span className="font-medium text-gray-800 dark:text-gray-200 line-clamp-1 max-w-[180px]">
-                  {p.name}
-                </span>
+                <span className="font-medium text-gray-800 dark:text-gray-200 line-clamp-1 max-w-[180px]">{p.name}</span>
               </div>
             </td>
-            <td className="px-5 py-3 hidden md:table-cell text-xs text-gray-500 dark:text-gray-400">
-              {p.vendorName}
-            </td>
+            <td className="px-5 py-3 hidden md:table-cell text-xs text-gray-500 dark:text-gray-400">{p.vendorName}</td>
             <td className="px-5 py-3 text-right text-xs font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
               {p.salePrice ? (
-                <span>
-                  ₦{p.salePrice.toLocaleString()}
-                  <span className="line-through text-gray-400 ml-1">
-                    ₦{p.price.toLocaleString()}
-                  </span>
-                </span>
+                <span>₦{p.salePrice.toLocaleString()}<span className="line-through text-gray-400 ml-1">₦{p.price.toLocaleString()}</span></span>
               ) : (
                 `₦${(p.price || 0).toLocaleString()}`
               )}
             </td>
-            <td className="px-5 py-3 hidden sm:table-cell">
-              <ModBadge status={p.moderationStatus} />
-            </td>
+            <td className="px-5 py-3 hidden sm:table-cell"><ModBadge status={p.moderationStatus} /></td>
             <td className="px-5 py-3 text-right">
               <div className="flex items-center justify-end gap-0.5">
-                <Link
-                  href={`/admin/products?search=${encodeURIComponent(p.name)}`}
-                  title="Edit / moderate on products page"
-                  className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                >
+                <Link href={`/admin/products?search=${encodeURIComponent(p.name)}`} title="Edit / moderate on products page" className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                   <Pencil className="w-3.5 h-3.5" />
                 </Link>
-                <Link
-                  href={`/product/${p.id}`}
-                  target="_blank"
-                  title="View on storefront"
-                  className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
+                <Link href={`/product/${p.id}`} target="_blank" title="View on storefront" className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
                 <button
-                  onClick={() =>
-                    onDelete({ id: p.id, name: p.name, categoryId })
-                  }
+                  onClick={() => onDelete({ id: p.id, name: p.name, categoryId })}
                   title="Delete product"
                   className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
@@ -453,33 +319,112 @@ function CategoryProducts({ categoryId, onDelete }) {
   );
 }
 
+// ─── Category row ─────────────────────────────────────────────────────────────
+
+function CategoryRow({ c, isExpanded, onToggle, onEdit, onDelete, onAddSub, depth = 0 }) {
+  const indent = depth > 0 ? "pl-10" : "pl-5";
+  return (
+    <tr className={`transition-colors ${isExpanded ? "bg-gray-50/80 dark:bg-gray-700/30" : depth > 0 ? "bg-gray-50/40 dark:bg-gray-900/10 hover:bg-gray-50/70 dark:hover:bg-gray-700/20" : "hover:bg-gray-50/50 dark:hover:bg-gray-700/50"}`}>
+      <td className={`${indent} pr-5 py-4`}>
+        <div className="flex items-center gap-3">
+          {depth > 0 && (
+            <div className="w-5 h-5 flex items-center justify-center shrink-0 ml-[-4px]">
+              <div className="w-3 h-3 border-l-2 border-b-2 border-gray-200 dark:border-gray-600 rounded-bl" />
+            </div>
+          )}
+          {c.image ? (
+            <div className="w-9 h-9 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
+              <Image src={c.image} alt={c.name} fill className="object-cover" sizes="36px" />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
+              {depth > 0
+                ? <Tag className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                : <Folder className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
+            </div>
+          )}
+          <div>
+            <p className={`font-semibold text-gray-900 dark:text-gray-100 ${depth > 0 ? "text-sm" : ""}`}>{c.name}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{depth > 0 ? "Subcategory" : `Added ${c.createdAt}`}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-5 py-4 hidden sm:table-cell font-mono text-xs text-gray-500 dark:text-gray-400">{c.slug}</td>
+      <td className="px-5 py-4 text-right">
+        <button
+          onClick={() => onToggle(c.id)}
+          disabled={c.productCount === 0}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+            isExpanded
+              ? "bg-primary/10 text-primary dark:text-white dark:bg-primary/20"
+              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 dark:hover:text-white"
+          } ${c.productCount === 0 ? "opacity-50 cursor-default pointer-events-none" : "cursor-pointer"}`}
+        >
+          {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          {c.productCount}
+        </button>
+      </td>
+      <td className="px-5 py-4 text-right">
+        <div className="flex items-center justify-end gap-1">
+          {depth === 0 && (
+            <button
+              onClick={() => onAddSub(c)}
+              title="Add subcategory"
+              className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => onEdit(c)}
+            title="Edit"
+            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors dark:hover:text-white"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onDelete(c)}
+            title="Delete"
+            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminCategoriesPage() {
   const qc = useQueryClient();
-  const [modal, setModal] = useState(null); // null | { mode, category }
-  const [delCat, setDelCat] = useState(null); // category object
-  const [delProduct, setDelProduct] = useState(null); // { id, name, categoryId }
-  const [expandedId, setExpandedId] = useState(null); // category id | null
+  const [modal, setModal]         = useState(null); // null | { mode, category, defaultParentId }
+  const [delCat, setDelCat]       = useState(null);
+  const [delProduct, setDelProduct] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-categories"],
-    queryFn: fetchCategories,
+    queryFn:  fetchCategories,
     staleTime: 60_000,
     retry: false,
   });
 
-  const categories = data?.categories ?? [];
+  const categories   = data?.categories ?? [];
+  const parents      = categories.filter((c) => !c.parentId);
+  const subsByParent = categories
+    .filter((c) => !!c.parentId)
+    .reduce((acc, c) => {
+      (acc[c.parentId] ??= []).push(c);
+      return acc;
+    }, {});
 
   const saveMutation = useMutation({
     mutationFn: async ({ id, payload }) => {
-      const url = id ? `/api/admin/categories/${id}` : "/api/admin/categories";
+      const url    = id ? `/api/admin/categories/${id}` : "/api/admin/categories";
       const method = id ? "PATCH" : "POST";
-      const r = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Save failed");
       return d;
@@ -487,6 +432,7 @@ export default function AdminCategoriesPage() {
     onSuccess: (_, { id }) => {
       toast.success(id ? "Category updated" : "Category created");
       qc.invalidateQueries({ queryKey: ["admin-categories"] });
+      qc.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
       setModal(null);
     },
     onError: (e) => toast.error(e.message),
@@ -507,6 +453,7 @@ export default function AdminCategoriesPage() {
           : "Category deleted",
       );
       qc.invalidateQueries({ queryKey: ["admin-categories"] });
+      qc.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
       setDelCat(null);
       setExpandedId(null);
     },
@@ -529,59 +476,47 @@ export default function AdminCategoriesPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const parentMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
+  const toggleExpand = (id) => setExpandedId((prev) => (prev === id ? null : id));
 
-  const toggleExpand = (id) =>
-    setExpandedId((prev) => (prev === id ? null : id));
+  const openModal = ({ category, defaultParentId } = {}) =>
+    setModal({ category, defaultParentId: defaultParentId ?? null });
 
   return (
     <div className="space-y-5">
       <CategoryModal
-        key={modal?.category?.id ?? "new"}
+        key={modal?.category?.id ?? modal?.defaultParentId ?? "new"}
         open={!!modal}
-        initial={modal?.category}
-        categories={categories}
+        initial={modal?.category ? { ...modal.category, parentId: modal.category.parentId ?? modal.defaultParentId ?? "" } : modal?.defaultParentId ? { parentId: modal.defaultParentId } : null}
+        parents={parents}
         saving={saveMutation.isPending}
         onClose={() => setModal(null)}
-        onSave={(payload) =>
-          saveMutation.mutate({ id: modal?.category?.id, payload })
-        }
+        onSave={(payload) => saveMutation.mutate({ id: modal?.category?.id, payload })}
       />
       <DeleteCategoryConfirm
         category={delCat}
         saving={deleteCategoryMutation.isPending}
         onCancel={() => setDelCat(null)}
-        onConfirm={(force) =>
-          deleteCategoryMutation.mutate({ id: delCat.id, force })
-        }
+        onConfirm={(force) => deleteCategoryMutation.mutate({ id: delCat.id, force })}
       />
       <DeleteProductConfirm
         product={delProduct}
         saving={deleteProductMutation.isPending}
         onCancel={() => setDelProduct(null)}
-        onConfirm={() =>
-          deleteProductMutation.mutate({
-            id: delProduct.id,
-            categoryId: delProduct.categoryId,
-          })
-        }
+        onConfirm={() => deleteProductMutation.mutate({ id: delProduct.id, categoryId: delProduct.categoryId })}
       />
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-xl">
-            Categories
-          </h2>
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-xl">Categories</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {categories.length} categories
+            {parents.length} categories · {categories.length - parents.length} subcategories
           </p>
         </div>
         <button
-          onClick={() => setModal({ mode: "create" })}
+          onClick={() => openModal()}
           className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors"
         >
-          <Plus className="w-4 h-4" />
-          New Category
+          <Plus className="w-4 h-4" /> New Category
         </button>
       </div>
 
@@ -589,20 +524,13 @@ export default function AdminCategoriesPage() {
         {isLoading ? (
           <div className="p-12 text-center">
             <RefreshCw className="w-6 h-6 text-gray-300 dark:text-gray-600 animate-spin mx-auto mb-2" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Loading categories…
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading categories…</p>
           </div>
-        ) : categories.length === 0 ? (
+        ) : parents.length === 0 ? (
           <div className="p-14 text-center">
             <Tag className="w-10 h-10 text-gray-200 dark:text-gray-600 mx-auto mb-3" />
-            <p className="font-semibold text-gray-500 dark:text-gray-400">
-              No categories yet
-            </p>
-            <button
-              onClick={() => setModal({ mode: "create" })}
-              className="mt-3 text-sm text-primary hover:underline font-semibold"
-            >
+            <p className="font-semibold text-gray-500 dark:text-gray-400">No categories yet</p>
+            <button onClick={() => openModal()} className="mt-3 text-sm text-primary hover:underline font-semibold">
               Create your first category
             </button>
           </div>
@@ -611,122 +539,74 @@ export default function AdminCategoriesPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Category
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">
-                    Parent
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">
-                    Slug
-                  </th>
-                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Products
-                  </th>
-                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Actions
-                  </th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Category</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">Slug</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Products</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {categories.map((c) => {
-                  const isExpanded = expandedId === c.id;
-                  return (
-                    <Fragment key={c.id}>
-                      {/* Category row */}
-                      <tr
-                        className={`transition-colors ${isExpanded ? "bg-gray-50/80 dark:bg-gray-700/30" : "hover:bg-gray-50/50 dark:hover:bg-gray-700/50"}`}
-                      >
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            {c.image ? (
-                              <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
-                                <Image
-                                  src={c.image}
-                                  alt={c.name}
-                                  fill
-                                  className="object-cover"
-                                  sizes="40px"
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                                <Tag className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                              </div>
-                            )}
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-gray-100">
-                                {c.name}
-                              </p>
-                              <p className="text-xs text-gray-400 dark:text-gray-500">
-                                Added {c.createdAt}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 hidden md:table-cell text-gray-500 dark:text-gray-400">
-                          {c.parentId ? (
-                            (parentMap[c.parentId] ?? "—")
-                          ) : (
-                            <span className="text-gray-300 dark:text-gray-600">
-                              Top-level
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4 hidden sm:table-cell font-mono text-xs text-gray-500 dark:text-gray-400">
-                          {c.slug}
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <button
-                            onClick={() => toggleExpand(c.id)}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                              isExpanded
-                                ? "bg-primary/10 text-primary dark:text-white dark:bg-primary/20"
-                                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 dark:hover:text-white"
-                            } ${c.productCount === 0 ? "opacity-50 cursor-default pointer-events-none" : "cursor-pointer"}`}
-                            disabled={c.productCount === 0}
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="w-3 h-3" />
-                            ) : (
-                              <ChevronRight className="w-3 h-3" />
-                            )}
-                            {c.productCount}
-                          </button>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() =>
-                                setModal({ mode: "edit", category: c })
-                              }
-                              title="Edit category"
-                              className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors dark:hover:text-white"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setDelCat(c)}
-                              title="Delete category"
-                              className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                {parents.map((parent) => {
+                  const subs       = subsByParent[parent.id] ?? [];
+                  const isExpanded = expandedId === parent.id;
 
-                      {/* Expanded product rows */}
+                  return (
+                    <Fragment key={parent.id}>
+                      {/* Parent row */}
+                      <CategoryRow
+                        c={parent}
+                        isExpanded={isExpanded}
+                        depth={0}
+                        onToggle={toggleExpand}
+                        onEdit={(c) => openModal({ category: c })}
+                        onDelete={setDelCat}
+                        onAddSub={(c) => openModal({ defaultParentId: c.id })}
+                      />
+
+                      {/* Expanded product rows for parent */}
                       {isExpanded && (
-                        <tr
-                          key={`${c.id}-products`}
-                          className="bg-gray-50/50 dark:bg-gray-900/20"
-                        >
-                          <td colSpan={5} className="p-0">
-                            <CategoryProducts
-                              categoryId={c.id}
-                              onDelete={setDelProduct}
+                        <tr className="bg-gray-50/50 dark:bg-gray-900/20">
+                          <td colSpan={4} className="p-0">
+                            <CategoryProducts categoryId={parent.id} onDelete={setDelProduct} />
+                          </td>
+                        </tr>
+                      )}
+
+                      {/* Subcategory rows */}
+                      {subs.map((sub) => {
+                        const isSubExpanded = expandedId === sub.id;
+                        return (
+                          <Fragment key={sub.id}>
+                            <CategoryRow
+                              c={sub}
+                              isExpanded={isSubExpanded}
+                              depth={1}
+                              onToggle={toggleExpand}
+                              onEdit={(c) => openModal({ category: c })}
+                              onDelete={setDelCat}
+                              onAddSub={() => {}}
                             />
+                            {isSubExpanded && (
+                              <tr className="bg-gray-50/50 dark:bg-gray-900/20">
+                                <td colSpan={4} className="p-0">
+                                  <CategoryProducts categoryId={sub.id} onDelete={setDelProduct} />
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+
+                      {/* "Add subcategory" hint row when parent has no subs */}
+                      {subs.length === 0 && (
+                        <tr className="bg-gray-50/20 dark:bg-gray-900/5">
+                          <td colSpan={4} className="pl-16 pr-5 py-2.5">
+                            <button
+                              onClick={() => openModal({ defaultParentId: parent.id })}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Add subcategory
+                            </button>
                           </td>
                         </tr>
                       )}

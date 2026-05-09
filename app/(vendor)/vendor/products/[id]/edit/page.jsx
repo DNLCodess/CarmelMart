@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCategories } from "@/lib/useCategories";
 import { useRouter, useParams } from "next/navigation";
 import { ChevronLeft, Save, AlertCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -43,11 +44,6 @@ const CATEGORY_ATTRIBUTES = {
   ],
 };
 
-async function fetchCategories() {
-  const r = await fetch("/api/categories");
-  return r.json();
-}
-
 async function fetchProduct(id) {
   const r = await fetch(`/api/vendor/products/${id}`);
   if (!r.ok) return null;
@@ -73,12 +69,9 @@ export default function EditProductPage() {
   const [condition, setCondition]   = useState("new");
   const [attributes, setAttributes] = useState({});
 
-  const { data: catData } = useQuery({
-    queryKey: ["categories"],
-    queryFn:  fetchCategories,
-    staleTime: 300_000,
-  });
-  const categories = catData?.categories ?? [];
+  const { categories, parents: parentCategories, subsByParent } = useCategories();
+
+  const [parentCategoryId, setParentCategoryId] = useState("");
 
   const { data: product, isLoading } = useQuery({
     queryKey: ["vendor-product-edit", id],
@@ -91,12 +84,23 @@ export default function EditProductPage() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { status: "active", stock: 0 } });
 
   const price      = watch("price");
   const salePrice  = watch("sale_price");
   const categoryId = watch("category_id");
+
+  const currentSubs = subsByParent[parentCategoryId] ?? [];
+
+  const handleParentChange = (e) => {
+    const pid = e.target.value;
+    setParentCategoryId(pid);
+    const subs = subsByParent[pid] ?? [];
+    setValue("category_id", subs.length === 0 ? pid : "");
+    setAttributes({});
+  };
 
   const selectedCat = categories.find((c) => String(c.id) === String(categoryId));
   const attrDefs    = selectedCat
@@ -113,25 +117,35 @@ export default function EditProductPage() {
     });
   };
 
-  // Populate form + images once product loads
+  // Populate form + images once product and categories both load
   useEffect(() => {
-    if (!product) return;
+    if (!product || !categories.length) return;
+    const catId = product.category?.id ?? product.category_id ?? "";
     reset({
       name:        product.name,
       description: product.description ?? "",
       price:       product.price,
       sale_price:  product.sale_price ?? "",
       stock:       product.stock,
-      category_id: product.category?.id ?? product.category_id ?? "",
+      category_id: catId,
       status:      product.status,
     });
+    // Determine parent selection from the saved category
+    if (catId) {
+      const cat = categories.find((c) => c.id === catId);
+      if (cat?.parent_id) {
+        setParentCategoryId(cat.parent_id);
+      } else if (cat) {
+        setParentCategoryId(cat.id);
+      }
+    }
     setImages(Array.isArray(product.images) ? product.images : []);
     if (product.condition) setCondition(product.condition);
     if (product.attributes && typeof product.attributes === "object") {
       setAttributes(product.attributes);
     }
     setImagesReady(true);
-  }, [product, reset]);
+  }, [product, categories, reset]);
 
   const { mutate: updateProduct } = useMutation({
     mutationFn: async (data) => {
@@ -251,18 +265,39 @@ export default function EditProductPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Category</label>
-            <select
-              {...register("category_id")}
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
-            >
-              <option value="">Select a category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Category</label>
+              <select
+                value={parentCategoryId}
+                onChange={handleParentChange}
+                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
+              >
+                <option value="">Select a category</option>
+                {parentCategories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {currentSubs.length > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Subcategory</label>
+                <select
+                  value={categoryId || ""}
+                  onChange={(e) => { setValue("category_id", e.target.value); setAttributes({}); }}
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
+                >
+                  <option value="">Select a subcategory</option>
+                  {currentSubs.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <input type="hidden" {...register("category_id")} />
           </div>
+
         </div>
 
         {/* ── Pricing & Inventory ──────────────────────────────────────────── */}

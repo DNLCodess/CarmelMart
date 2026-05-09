@@ -8,10 +8,20 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { CATEGORIES } from "./navbar.data";
 import { SuggestionsDropdown } from "./SearchBar";
-import { Search } from "lucide-react";
+import { Search, Tag } from "lucide-react";
 import { AnimatePresence as AP } from "framer-motion";
+import {
+  ShoppingBag, Shirt, Home as HomeIcon, Wrench, Music,
+} from "lucide-react";
+
+const SLUG_ICON = {
+  consumables:         ShoppingBag,
+  apparels:            Shirt,
+  "home-living":       HomeIcon,
+  "electronics-tools": Wrench,
+  "leisure-lifestyle": Music,
+};
 import { usePWAInstall } from "@/lib/pwa-install-context";
 
 export default function MobileDrawer({
@@ -21,6 +31,8 @@ export default function MobileDrawer({
   accountLinks, onSignOut,
   // cart / wishlist counts
   cartCount, wishlistCount,
+  // categories (parent category objects from DB)
+  categories,
   // search
   searchQuery, setSearchQuery,
   showSuggestions, setShowSuggestions,
@@ -184,30 +196,22 @@ export default function MobileDrawer({
                   <div className="h-px flex-1 bg-gray-100" />
                 </h3>
                 <div className="grid grid-cols-3 gap-2">
-                  {CATEGORIES.filter((c) => c.name !== "All Departments").map((cat) => {
-                    const Icon = cat.icon;
+                  {(categories ?? []).map((cat) => {
+                    const Icon = SLUG_ICON[cat.slug] ?? Tag;
                     return (
                       <button
-                        key={cat.name}
-                        onClick={() => handleCategoryClick(cat.href)}
+                        key={cat.id}
+                        onClick={() => handleCategoryClick(`/shop?category=${cat.slug}`)}
                         className="w-full"
                       >
                         <motion.div
                           whileTap={{ scale: 0.97 }}
-                          className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border transition-all ${
-                            cat.hot
-                              ? "bg-accent/5 border-accent/20 hover:bg-accent/10"
-                              : "bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5"
-                          }`}
+                          className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 transition-all"
                         >
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                            cat.hot ? "bg-accent/10" : "bg-white shadow-sm"
-                          }`}>
-                            <Icon className={`w-4.5 h-4.5 ${cat.hot ? "text-accent" : "text-primary"}`} />
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white shadow-sm">
+                            <Icon className="w-4.5 h-4.5 text-primary" />
                           </div>
-                          <span className={`text-[11px] font-semibold text-center leading-tight ${
-                            cat.hot ? "text-accent-dark" : "text-gray-800"
-                          }`}>
+                          <span className="text-[11px] font-semibold text-center leading-tight text-gray-800">
                             {cat.name}
                           </span>
                         </motion.div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useCategories } from "@/lib/useCategories";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, SlidersHorizontal, X, Star, ShoppingCart, Heart,
@@ -23,12 +24,6 @@ async function fetchProducts(params) {
   ).toString();
   const res = await fetch(`/api/products?${qs}`);
   if (!res.ok) throw new Error("Failed to fetch products");
-  return res.json();
-}
-
-async function fetchCategories() {
-  const res = await fetch("/api/categories");
-  if (!res.ok) throw new Error("Failed to fetch categories");
   return res.json();
 }
 
@@ -1014,15 +1009,10 @@ function ShopContent() {
     staleTime: 30_000,
   });
 
-  const { data: categoriesData } = useQuery({
-    queryKey: ["categories"],
-    queryFn: fetchCategories,
-    staleTime: 60_000,
-  });
+  const { categories } = useCategories();
 
   const products   = productsData?.products ?? [];
   const pagination = productsData?.pagination ?? { total: 0, pages: 1, page: 1 };
-  const categories = categoriesData?.categories ?? [];
 
   const compareProducts = products.filter((p) => compareIds.includes(p.id));
 

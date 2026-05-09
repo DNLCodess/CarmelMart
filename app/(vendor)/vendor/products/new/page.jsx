@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useCategories } from "@/lib/useCategories";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Save, AlertCircle, RotateCcw, Clock } from "lucide-react";
 import Link from "next/link";
@@ -45,11 +46,6 @@ const CATEGORY_ATTRIBUTES = {
   ],
 };
 
-async function fetchCategories() {
-  const r = await fetch("/api/categories");
-  return r.json();
-}
-
 function FieldError({ error }) {
   if (!error) return null;
   return (
@@ -77,12 +73,9 @@ export default function NewProductPage() {
   const [attributes, setAttributes]     = useState({});    // { sizes: ["S","M"], colors: ["Black"], ... }
   const saveTimer = useRef(null);
 
-  const { data: catData } = useQuery({
-    queryKey: ["categories"],
-    queryFn:  fetchCategories,
-    staleTime: 300_000,
-  });
-  const categories = catData?.categories ?? [];
+  const { categories, parents: parentCategories, subsByParent } = useCategories();
+
+  const [parentCategoryId, setParentCategoryId] = useState("");
 
   const {
     register,
@@ -90,6 +83,7 @@ export default function NewProductPage() {
     watch,
     reset,
     control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: { status: "active", stock: 0 },
@@ -99,6 +93,18 @@ export default function NewProductPage() {
   const price       = watch("price");
   const salePrice   = watch("sale_price");
   const categoryId  = watch("category_id");
+
+  const currentSubs = subsByParent[parentCategoryId] ?? [];
+
+  // When parent changes, clear the subcategory selection
+  const handleParentChange = (e) => {
+    const pid = e.target.value;
+    setParentCategoryId(pid);
+    const subs = subsByParent[pid] ?? [];
+    // If parent has no subcategories, use the parent itself as the category
+    setValue("category_id", subs.length === 0 ? pid : "");
+    setAttributes({});
+  };
 
   // Resolve attribute definitions for the selected category
   const selectedCat = categories.find((c) => String(c.id) === String(categoryId));
@@ -268,17 +274,38 @@ export default function NewProductPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Category</label>
-            <select
-              {...register("category_id")}
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
-            >
-              <option value="">Select a category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Category</label>
+              <select
+                value={parentCategoryId}
+                onChange={handleParentChange}
+                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
+              >
+                <option value="">Select a category</option>
+                {parentCategories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {currentSubs.length > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Subcategory</label>
+                <select
+                  value={categoryId || ""}
+                  onChange={(e) => { setValue("category_id", e.target.value); setAttributes({}); }}
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
+                >
+                  <option value="">Select a subcategory</option>
+                  {currentSubs.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {/* Hidden field that holds the final category_id value */}
+            <input type="hidden" {...register("category_id")} />
           </div>
         </div>
 

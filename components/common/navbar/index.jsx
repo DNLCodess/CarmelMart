@@ -28,6 +28,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePWAInstall } from "@/lib/pwa-install-context";
 
 import { PROMO_MESSAGES, SEARCH_SUGGESTIONS } from "./navbar.data";
+import { useCategories } from "@/lib/useCategories";
 import PromoStrip from "./PromoStrip";
 import SearchBar, { SuggestionsDropdown } from "./SearchBar";
 import CategoryBar from "./CategoryBar";
@@ -147,6 +148,10 @@ export default function Navbar() {
   });
 
   const liveResults = liveData?.products ?? [];
+
+  // ── Categories (fetched once per session, shared across all components) ──────
+  const { parents: parentCategories, subsByParent } = useCategories();
+  const searchCategories = ["All Categories", ...parentCategories.map((c) => c.name)];
 
   const navItems = (() => {
     if (debouncedQuery.length >= 2)
@@ -324,6 +329,7 @@ export default function Navbar() {
     filteredSuggestions,
     recentSearches,
     clearRecentSearches,
+    searchCategories,
     onSubmit: handleSearchSubmit,
     onSuggestionClick: handleSuggestionClick,
     onProductClick: handleProductClick,
@@ -586,6 +592,8 @@ export default function Navbar() {
 
         {/* Desktop category bar */}
         <CategoryBar
+          categories={parentCategories}
+          subsByParent={subsByParent}
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
         />
@@ -603,6 +611,7 @@ export default function Navbar() {
         onSignOut={handleSignOut}
         cartCount={cartCount}
         wishlistCount={wishlistCount}
+        categories={parentCategories}
         {...searchProps}
         onSearchSubmit={handleSearchSubmit}
         onSearchKeyDown={handleSearchKeyDown}

@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, MapPin, ChevronDown, RotateCcw } from "lucide-react";
 import Image from "next/image";
-import { SEARCH_CATEGORIES, SEARCH_SUGGESTIONS, NIGERIAN_STATES } from "./navbar.data";
+import { SEARCH_SUGGESTIONS, NIGERIAN_STATES } from "./navbar.data";
 
 // ─── Highlight matching text in suggestions ───────────────────────────────────
 
@@ -222,8 +222,10 @@ export default function SearchBar({
   recentSearches, clearRecentSearches,
   deliveryLocation, setDeliveryLocation,
   showLocationPicker, setShowLocationPicker,
+  searchCategories,
   onSubmit, onSuggestionClick, onProductClick, onSubmitAll, onKeyDown,
 }) {
+  const categoryList = searchCategories?.length ? searchCategories : ["All Categories"];
   return (
     <>
       {/* Location picker — desktop only */}
@@ -289,7 +291,7 @@ export default function SearchBar({
               className="bg-transparent text-[12px] font-medium text-gray-700 pl-3 pr-7 h-full appearance-none outline-none cursor-pointer"
               aria-label="Search category"
             >
-              {SEARCH_CATEGORIES.map((cat) => (
+              {categoryList.map((cat) => (
                 <option key={cat}>{cat}</option>
               ))}
             </select>

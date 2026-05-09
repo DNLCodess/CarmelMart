@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useCategories } from "@/lib/useCategories";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,12 +25,6 @@ async function fetchProducts(params) {
   });
   const res = await fetch(`/api/products?${qs}`);
   if (!res.ok) throw new Error("Failed to load results");
-  return res.json();
-}
-
-async function fetchCategories() {
-  const res = await fetch("/api/categories");
-  if (!res.ok) throw new Error("Failed to load categories");
   return res.json();
 }
 
@@ -233,15 +228,10 @@ export default function SearchPage() {
     keepPreviousData: true,
   });
 
-  const { data: catData } = useQuery({
-    queryKey: ["categories"],
-    queryFn: fetchCategories,
-    staleTime: 10 * 60 * 1000,
-  });
+  const { categories } = useCategories();
 
   const products   = results?.products ?? [];
   const pagination = results?.pagination ?? { total: 0, page: 1, pages: 1 };
-  const categories = catData?.categories ?? [];
 
   // ── cart / wishlist ─────────────────────────────────────────────────────
   const { addItem }    = useCartStore();

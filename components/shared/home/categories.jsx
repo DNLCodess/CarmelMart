@@ -1,34 +1,30 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useCategories } from "@/lib/useCategories";
 
 const CATEGORY_META = {
-  fashion: {
-    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
-    sub: "Clothing, shoes, bags",
+  consumables: {
+    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
+    sub: "Food, drinks & essentials",
   },
-  electronics: {
-    image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80",
-    sub: "Phones, laptops, audio",
+  apparels: {
+    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
+    sub: "Clothing, shoes & accessories",
   },
   "home-living": {
     image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80",
-    sub: "Furniture and decor",
+    sub: "Furniture, decor & kitchen",
   },
-  beauty: {
-    image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&q=80",
-    sub: "Skincare and makeup",
+  "electronics-tools": {
+    image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80",
+    sub: "Gadgets, tools & appliances",
   },
-  phones: {
-    image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80",
-    sub: "Smartphones and accessories",
-  },
-  "food-drinks": {
-    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
-    sub: "Pantry and beverages",
+  "leisure-lifestyle": {
+    image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80",
+    sub: "Sports, hobbies & wellness",
   },
 };
 
@@ -40,20 +36,16 @@ const FALLBACK_CATEGORIES = Object.entries(CATEGORY_META).map(([slug, meta]) => 
 }));
 
 export default function CategoriesSection() {
-  const { data } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => fetch("/api/categories").then((r) => r.json()),
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
+  const { parents, isLoading } = useCategories();
 
-  const categories = data?.categories?.length
-    ? data.categories.slice(0, 6).map((category) => ({
+  const defaultImage = CATEGORY_META.consumables.image;
+  const categories = parents.length
+    ? parents.slice(0, 6).map((category) => ({
         ...category,
-        image: CATEGORY_META[category.slug]?.image ?? CATEGORY_META.fashion.image,
+        image: CATEGORY_META[category.slug]?.image ?? defaultImage,
         sub: CATEGORY_META[category.slug]?.sub ?? "Shop verified products",
       }))
-    : FALLBACK_CATEGORIES;
+    : isLoading ? [] : FALLBACK_CATEGORIES;
 
   return (
     <section className="py-14 lg:py-16 bg-white">
@@ -79,7 +71,7 @@ export default function CategoriesSection() {
               href={`/shop?category=${category.slug}`}
               className="group rounded-xl border border-gray-100 bg-white overflow-hidden hover:border-primary/30 hover:shadow-md transition-all"
             >
-              <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+              <div className="relative aspect-4/3 bg-gray-100 overflow-hidden">
                 <Image
                   src={category.image}
                   alt={category.name}
