@@ -18,6 +18,8 @@ import {
   Banknote,
   Tag,
   X,
+  Mail,
+  UserCircle,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -84,7 +86,7 @@ function Field({ label, required, children, hint }) {
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function CheckoutPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const items = useCartStore((s) => s.items);
   const total = useCartStore((s) => s.items.reduce((sum, i) => sum + i.price * i.quantity, 0));
   const clearCart = useCartStore((s) => s.clearCart);
@@ -136,6 +138,11 @@ export default function CheckoutPage() {
     ];
   }, [zoneData]);
 
+  // Guests cannot use POD — no account history to assess fraud risk
+  const availablePayments = isGuest
+    ? PAYMENT_METHODS.filter((m) => m.id !== "pod")
+    : PAYMENT_METHODS;
+
   const deliveryFee = DELIVERY_OPTIONS.find((o) => o.id === delivery)?.fee ?? 1500;
   const discount = appliedPromo?.discount ?? 0;
   const discountedSubtotal = Math.max(0, total - discount);
@@ -175,6 +182,7 @@ export default function CheckoutPage() {
   // ── Validation ───────────────────────────────────────────────────────────────
   const validateAddress = () => {
     const required = ["fullName", "phone", "street", "landmark", "city", "state", "lga"];
+    if (isGuest) required.push("email");
     const missing = required.filter((f) => !address[f].trim());
     if (missing.length) {
       toast.error("Please fill in all required fields");
@@ -336,6 +344,17 @@ export default function CheckoutPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="text-2xl font-bold text-gray-900 text-center mb-6">Checkout</h1>
+
+        {/* Guest session notice */}
+        {isGuest && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 text-sm">
+            <div className="flex items-center gap-2 text-amber-800">
+              <UserCircle className="w-4 h-4 shrink-0" />
+              <span>Checking out as guest. <Link href="/convert-account" className="font-semibold underline underline-offset-2">Create an account</Link> after checkout to track all your orders.</span>
+            </div>
+          </div>
+        )}
+
         <StepBar current={step} />
 
         <div className="grid lg:grid-cols-5 gap-8">
@@ -374,6 +393,22 @@ export default function CheckoutPage() {
                       </div>
                     </Field>
                   </div>
+
+                  {/* Email — required for guests (no account email to fall back on) */}
+                  {isGuest && (
+                    <Field label="Email Address" required hint="Your order confirmation will be sent here">
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="email"
+                          value={address.email}
+                          onChange={(e) => setAddress({ ...address, email: e.target.value })}
+                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm"
+                          placeholder="you@example.com"
+                        />
+                      </div>
+                    </Field>
+                  )}
 
                   <div className="grid sm:grid-cols-3 gap-4">
                     <Field label="House No.">
@@ -461,7 +496,7 @@ export default function CheckoutPage() {
                   <h2 className="font-bold text-gray-900 flex items-center gap-2">
                     <CreditCard className="w-5 h-5 text-primary" /> Payment Method
                   </h2>
-                  {PAYMENT_METHODS.map((m) => (
+                  {availablePayments.map((m) => (
                     <label key={m.id} className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${
                       payment === m.id ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"
                     }`}>

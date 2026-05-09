@@ -207,6 +207,109 @@ export async function updateProfileAction(userId, data) {
 }
 
 /**
+ * Create an anonymous guest session so the user can check out without registering.
+ * Creates a Supabase anonymous auth user + a matching users table row (required by
+ * orders.customer_id FK). The placeholder email is never shown to the user.
+ */
+export async function guestSignInAction(captchaToken = null) {
+  const supabase = await createClient();
+
+  // Reuse existing session — don't create a duplicate anonymous user
+  const { data: { user: existing } } = await supabase.auth.getUser();
+  if (existing) {
+    revalidatePath("/", "layout");
+    return { error: null };
+  }
+
+  const { data, error } = await supabase.auth.signInAnonymously(
+    captchaToken ? { options: { captchaToken } } : {},
+  );
+  if (error) {
+    // Surface the real Supabase message so misconfiguration is obvious in the UI
+    return { error: error.message };
+  }
+  if (!data?.user) {
+    return { error: "Could not start guest session. Please try again." };
+  }
+
+  const userId = data.user.id;
+  const placeholderEmail = `guest_${userId.replace(/-/g, "").slice(0, 12)}@carmelmart.guest`;
+
+  const admin = createAdminClient();
+  const { error: profileError } = await admin.from("users").insert({
+    id: userId,
+    email: placeholderEmail,
+    role: "customer",
+    status: "active",
+    wallet_balance: 0,
+  });
+
+  if (profileError) {
+    await admin.auth.admin.deleteUser(userId);
+    return { error: profileError.message };
+  }
+
+  revalidatePath("/", "layout");
+  return { error: null };
+}
+
+/**
+ * Upgrade an anonymous guest account to a full registered account.
+ * Sets password immediately; queues email confirmation via Supabase.
+ * The users table email is updated optimistically — history and orders
+ * carry over automatically since the UUID stays the same.
+ */
+export async function convertGuestAction({ email, password, firstName, lastName, phone }) {
+  if (!email || !password) return { error: "Email and password are required." };
+  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (phone && !NIGERIAN_PHONE_RE.test(phone.trim())) {
+    return { error: "Enter a valid Nigerian phone number (e.g. 08012345678)." };
+  }
+
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { error: "Not authenticated." };
+  if (!user.is_anonymous) return { error: "Account is already registered." };
+
+  const admin = createAdminClient();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: existing } = await admin
+    .from("users")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .single();
+
+  if (existing) {
+    return { error: "This email is already registered. Please sign in instead." };
+  }
+
+  // Upgrades the anonymous auth user: sets password now, queues email confirmation
+  const { error: updateErr } = await supabase.auth.updateUser({
+    email: normalizedEmail,
+    password,
+  });
+  if (updateErr) return { error: updateErr.message };
+
+  const referralCode = generateReferralCode();
+
+  const profileUpdate = { email: normalizedEmail, referral_code: referralCode };
+  if (firstName?.trim()) profileUpdate.first_name = firstName.trim();
+  if (lastName?.trim()) profileUpdate.last_name = lastName.trim();
+  if (phone?.trim()) profileUpdate.phone = phone.trim();
+
+  const { error: profileErr } = await admin
+    .from("users")
+    .update(profileUpdate)
+    .eq("id", user.id);
+
+  if (profileErr) return { error: "Could not update your profile. Please contact support." };
+
+  revalidatePath("/", "layout");
+  return { error: null, requiresEmailVerification: true };
+}
+
+/**
  * Update password for the currently authenticated user.
  */
 export async function updatePasswordAction({ currentPassword, newPassword }) {

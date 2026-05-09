@@ -1,4 +1,4 @@
-import { Star, BadgeCheck } from "lucide-react";
+import { Star, BadgeCheck, Crown, Zap } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -8,9 +8,9 @@ async function getFeaturedVendors() {
 
   const { data: vendorRows, error } = await supabase
     .from("vendors")
-    .select("id, business_name, description, image, logo_image, banner_image, slug, verification_status")
+    .select("id, business_name, description, image, logo_image, banner_image, slug, verification_status, subscription_tier")
     .eq("verification_status", "verified")
-    .limit(8);
+    .limit(12); // fetch more so tier-sort gets best candidates
 
   if (error || !vendorRows?.length) return [];
 
@@ -27,27 +27,33 @@ async function getFeaturedVendors() {
     productsByVendor[product.vendor_id].push(product);
   }
 
-  return vendorRows.map((vendor) => {
-    const vendorProducts = productsByVendor[vendor.id] ?? [];
-    const sampleImage =
-      vendorProducts.find((product) => Array.isArray(product.images) && product.images.length > 0)
-        ?.images[0] ?? null;
+  const TIER_RANK = { vip: 0, premium: 1, free: 2 };
 
-    return {
-      id: vendor.id,
-      name: vendor.business_name,
-      description: vendor.description,
-      verified: true,
-      productCount: vendorProducts.length,
-      image: vendor.image ?? sampleImage,
-      logoImage: vendor.logo_image,
-      bannerImage: vendor.banner_image ?? sampleImage,
-      slug:
-        vendor.slug ??
-        vendor.business_name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ??
-        vendor.id,
-    };
-  });
+  return vendorRows
+    .map((vendor) => {
+      const vendorProducts = productsByVendor[vendor.id] ?? [];
+      const sampleImage =
+        vendorProducts.find((product) => Array.isArray(product.images) && product.images.length > 0)
+          ?.images[0] ?? null;
+
+      return {
+        id: vendor.id,
+        name: vendor.business_name,
+        description: vendor.description,
+        verified: true,
+        tier: vendor.subscription_tier ?? "free",
+        productCount: vendorProducts.length,
+        image: vendor.image ?? sampleImage,
+        logoImage: vendor.logo_image,
+        bannerImage: vendor.banner_image ?? sampleImage,
+        slug:
+          vendor.slug ??
+          vendor.business_name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ??
+          vendor.id,
+      };
+    })
+    .sort((a, b) => (TIER_RANK[a.tier] ?? 2) - (TIER_RANK[b.tier] ?? 2))
+    .slice(0, 8);
 }
 
 export default async function TopVendorsSection() {
@@ -91,11 +97,23 @@ export default async function TopVendorsSection() {
 
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="font-bold text-gray-900 text-lg line-clamp-1">{vendor.name}</h3>
-                    {vendor.verified && (
-                      <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                        <BadgeCheck className="w-4 h-4 text-white" />
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {vendor.tier === "vip" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          <Crown className="w-2.5 h-2.5" /> VIP
+                        </span>
+                      )}
+                      {vendor.tier === "premium" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          <Zap className="w-2.5 h-2.5" /> Premium
+                        </span>
+                      )}
+                      {vendor.verified && (
+                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                          <BadgeCheck className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {vendor.description && (

@@ -50,7 +50,7 @@ export async function GET(request) {
             .then(({ data }) => Object.fromEntries((data ?? []).map((u) => [u.id, u])))
         : Promise.resolve({}),
       userIds.length > 0
-        ? ctx.admin.from("vendors").select("id, business_name").in("id", userIds)
+        ? ctx.admin.from("vendors").select("id, business_name, subscription_tier").in("id", userIds)
             .then(({ data }) => Object.fromEntries((data ?? []).map((v) => [v.id, v])))
         : Promise.resolve({}),
     ]);
@@ -82,6 +82,7 @@ export async function GET(request) {
           id:           d.vendor_id,
           email:        vendorU?.email ?? null,
           businessName: vendorV?.business_name ?? vendorU?.email ?? "Vendor",
+          tier:         vendorV?.subscription_tier ?? "free",
         },
       };
     });

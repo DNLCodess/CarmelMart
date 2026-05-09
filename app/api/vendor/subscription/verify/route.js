@@ -3,18 +3,18 @@
  *
  * Verifies a Flutterwave subscription payment and activates the plan.
  *
- * Security / reliability improvements:
- *   1. Currency check — only NGN payments are accepted.
- *   2. 10-second timeout on the upstream Flutterwave call.
- *   3. Atomic DB update via activate_vendor_subscription() RPC —
- *      all four writes (payment, cancel old sub, insert new sub,
- *      update vendor tier) succeed or fail together.
+ * Security / reliability:
+ *   1. Amount compared against the stored pending payment record (not re-fetched
+ *      from platform_settings) — immune to mid-checkout price changes.
+ *   2. Currency check — only NGN payments accepted.
+ *   3. 10-second timeout on the upstream Flutterwave call.
+ *   4. Atomic DB update via activate_vendor_subscription() RPC.
  */
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getPlan, getPlanPrice, computeExpiryDate } from "@/lib/subscription";
+import { getPlan, computeExpiryDate } from "@/lib/subscription";
 
 const FLW_TIMEOUT_MS = 10_000;
 
@@ -29,7 +29,6 @@ export async function POST(request) {
 
     const admin = createAdminClient();
 
-    // Role check — vendors only
     const { data: profile } = await admin
       .from("users")
       .select("role")
@@ -93,7 +92,11 @@ export async function POST(request) {
     } catch (fetchErr) {
       const isTimeout = fetchErr.name === "TimeoutError" || fetchErr.name === "AbortError";
       return NextResponse.json(
-        { error: isTimeout ? "Payment provider timed out. Please try again." : "Failed to reach payment provider." },
+        {
+          error: isTimeout
+            ? "Payment provider timed out. Please try again."
+            : "Failed to reach payment provider.",
+        },
         { status: 502 }
       );
     }
@@ -114,7 +117,10 @@ export async function POST(request) {
     }
 
     // ── Amount integrity check ────────────────────────────────────────────────
-    const expectedAmount = getPlanPrice(tier, billing_cycle);
+    // Compare against the stored pending amount (set at upgrade initiation),
+    // not the current platform_settings value — price changes mid-checkout
+    // should not affect a payment already in flight.
+    const expectedAmount = Number(pendingPayment.amount);
     const paidAmount     = Number(fwData.data.amount);
     if (paidAmount < expectedAmount) {
       return NextResponse.json(
@@ -126,8 +132,6 @@ export async function POST(request) {
     }
 
     // ── Atomic activation via DB function ─────────────────────────────────────
-    // All four writes (mark payment success, cancel old sub, insert new sub,
-    // update vendor tier) execute inside a single Postgres transaction.
     const expiresAt = computeExpiryDate(billing_cycle, new Date());
 
     const { data: newSubId, error: rpcError } = await admin.rpc(
@@ -150,7 +154,6 @@ export async function POST(request) {
       throw rpcError;
     }
 
-    // Fetch the newly created subscription to return full details to the client
     const { data: newSub } = await admin
       .from("vendor_subscriptions")
       .select("*")

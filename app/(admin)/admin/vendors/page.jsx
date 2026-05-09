@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, Search, Check, XCircle, Ban, UserCheck, Eye,
-  RefreshCw, Mail, Phone, CheckCircle, Clock,
+  RefreshCw, Mail, Phone, CheckCircle, Clock, Zap, Crown, Package,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -26,6 +26,22 @@ function StatusBadge({ status }) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.cls}`}>
       {c.label}
+    </span>
+  );
+}
+
+const TIER_CFG = {
+  vip:     { label: "VIP",     Icon: Crown, cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" },
+  premium: { label: "Premium", Icon: Zap,   cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"       },
+};
+
+function TierBadge({ tier }) {
+  const cfg = TIER_CFG[tier];
+  if (!cfg) return null;
+  const { Icon, label, cls } = cfg;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${cls}`}>
+      <Icon className="w-2.5 h-2.5" />{label}
     </span>
   );
 }
@@ -58,15 +74,17 @@ function ConfirmDialog({ open, title, message, confirmLabel, confirmCls, onConfi
 export default function AdminVendorsPage() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [tierFilter, setTierFilter]     = useState("all");
   const [search, setSearch]             = useState("");
   const [page, setPage]                 = useState(1);
   const [confirm, setConfirm]           = useState(null);
 
   const params = new URLSearchParams({ status: statusFilter, page });
   if (search) params.set("search", search);
+  if (tierFilter !== "all") params.set("tier", tierFilter);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-vendors", statusFilter, search, page],
+    queryKey: ["admin-vendors", statusFilter, tierFilter, search, page],
     queryFn: () => fetchVendors(params.toString()),
     staleTime: 30_000,
     retry: false,
@@ -105,6 +123,12 @@ export default function AdminVendorsPage() {
   const total   = data?.total   ?? 0;
 
   const STATUS_TABS = ["all", "pending", "verified", "suspended", "rejected"];
+  const TIER_TABS   = [
+    { id: "all",     label: "All Tiers" },
+    { id: "free",    label: "Free" },
+    { id: "premium", label: "Premium" },
+    { id: "vip",     label: "VIP" },
+  ];
 
   return (
     <div className="space-y-5">
@@ -125,19 +149,34 @@ export default function AdminVendorsPage() {
         </div>
       </div>
 
-      {/* Status filter */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl w-fit flex-wrap">
-        {STATUS_TABS.map((s) => (
-          <button
-            key={s}
-            onClick={() => { setStatusFilter(s); setPage(1); }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors ${
-              statusFilter === s ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl flex-wrap">
+          {STATUS_TABS.map((s) => (
+            <button
+              key={s}
+              onClick={() => { setStatusFilter(s); setPage(1); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors ${
+                statusFilter === s ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+          {TIER_TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => { setTierFilter(id); setPage(1); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                tierFilter === id ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -174,7 +213,10 @@ export default function AdminVendorsPage() {
                           <Store className="w-4 h-4 text-primary" />
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900 dark:text-gray-100">{v.business_name}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100">{v.business_name}</p>
+                            <TierBadge tier={v.subscription_tier} />
+                          </div>
                           <p className="text-xs font-mono text-gray-400 dark:text-gray-500">{v.id.slice(0, 8)}</p>
                         </div>
                       </div>

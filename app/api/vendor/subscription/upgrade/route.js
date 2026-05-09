@@ -2,7 +2,8 @@
  * POST /api/vendor/subscription/upgrade
  *
  * Creates a pending payment record and returns checkout parameters
- * for the Flutterwave modal.
+ * for the Flutterwave modal. Pricing is read from platform_settings
+ * so the admin can adjust it without a deployment.
  *
  * Rate limited: 5 attempts per user per 10 minutes to prevent
  * unbounded pending payment record creation.
@@ -11,8 +12,33 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getPlan, getPlanPrice } from "@/lib/subscription";
+import { getPlan, DEFAULT_PRICES } from "@/lib/subscription";
 import { rateLimit, retryAfterSeconds } from "@/lib/rateLimit";
+
+const PRICE_KEYS = [
+  "subscription_premium_price_monthly",
+  "subscription_vip_price_monthly",
+  "subscription_vip_price_annual",
+];
+
+async function getSubscriptionPrices(admin) {
+  const { data } = await admin
+    .from("platform_settings")
+    .select("key, value")
+    .in("key", PRICE_KEYS);
+
+  const map = Object.fromEntries((data ?? []).map((r) => [r.key, parseInt(r.value, 10)]));
+
+  return {
+    premium: {
+      monthly: map.subscription_premium_price_monthly ?? DEFAULT_PRICES.premium.monthly,
+    },
+    vip: {
+      monthly: map.subscription_vip_price_monthly ?? DEFAULT_PRICES.vip.monthly,
+      annual:  map.subscription_vip_price_annual  ?? DEFAULT_PRICES.vip.annual,
+    },
+  };
+}
 
 export async function POST(request) {
   try {
@@ -24,8 +50,6 @@ export async function POST(request) {
     }
 
     // ── Rate limit ────────────────────────────────────────────────────────────
-    // 5 checkout initiations per 10 minutes per vendor.
-    // Prevents spam-creating pending payment records.
     const rl = rateLimit(`sub-upgrade:${user.id}`, { limit: 5, windowMs: 10 * 60 * 1000 });
     if (!rl.allowed) {
       return NextResponse.json(
@@ -39,7 +63,6 @@ export async function POST(request) {
 
     const admin = createAdminClient();
 
-    // Role check — vendors only, fetch name + email for Flutterwave customer info
     const { data: profile } = await admin
       .from("users")
       .select("role, first_name, last_name, email")
@@ -59,21 +82,28 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-    if (billing_cycle === "annual" && tier !== "vip") {
-      return NextResponse.json(
-        { error: "Annual billing is only available for the VIP plan." },
-        { status: 400 }
-      );
-    }
     if (!["monthly", "annual"].includes(billing_cycle)) {
       return NextResponse.json(
         { error: "billing_cycle must be 'monthly' or 'annual'." },
         { status: 400 }
       );
     }
+    if (billing_cycle === "annual" && tier !== "vip") {
+      return NextResponse.json(
+        { error: "Annual billing is only available for the VIP plan." },
+        { status: 400 }
+      );
+    }
 
-    const plan   = getPlan(tier);
-    const amount = getPlanPrice(tier, billing_cycle);
+    // ── Resolve price from platform_settings ──────────────────────────────────
+    const prices = await getSubscriptionPrices(admin);
+    const tierPrices = prices[tier];
+    const amount =
+      billing_cycle === "annual" && tierPrices.annual != null
+        ? tierPrices.annual
+        : tierPrices.monthly;
+
+    const plan = getPlan(tier);
 
     // ── Generate unique payment reference ─────────────────────────────────────
     const reference = `CM-SUB-${Date.now()}-${crypto
@@ -82,9 +112,8 @@ export async function POST(request) {
       .slice(0, 9)}`;
 
     // ── Insert pending payment record ─────────────────────────────────────────
-    // The verify endpoint and webhook both look this up to enforce ownership
-    // and idempotency. verification_type encodes tier + billing_cycle for the
-    // webhook handler (e.g., "premium_monthly", "vip_annual").
+    // Amount is stored here so verify can compare against it even if the
+    // admin changes the price between initiation and completion.
     const { error: paymentError } = await admin.from("payments").insert({
       user_id:           user.id,
       amount,

@@ -18,6 +18,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "all";
+    const tier   = searchParams.get("tier")   || "all";
     const search = searchParams.get("search") || null;
     const page   = Math.max(1, Number(searchParams.get("page") || 1));
     const limit  = 20;
@@ -35,6 +36,7 @@ export async function GET(request) {
       .range((page - 1) * limit, page * limit - 1);
 
     if (status !== "all") query = query.eq("verification_status", status);
+    if (tier   !== "all") query = query.eq("subscription_tier", tier);
     if (search) query = query.ilike("business_name", `%${search}%`);
 
     const { data: vendorRows, error, count } = await query;

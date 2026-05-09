@@ -35,7 +35,7 @@ export async function GET(request) {
     let vendorInfoMap = {};
     if (vendorIds.length > 0) {
       const [{ data: vendorRows }, { data: userRows }] = await Promise.all([
-        ctx.admin.from("vendors").select("id, business_name, bank_account_number, bank_code").in("id", vendorIds),
+        ctx.admin.from("vendors").select("id, business_name, bank_account_number, bank_code, subscription_tier").in("id", vendorIds),
         ctx.admin.from("users").select("id, email").in("id", vendorIds),
       ]);
       const vMap = Object.fromEntries((vendorRows ?? []).map((v) => [v.id, v]));
@@ -56,14 +56,25 @@ export async function GET(request) {
         flwRef:    p.flw_ref,
         createdAt: new Date(p.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
         vendor: {
-          email:       v.email ?? null,
-          name:        v.email ?? "Vendor",
+          email:        v.email ?? null,
+          name:         v.email ?? "Vendor",
           businessName: v.business_name ?? null,
-          bankAccount: v.bank_account_number ?? null,
-          bankCode:    v.bank_code ?? null,
+          bankAccount:  v.bank_account_number ?? null,
+          bankCode:     v.bank_code ?? null,
+          tier:         v.subscription_tier ?? "free",
         },
       };
     });
+
+    // VIP and Premium vendors surface first in the pending queue
+    const TIER_RANK = { vip: 0, premium: 1, free: 2 };
+    if (status === "pending") {
+      payouts.sort((a, b) => {
+        const ra = TIER_RANK[a.vendor.tier] ?? 2;
+        const rb = TIER_RANK[b.vendor.tier] ?? 2;
+        return ra - rb;
+      });
+    }
 
     return NextResponse.json({ payouts });
   } catch (error) {

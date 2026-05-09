@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useRef, Suspense } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, ShieldCheck, Store, Star } from "lucide-react";
 import Image from "next/image";
+import Script from "next/script";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { loginAction } from "@/app/actions/auth";
+import { loginAction, guestSignInAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 
 // ─── Reusable input ───────────────────────────────────────────────────────────
@@ -77,10 +78,13 @@ const TRUST_POINTS = [
 // ─── Main login form ──────────────────────────────────────────────────────────
 
 function LoginContent() {
-  const [isLoading, setIsLoading]     = useState(false);
+  const [isLoading, setIsLoading]         = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [formData, setFormData]       = useState({ email: "", password: "" });
-  const [errors, setErrors]           = useState({});
+  const [guestLoading, setGuestLoading]   = useState(false);
+  const [formData, setFormData]           = useState({ email: "", password: "" });
+  const [errors, setErrors]               = useState({});
+  const turnstileWidgetIdRef = useRef(null);
+  const TURNSTILE_SITE_KEY   = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const router       = useRouter();
   const searchParams = useSearchParams();
   const queryClient  = useQueryClient();
@@ -105,6 +109,62 @@ function LoginContent() {
       toast.error(err.message || "Google sign-in failed. Please try again.");
       setGoogleLoading(false);
     }
+  };
+
+  const proceedAsGuest = async (captchaToken = null) => {
+    try {
+      const result = await guestSignInAction(captchaToken);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
+      const from = searchParams.get("from");
+      const dest = from && from.startsWith("/") && !from.startsWith("//") ? from : "/checkout";
+      router.push(dest);
+    } catch {
+      toast.error("Could not start guest session. Please try again.");
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
+  const handleGuestCheckout = () => {
+    setGuestLoading(true);
+
+    // No Turnstile configured (local dev or key not set) — skip captcha
+    if (!TURNSTILE_SITE_KEY || typeof window.turnstile === "undefined") {
+      proceedAsGuest(null);
+      return;
+    }
+
+    // Reset any previous widget before re-executing
+    if (turnstileWidgetIdRef.current !== null) {
+      window.turnstile.reset(turnstileWidgetIdRef.current);
+      window.turnstile.execute(turnstileWidgetIdRef.current);
+      return;
+    }
+
+    // First click: render the invisible widget and immediately execute
+    turnstileWidgetIdRef.current = window.turnstile.render("#turnstile-guest-widget", {
+      sitekey: TURNSTILE_SITE_KEY,
+      size: "invisible",
+      callback: (token) => proceedAsGuest(token),
+      "error-callback": (code) => {
+        // code 110200 = domain not in widget's hostname list
+        const msg = code === 110200
+          ? "Security check failed: this domain isn't authorised in Cloudflare Turnstile."
+          : `Security check failed (${code}). Please try again.`;
+        toast.error(msg, { duration: 6000 });
+        setGuestLoading(false);
+      },
+      "expired-callback": () => {
+        toast("Security token expired — please try again.");
+        setGuestLoading(false);
+        turnstileWidgetIdRef.current = null;
+      },
+    });
+    window.turnstile.execute(turnstileWidgetIdRef.current);
   };
 
   const handleChange = (e) => {
@@ -141,6 +201,11 @@ function LoginContent() {
   };
 
   return (
+    <>
+    {/* Load Turnstile only when a site key is configured */}
+    {TURNSTILE_SITE_KEY && (
+      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="lazyOnload" />
+    )}
     <div className="min-h-screen flex">
 
       {/* ── Left: Hero panel ── */}
@@ -326,6 +391,38 @@ function LoginContent() {
               </form>
             </motion.div>
 
+            {/* Hidden Turnstile widget — rendered programmatically on guest click */}
+            <div id="turnstile-guest-widget" className="hidden" />
+
+            {/* Guest checkout — only shown when redirected from /checkout */}
+            {searchParams.get("from")?.startsWith("/checkout") && (
+              <div className="mt-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-xs text-gray-400 font-medium">or</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGuestCheckout}
+                  disabled={guestLoading || isLoading || googleLoading}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all text-sm font-semibold text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {guestLoading ? (
+                    <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-600 rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  )}
+                  {guestLoading ? "Starting guest session…" : "Continue as Guest"}
+                </button>
+                <p className="text-center text-xs text-gray-400 mt-2">
+                  No account needed — you can save your details after checkout.
+                </p>
+              </div>
+            )}
+
             {/* Create account */}
             <p className="mt-6 text-center text-sm text-gray-500">
               New to CarmelMart?{" "}
@@ -337,6 +434,7 @@ function LoginContent() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

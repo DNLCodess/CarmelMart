@@ -133,13 +133,13 @@ export async function GET(request) {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    // ── Bulk-fetch vendor names for returned products ─────────────────────────
+    // ── Bulk-fetch vendor info (name + tier) for returned products ───────────
     const vendorIds = [...new Set((data ?? []).map((p) => p.vendor_id).filter(Boolean))];
     let vendorMap = {};
     if (vendorIds.length > 0) {
       const { data: vendors } = await supabase
         .from("vendors")
-        .select("id, business_name, verification_status")
+        .select("id, business_name, verification_status, subscription_tier")
         .in("id", vendorIds);
       vendorMap = Object.fromEntries((vendors ?? []).map((v) => [v.id, v]));
     }
@@ -173,14 +173,25 @@ export async function GET(request) {
           ? { id: p.categories.id, name: p.categories.name, slug: p.categories.slug }
           : null,
         vendor: vendor
-          ? { id: vendor.id, name: vendor.business_name, verified: vendor.verification_status === "verified" }
+          ? { id: vendor.id, name: vendor.business_name, verified: vendor.verification_status === "verified", tier: vendor.subscription_tier ?? "free" }
           : null,
       };
     });
 
-    // Post-filter by discount % (can't do this in Postgres without a computed column)
+    // Post-filter by discount %
     if (minDiscount !== null) {
       products = products.filter((p) => p.discount >= minDiscount);
+    }
+
+    // Tier-based ranking boost for default/relevance sorts.
+    // VIP > Premium > Free — stable sort preserves DB order within each tier group.
+    const TIER_RANK = { vip: 0, premium: 1, free: 2 };
+    if (sort === "newest" || sort === "relevance") {
+      products.sort((a, b) => {
+        const ra = TIER_RANK[a.vendor?.tier ?? "free"] ?? 2;
+        const rb = TIER_RANK[b.vendor?.tier ?? "free"] ?? 2;
+        return ra - rb;
+      });
     }
 
     return NextResponse.json({

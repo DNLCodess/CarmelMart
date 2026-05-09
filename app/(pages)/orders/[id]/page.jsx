@@ -2,15 +2,17 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Package, Truck, CheckCircle, Clock, XCircle,
   MapPin, Phone, ArrowLeft, RefreshCw, Copy,
-  AlertTriangle, ThumbsUp,
+  AlertTriangle, ThumbsUp, Star,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Data fetching ──────────────────────────────────────────────────────────────
 async function fetchOrder(id) {
@@ -19,6 +21,12 @@ async function fetchOrder(id) {
     const d = await r.json().catch(() => ({}));
     throw new Error(d.error || "Order not found");
   }
+  return r.json();
+}
+
+async function fetchExistingReview(id) {
+  const r = await fetch(`/api/customer/orders/${id}/rider-review`);
+  if (!r.ok) return { review: null };
   return r.json();
 }
 
@@ -50,11 +58,193 @@ function Skeleton() {
   );
 }
 
+// ── Star rating ────────────────────────────────────────────────────────────────
+function StarPicker({ value, onChange }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex gap-1.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onChange(star)}
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          className="transition-transform hover:scale-110"
+        >
+          <Star
+            className={`w-8 h-8 transition-colors ${
+              star <= (hovered || value)
+                ? "fill-amber-400 text-amber-400"
+                : "fill-gray-200 text-gray-200"
+            }`}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const STAR_LABELS = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Great", 5: "Excellent" };
+
+// ── Rider review form ──────────────────────────────────────────────────────────
+function RiderReviewForm({ orderId, onSubmitted }) {
+  const [rating,          setRating]          = useState(0);
+  const [onTime,          setOnTime]          = useState(null);
+  const [professional,    setProfessional]    = useState(null);
+  const [pkgCondition,    setPkgCondition]    = useState(null);
+  const [wouldRecommend,  setWouldRecommend]  = useState(null);
+  const [comment,         setComment]         = useState("");
+
+  const { mutate: submit, isPending } = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`/api/customer/orders/${orderId}/rider-review`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          rating,
+          on_time:           onTime,
+          professional,
+          package_condition: pkgCondition,
+          would_recommend:   wouldRecommend,
+          comment:           comment.trim() || undefined,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to submit review");
+      return d;
+    },
+    onSuccess: () => {
+      toast.success("Thank you for your review!");
+      onSubmitted();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const BoolButton = ({ value, current, onSelect, label }) => (
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-all ${
+        current === value
+          ? value
+            ? "bg-emerald-600 border-emerald-600 text-white"
+            : "bg-red-500 border-red-500 text-white"
+          : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const BoolRow = ({ question, value, onChange }) => (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold text-gray-700">{question}</p>
+      <div className="flex gap-2">
+        <BoolButton value={true}  current={value} onSelect={onChange} label="Yes" />
+        <BoolButton value={false} current={value} onSelect={onChange} label="No"  />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6">
+      <h2 className="font-bold text-gray-900 flex items-center gap-2">
+        <Star className="w-5 h-5 text-amber-400 fill-amber-400" /> Rate Your Delivery
+      </h2>
+
+      {/* Star rating */}
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-gray-700">Overall experience</p>
+        <StarPicker value={rating} onChange={setRating} />
+        {rating > 0 && (
+          <p className="text-sm font-bold text-amber-500">{STAR_LABELS[rating]}</p>
+        )}
+      </div>
+
+      {/* Yes/No questions */}
+      <BoolRow
+        question="Was the delivery on time?"
+        value={onTime}
+        onChange={setOnTime}
+      />
+      <BoolRow
+        question="Was the rider professional and polite?"
+        value={professional}
+        onChange={setProfessional}
+      />
+      <BoolRow
+        question="Was your package in good condition?"
+        value={pkgCondition}
+        onChange={setPkgCondition}
+      />
+      <BoolRow
+        question="Would you recommend this rider?"
+        value={wouldRecommend}
+        onChange={setWouldRecommend}
+      />
+
+      {/* Optional comment */}
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-gray-700">Additional comments (optional)</p>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={3}
+          placeholder="Tell us more about your delivery experience…"
+          className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+        />
+      </div>
+
+      <button
+        onClick={() => submit()}
+        disabled={isPending || rating === 0}
+        className="w-full py-3 rounded-full bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-white font-bold transition-colors flex items-center justify-center gap-2"
+      >
+        {isPending ? (
+          <RefreshCw className="w-4 h-4 animate-spin" />
+        ) : (
+          <>
+            <Star className="w-4 h-4 fill-white" />
+            Submit Review
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ── Review submitted summary ───────────────────────────────────────────────────
+function ReviewSummary({ review }) {
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <Star className="w-5 h-5 text-amber-400 fill-amber-400 shrink-0" />
+        <div>
+          <p className="font-bold text-amber-900 text-sm">Delivery Review Submitted</p>
+          <div className="flex gap-0.5 mt-0.5">
+            {[1,2,3,4,5].map((s) => (
+              <Star
+                key={s}
+                className={`w-4 h-4 ${s <= review.rating ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+      {review.comment && (
+        <p className="text-sm text-amber-800 italic">"{review.comment}"</p>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function OrderDetailPage() {
   const { id }  = useParams();
   const router  = useRouter();
   const qc      = useQueryClient();
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["customer-order", id],
@@ -63,6 +253,31 @@ export default function OrderDetailPage() {
     staleTime: 30_000,
     retry: false,
   });
+
+  const { data: reviewData, refetch: refetchReview } = useQuery({
+    queryKey: ["customer-order-review", id],
+    queryFn:  () => fetchExistingReview(id),
+    enabled:  !!id && data?.order?.status === "delivered",
+    staleTime: 300_000,
+  });
+
+  // ── Supabase Realtime: live order status ────────────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    const supabase = createClient();
+    const channel  = supabase
+      .channel(`order-status-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${id}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["customer-order", id] });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [id, qc]);
 
   const order = data?.order ?? null;
 
@@ -107,7 +322,6 @@ export default function OrderDetailPage() {
     toast.success("Order ID copied");
   };
 
-  // ── Error state ──────────────────────────────────────────────────────────────
   if (isError) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -126,15 +340,19 @@ export default function OrderDetailPage() {
   const status    = STATUS_MAP[order?.status] ?? STATUS_MAP.pending;
   const StatusIcon = status.icon;
 
-  const subtotal  = (order?.items ?? []).reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotal    = (order?.items ?? []).reduce((s, i) => s + i.price * i.quantity, 0);
   const deliveryFee = order?.delivery_fee ?? 0;
-  const total     = order?.total ?? subtotal + deliveryFee;
-  const addr      = order?.address ?? {};
+  const total       = order?.total ?? subtotal + deliveryFee;
+  const addr        = order?.address ?? {};
 
-  const canCancel  = ["pending", "confirmed", "processing"].includes(order?.status);
-  const canConfirm = ["pending", "confirmed", "processing", "shipped"].includes(order?.status);
+  const canCancel   = ["pending", "confirmed", "processing"].includes(order?.status);
+  const canConfirm  = ["pending", "confirmed", "processing", "shipped"].includes(order?.status);
   const isDelivered = order?.status === "delivered";
   const isCancelled = order?.status === "cancelled";
+
+  const existingReview = reviewData?.review ?? null;
+  const showReviewForm = isDelivered && !existingReview && !reviewSubmitted;
+  const showReviewDone = isDelivered && (existingReview || reviewSubmitted);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -226,7 +444,7 @@ export default function OrderDetailPage() {
                 {order.status === "shipped" && (
                   <div className="mt-4 bg-purple-50 border border-purple-200 rounded-xl p-3 text-sm text-purple-800">
                     <p className="font-semibold">Out for Delivery</p>
-                    <p className="text-xs mt-0.5">The vendor will contact you before arrival. Please confirm receipt once you get your order.</p>
+                    <p className="text-xs mt-0.5">The rider will contact you before arrival. Please confirm receipt once you get your order.</p>
                   </div>
                 )}
               </div>
@@ -268,23 +486,25 @@ export default function OrderDetailPage() {
                 </div>
               )}
 
-              {/* Review prompt */}
-              {isDelivered && (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-center gap-4">
-                  <CheckCircle className="w-8 h-8 text-green-500 shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-green-900 text-sm">Order Delivered!</p>
-                    <p className="text-xs text-green-700 mt-0.5">Help other shoppers by leaving a review.</p>
-                  </div>
-                  {order.items?.[0]?.product_id && (
-                    <Link
-                      href={`/product/${order.items[0].product_id}`}
-                      className="shrink-0 text-xs font-bold text-green-700 border border-green-300 rounded-full px-4 py-2 hover:bg-green-100 transition-colors"
-                    >
-                      Review
-                    </Link>
-                  )}
-                </div>
+              {/* Rider review — submitted summary */}
+              {showReviewDone && (
+                <ReviewSummary review={existingReview ?? { rating: 5, comment: null }} />
+              )}
+
+              {/* Rider review — form */}
+              {showReviewForm && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <RiderReviewForm
+                    orderId={id}
+                    onSubmitted={() => {
+                      setReviewSubmitted(true);
+                      refetchReview();
+                    }}
+                  />
+                </motion.div>
               )}
 
               {/* Items */}

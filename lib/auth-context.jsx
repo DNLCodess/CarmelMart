@@ -37,6 +37,7 @@ export function AuthProvider({ children }) {
 
   const user = query.data?.user ?? null;
   const role = query.data?.role ?? null;
+  const isGuest = query.data?.isGuest ?? false;
   const isLoading = query.isPending;
   const isAuthenticated = !!user;
   const isAdmin = role === "admin";
@@ -137,6 +138,7 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       role,
+      isGuest,
       isLoading,
       isAuthenticated,
       isAdmin,

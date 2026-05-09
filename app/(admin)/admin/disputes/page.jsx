@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle, RefreshCw, X, CheckCircle, ThumbsUp, ThumbsDown, Eye,
+  AlertTriangle, RefreshCw, X, CheckCircle, ThumbsUp, ThumbsDown, Eye, Zap, Crown, Package,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -36,6 +36,22 @@ function StatusBadge({ status }) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.cls}`}>
       {c.label}
+    </span>
+  );
+}
+
+const TIER_CFG = {
+  vip:     { label: "VIP",     icon: Crown, cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" },
+  premium: { label: "Premium", icon: Zap,   cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800" },
+  free:    { label: "Free",    icon: Package, cls: "bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600" },
+};
+
+function TierBadge({ tier }) {
+  const cfg = TIER_CFG[tier] ?? TIER_CFG.free;
+  const Icon = cfg.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${cfg.cls}`}>
+      <Icon className="w-2.5 h-2.5" /> {cfg.label}
     </span>
   );
 }
@@ -222,7 +238,10 @@ export default function AdminDisputesPage() {
                     {/* Parties */}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                       <span><span className="font-semibold">Buyer:</span> {d.customer.name}</span>
-                      <span><span className="font-semibold">Vendor:</span> {d.vendor.businessName}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="font-semibold">Vendor:</span> {d.vendor.businessName}
+                        <TierBadge tier={d.vendor.tier} />
+                      </span>
                     </div>
 
                     {/* Resolution note */}

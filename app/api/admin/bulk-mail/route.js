@@ -13,12 +13,36 @@ async function resolveRecipients(admin, audience) {
   } else if (audience === "vendors") {
     query = query.eq("role", "vendor");
   } else if (audience === "verified_vendors") {
-    // vendors whose vendor profile is verified
     const { data: verifiedVendors } = await admin
       .from("vendors")
       .select("id")
       .eq("verification_status", "verified");
     const ids = (verifiedVendors ?? []).map((v) => v.id);
+    if (!ids.length) return [];
+    query = admin.from("users").select("email").in("id", ids);
+  } else if (audience === "premium_vendors") {
+    const { data: rows } = await admin
+      .from("vendors")
+      .select("id")
+      .eq("subscription_tier", "premium");
+    const ids = (rows ?? []).map((v) => v.id);
+    if (!ids.length) return [];
+    query = admin.from("users").select("email").in("id", ids);
+  } else if (audience === "vip_vendors") {
+    const { data: rows } = await admin
+      .from("vendors")
+      .select("id")
+      .eq("subscription_tier", "vip");
+    const ids = (rows ?? []).map((v) => v.id);
+    if (!ids.length) return [];
+    query = admin.from("users").select("email").in("id", ids);
+  } else if (audience === "paid_vendors") {
+    // Premium + VIP combined
+    const { data: rows } = await admin
+      .from("vendors")
+      .select("id")
+      .in("subscription_tier", ["premium", "vip"]);
+    const ids = (rows ?? []).map((v) => v.id);
     if (!ids.length) return [];
     query = admin.from("users").select("email").in("id", ids);
   }

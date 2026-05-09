@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart, Truck, MessageCircle, Mail, RefreshCw,
   X, ChevronDown, Search, Check, AlertCircle, Loader2,
   Package, User, MapPin, Phone, Clock, ExternalLink,
-  CheckCircle2, Circle, ShieldAlert,
+  CheckCircle2, Circle, ShieldAlert, ChevronRight,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
@@ -535,6 +536,88 @@ const ASSIGNED_TABS = [
   { value: "yes", label: "Assigned"    },
 ];
 
+// ── Mobile order card ─────────────────────────────────────────────────────────
+
+function MobileOrderCard({ order, onOpen, onQuickStatus, mutatingId }) {
+  const nextStatus = STATUS_NEXT[order.status];
+  const isTerminal = ["delivered", "cancelled", "refunded"].includes(order.status);
+  const isBusy     = mutatingId === order.id;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+      {/* Top row: ID + status */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        <p className="font-extrabold text-emerald-700 dark:text-emerald-400 text-base">{order.shortId}</p>
+        <StatusBadge status={order.status} />
+      </div>
+
+      {/* Customer + address */}
+      <div className="px-4 pb-3 space-y-1">
+        <div className="flex items-center gap-2">
+          <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{order.customer.name}</p>
+        </div>
+        {order.customer.phone && (
+          <div className="flex items-center gap-2">
+            <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <a href={`tel:${order.customer.phone}`} className="text-sm text-gray-600 dark:text-gray-400">
+              {order.customer.phone}
+            </a>
+          </div>
+        )}
+        {order.city && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">{order.city}</p>
+          </div>
+        )}
+        <div className="flex items-center justify-between pt-1">
+          <p className="font-bold text-gray-900 dark:text-gray-100">₦{(order.total ?? 0).toLocaleString()}</p>
+          {order.assignment?.partner ? (
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px]">
+              {order.assignment.partner.name}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold italic">Unassigned</p>
+          )}
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex border-t border-gray-100 dark:border-gray-700">
+        <button
+          onClick={() => onOpen(order.id)}
+          className="flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <Package className="w-4 h-4" />
+          Details
+        </button>
+        {!isTerminal && nextStatus && (
+          <>
+            <div className="w-px bg-gray-100 dark:bg-gray-700" />
+            <button
+              onClick={() => onQuickStatus(order.id, nextStatus)}
+              disabled={isBusy}
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 transition-colors"
+            >
+              {isBusy ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  Mark {STATUS_CFG[nextStatus]?.label ?? nextStatus}
+                </>
+              )}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function LogisticsOrdersPage() {
   const qc = useQueryClient();
   const [statusFilter,   setStatusFilter]   = useState("");
@@ -542,6 +625,7 @@ export default function LogisticsOrdersPage() {
   const [search,         setSearch]         = useState("");
   const [page,           setPage]           = useState(1);
   const [openOrderId,    setOpenOrderId]    = useState(null);
+  const [mutatingId,     setMutatingId]     = useState(null);
 
   const params = new URLSearchParams({ page });
   if (statusFilter)   params.set("status", statusFilter);
@@ -561,10 +645,80 @@ export default function LogisticsOrdersPage() {
     staleTime: 300_000,
   });
 
+  // Supabase Realtime: auto-refresh list when any order changes
+  useEffect(() => {
+    const supabase = createClient();
+    const channel  = supabase
+      .channel("logistics-orders-feed")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, () => {
+        qc.invalidateQueries({ queryKey: ["logistics-orders"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
+
   const orders   = data?.orders  ?? [];
   const pages    = data?.pages   ?? 1;
   const total    = data?.total   ?? 0;
   const partners = partnersData?.partners ?? [];
+
+  // Quick status update from mobile cards (no drawer needed)
+  const handleQuickStatus = async (orderId, newStatus) => {
+    setMutatingId(orderId);
+    try {
+      const r = await fetch(`/api/logistics/orders/${orderId}/status`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ status: newStatus }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      toast.success(`Order marked as ${newStatus}`);
+      qc.invalidateQueries({ queryKey: ["logistics-orders"] });
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setMutatingId(null);
+    }
+  };
+
+  const emptyState = (
+    <div className="p-14 text-center">
+      <ShoppingCart className="w-10 h-10 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+      <p className="font-semibold text-gray-400 dark:text-gray-500">No orders found</p>
+    </div>
+  );
+
+  const loadingState = (
+    <div className="p-12 text-center">
+      <Loader2 className="w-7 h-7 text-gray-300 dark:text-gray-600 animate-spin mx-auto mb-2" />
+      <p className="text-sm text-gray-500 dark:text-gray-400">Loading orders…</p>
+    </div>
+  );
+
+  const pagination = pages > 1 && (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Page {page} of {pages} · {total.toLocaleString()} orders
+      </p>
+      <div className="flex gap-1">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="px-3 py-1.5 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+        >
+          Prev
+        </button>
+        <button
+          onClick={() => setPage((p) => Math.min(pages, p + 1))}
+          disabled={page === pages}
+          className="px-3 py-1.5 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-5">
@@ -586,8 +740,7 @@ export default function LogisticsOrdersPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             value={search}
@@ -597,7 +750,6 @@ export default function LogisticsOrdersPage() {
           />
         </div>
 
-        {/* Status filter */}
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl overflow-x-auto">
           {STATUS_TABS.map(({ value, label }) => (
             <button
@@ -614,7 +766,6 @@ export default function LogisticsOrdersPage() {
           ))}
         </div>
 
-        {/* Assignment filter */}
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
           {ASSIGNED_TABS.map(({ value, label }) => (
             <button
@@ -632,19 +783,27 @@ export default function LogisticsOrdersPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center">
-            <Loader2 className="w-7 h-7 text-gray-300 dark:text-gray-600 animate-spin mx-auto mb-2" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading orders…</p>
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="p-14 text-center">
-            <ShoppingCart className="w-10 h-10 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
-            <p className="font-semibold text-gray-400 dark:text-gray-500">No orders found</p>
-          </div>
-        ) : (
+      {/* ── Mobile card list (hidden on lg+) ─────────────────────────────── */}
+      <div className="lg:hidden space-y-3">
+        {isLoading ? loadingState : orders.length === 0 ? emptyState : (
+          <>
+            {orders.map((o) => (
+              <MobileOrderCard
+                key={o.id}
+                order={o}
+                onOpen={setOpenOrderId}
+                onQuickStatus={handleQuickStatus}
+                mutatingId={mutatingId}
+              />
+            ))}
+            {pagination}
+          </>
+        )}
+      </div>
+
+      {/* ── Desktop table (hidden below lg) ─────────────────────────────── */}
+      <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+        {isLoading ? loadingState : orders.length === 0 ? emptyState : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
@@ -709,30 +868,7 @@ export default function LogisticsOrdersPage() {
             </table>
           </div>
         )}
-
-        {pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Page {page} of {pages} · {total.toLocaleString()} orders
-            </p>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-              >
-                Prev
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page === pages}
-                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        {pagination}
       </div>
 
       {/* Order detail drawer */}

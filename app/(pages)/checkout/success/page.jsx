@@ -3,12 +3,14 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircle, ShoppingBag, Home, Package } from "lucide-react";
+import { CheckCircle, ShoppingBag, Home, Package, UserPlus } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 
 // useSearchParams must live inside a Suspense boundary
 function SuccessContent() {
   const searchParams = useSearchParams();
+  const { isGuest } = useAuth();
   const isPOD    = searchParams.get("pod")      === "1";
   const orderId  = searchParams.get("order_id") ?? null;
 
@@ -56,6 +58,35 @@ function SuccessContent() {
           <span>Track your order anytime from My Orders</span>
         </div>
       </div>
+
+      {/* Guest account creation prompt */}
+      {isGuest && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-6 text-left"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <UserPlus className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm mb-1">Save your order history</p>
+              <p className="text-xs text-gray-500 mb-3">
+                Create a free account to track this order, get exclusive deals, and check out faster next time.
+              </p>
+              <Link
+                href={orderId ? `/convert-account?order_id=${orderId}` : "/convert-account"}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Create your account now
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Link

@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ShoppingBag, Package, ChevronRight, Clock,
-  CheckCircle, Truck, XCircle, RefreshCw, AlertCircle,
+  CheckCircle, Truck, XCircle, RefreshCw, AlertCircle, UserPlus,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
 
 async function fetchMyOrders() {
@@ -29,13 +30,13 @@ const STATUS_MAP = {
 const TABS = ["All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
 
 export default function OrdersPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isGuest, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("All");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["my-orders"],
     queryFn: fetchMyOrders,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !isGuest,
     staleTime: 60_000,
   });
 
@@ -55,6 +56,45 @@ export default function OrdersPage() {
           <h2 className="text-xl font-bold text-gray-900 mb-2">Sign in to view orders</h2>
           <Link href="/login?next=/orders" className="text-primary font-semibold hover:underline">Sign In</Link>
         </div>
+      </div>
+    );
+  }
+
+  // Guests can track a specific order via direct URL but not browse history
+  if (isGuest) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-3xl border border-gray-100 shadow-xl p-10 max-w-md w-full text-center"
+        >
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5">
+            <UserPlus className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Create an account to see your orders</h2>
+          <p className="text-sm text-gray-500 mb-2">
+            Guest sessions are tied to this browser. Create a free account to access your order history from any device, any time.
+          </p>
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-6">
+            If you just placed an order, use the tracking link in your confirmation email or create an account below — your order will be waiting.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Link
+              href="/convert-account"
+              className="flex items-center justify-center gap-2 py-3 rounded-full bg-primary text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+            >
+              <UserPlus className="w-4 h-4" />
+              Create Free Account
+            </Link>
+            <Link
+              href="/shop"
+              className="flex items-center justify-center gap-2 py-3 rounded-full border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:border-gray-400 transition-colors"
+            >
+              Continue Shopping
+            </Link>
+          </div>
+        </motion.div>
       </div>
     );
   }

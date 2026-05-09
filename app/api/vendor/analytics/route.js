@@ -62,6 +62,13 @@ export async function GET(request) {
     const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
     if (!profile || profile.role !== "vendor") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+    // Analytics is a Premium/VIP benefit — gate free-tier vendors
+    const { data: vendor } = await admin.from("vendors").select("subscription_tier").eq("id", user.id).single();
+    const tier = vendor?.subscription_tier ?? "free";
+    if (tier === "free") {
+      return NextResponse.json({ error: "ANALYTICS_GATED", tier: "free" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") ?? "7d";
     const days   = period === "90d" ? 90 : period === "30d" ? 30 : 7;

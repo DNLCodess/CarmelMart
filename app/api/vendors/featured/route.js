@@ -8,9 +8,9 @@ export async function GET() {
     // Step 1: Fetch verified vendors (no product join — products.vendor_id → users.id, not vendors.id)
     const { data: vendorRows, error } = await supabase
       .from("vendors")
-      .select("id, business_name, description, image, logo_image, banner_image, slug, verification_status")
+      .select("id, business_name, description, image, logo_image, banner_image, slug, verification_status, subscription_tier")
       .eq("verification_status", "verified")
-      .limit(8);
+      .limit(12);
 
     if (error) throw error;
     if (!vendorRows || vendorRows.length === 0) {
@@ -33,28 +33,34 @@ export async function GET() {
       productsByVendor[p.vendor_id].push(p);
     }
 
-    const vendors = vendorRows.map((v) => {
-      const vProducts = productsByVendor[v.id] ?? [];
-      const sampleImage =
-        vProducts.find((p) => Array.isArray(p.images) && p.images.length > 0)
-          ?.images[0] ?? null;
-      return {
-        id: v.id,
-        name: v.business_name,
-        business_name: v.business_name,
-        description: v.description,
-        verified: true,
-        productCount: vProducts.length,
-        product_count: vProducts.length,
-        image: v.image ?? sampleImage,
-        logo_image: v.logo_image,
-        banner_image: v.banner_image ?? sampleImage,
-        slug:
-          v.slug ??
-          v.business_name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ??
-          v.id,
-      };
-    });
+    const TIER_RANK = { vip: 0, premium: 1, free: 2 };
+
+    const vendors = vendorRows
+      .map((v) => {
+        const vProducts = productsByVendor[v.id] ?? [];
+        const sampleImage =
+          vProducts.find((p) => Array.isArray(p.images) && p.images.length > 0)
+            ?.images[0] ?? null;
+        return {
+          id: v.id,
+          name: v.business_name,
+          business_name: v.business_name,
+          description: v.description,
+          verified: true,
+          tier: v.subscription_tier ?? "free",
+          productCount: vProducts.length,
+          product_count: vProducts.length,
+          image: v.image ?? sampleImage,
+          logo_image: v.logo_image,
+          banner_image: v.banner_image ?? sampleImage,
+          slug:
+            v.slug ??
+            v.business_name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ??
+            v.id,
+        };
+      })
+      .sort((a, b) => (TIER_RANK[a.tier] ?? 2) - (TIER_RANK[b.tier] ?? 2))
+      .slice(0, 8);
 
     return NextResponse.json({ success: true, vendors });
   } catch (error) {

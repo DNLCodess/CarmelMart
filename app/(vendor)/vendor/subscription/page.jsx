@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { flutterwaveHelpers } from "@/lib/flutterwave";
-import { PLANS, PLAN_ORDER, vipAnnualSavings } from "@/lib/subscription";
+import { PLANS, PLAN_ORDER, DEFAULT_PRICES } from "@/lib/subscription";
 import SubscriptionBadge from "@/components/shared/vendor/SubscriptionBadge";
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
@@ -26,9 +26,7 @@ async function fetchSubscription() {
 function formatDate(iso) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-NG", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+    day: "numeric", month: "short", year: "numeric",
   });
 }
 
@@ -38,28 +36,35 @@ function daysLeft(iso) {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
+function getPrice(prices, tier, billingCycle) {
+  if (tier === "free") return 0;
+  const tierPrices = prices?.[tier] ?? DEFAULT_PRICES[tier] ?? {};
+  if (billingCycle === "annual" && tierPrices.annual != null) return tierPrices.annual;
+  return tierPrices.monthly ?? 0;
+}
+
 const TIER_ICONS = {
-  free: Package,
+  free:    Package,
   premium: Zap,
-  vip: Crown,
+  vip:     Crown,
 };
 
 const TIER_GRADIENT = {
-  free: "from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700",
+  free:    "from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700",
   premium: "from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40",
-  vip: "from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40",
+  vip:     "from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40",
 };
 
 const TIER_BORDER = {
-  free: "border-gray-200 dark:border-gray-700",
+  free:    "border-gray-200 dark:border-gray-700",
   premium: "border-blue-300 dark:border-blue-700",
-  vip: "border-amber-300 dark:border-amber-600",
+  vip:     "border-amber-300 dark:border-amber-600",
 };
 
 const TIER_ICON_COLOR = {
-  free: "text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700",
+  free:    "text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700",
   premium: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50",
-  vip: "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50",
+  vip:     "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50",
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -71,9 +76,7 @@ function CurrentPlanCard({ subscription, tier, plan }) {
   const isExpiringSoon = days !== null && days <= 7 && days > 0;
 
   return (
-    <div
-      className={`rounded-2xl border-2 bg-gradient-to-br p-6 ${TIER_GRADIENT[tier]} ${TIER_BORDER[tier]}`}
-    >
+    <div className={`rounded-2xl border-2 bg-linear-to-br p-6 ${TIER_GRADIENT[tier]} ${TIER_BORDER[tier]}`}>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${TIER_ICON_COLOR[tier]}`}>
@@ -93,13 +96,12 @@ function CurrentPlanCard({ subscription, tier, plan }) {
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {tier === "free"
-                ? "Standard commission • 20 product slots"
+                ? `Standard commission • ${plan.product_limit} product slots`
                 : `${plan.commission_rate}% commission • ${plan.product_limit ?? "Unlimited"} products`}
             </p>
           </div>
         </div>
 
-        {/* Price */}
         <div className="text-right">
           {tier === "free" ? (
             <p className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">Free</p>
@@ -116,37 +118,28 @@ function CurrentPlanCard({ subscription, tier, plan }) {
         </div>
       </div>
 
-      {/* Expiry / status row */}
       {tier !== "free" && subscription && (
         <div className="mt-5 flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
             <Calendar className="w-4 h-4" />
             {isCancelled ? (
-              <span>
-                Active until <strong className="text-gray-800 dark:text-gray-200">{formatDate(subscription.expires_at)}</strong>
-              </span>
+              <span>Active until <strong className="text-gray-800 dark:text-gray-200">{formatDate(subscription.expires_at)}</strong></span>
             ) : (
-              <span>
-                Renews <strong className="text-gray-800 dark:text-gray-200">{formatDate(subscription.expires_at)}</strong>
-              </span>
+              <span>Renews <strong className="text-gray-800 dark:text-gray-200">{formatDate(subscription.expires_at)}</strong></span>
             )}
           </div>
-
           {days !== null && (
-            <span
-              className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                isExpiringSoon
-                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                  : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-              }`}
-            >
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+              isExpiringSoon
+                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+            }`}>
               {days === 0 ? "Expires today" : `${days} day${days === 1 ? "" : "s"} left`}
             </span>
           )}
         </div>
       )}
 
-      {/* Expiring soon warning */}
       {isExpiringSoon && !isCancelled && (
         <div className="mt-4 flex items-start gap-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -156,7 +149,6 @@ function CurrentPlanCard({ subscription, tier, plan }) {
         </div>
       )}
 
-      {/* Cancellation notice */}
       {isCancelled && (
         <div className="mt-4 flex items-start gap-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3">
           <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -170,7 +162,7 @@ function CurrentPlanCard({ subscription, tier, plan }) {
   );
 }
 
-function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
+function PlanCard({ planKey, currentTier, prices, onUpgrade, isProcessing }) {
   const plan = PLANS[planKey];
   const TierIcon = TIER_ICONS[planKey] ?? Package;
   const isCurrentPlan = planKey === currentTier;
@@ -178,23 +170,20 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [showFeatures, setShowFeatures] = useState(false);
 
-  const price =
-    billingCycle === "annual" && plan.annual_price != null
-      ? plan.annual_price
-      : plan.monthly_price;
-
   const isVip = planKey === "vip";
-  const annualSavings = vipAnnualSavings();
+  const tierPrices = prices?.[planKey] ?? DEFAULT_PRICES[planKey];
+  const hasAnnual = isVip && tierPrices?.annual != null;
+  const price = getPrice(prices, planKey, billingCycle);
+  const annualSavings = hasAnnual
+    ? (tierPrices.monthly * 12) - tierPrices.annual
+    : 0;
 
   return (
-    <div
-      className={`relative rounded-2xl border-2 flex flex-col bg-white dark:bg-gray-800 transition-shadow ${
-        isCurrentPlan
-          ? `${TIER_BORDER[planKey]} shadow-md`
-          : "border-gray-200 dark:border-gray-700 hover:shadow-md"
-      }`}
-    >
-      {/* Popular badge for Premium */}
+    <div className={`relative rounded-2xl border-2 flex flex-col bg-white dark:bg-gray-800 transition-shadow ${
+      isCurrentPlan
+        ? `${TIER_BORDER[planKey]} shadow-md`
+        : "border-gray-200 dark:border-gray-700 hover:shadow-md"
+    }`}>
       {planKey === "premium" && !isCurrentPlan && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
           <span className="bg-blue-600 text-white text-[11px] font-extrabold px-3 py-1 rounded-full shadow">
@@ -204,7 +193,6 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
       )}
 
       <div className="p-5">
-        {/* Header */}
         <div className="flex items-center gap-3 mb-4">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${TIER_ICON_COLOR[planKey]}`}>
             <TierIcon className="w-5 h-5" />
@@ -223,15 +211,14 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
         </div>
 
         {/* Pricing */}
-        {plan.monthly_price === 0 ? (
+        {planKey === "free" ? (
           <div className="mb-4">
             <p className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">Free</p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Forever</p>
           </div>
         ) : (
           <div className="mb-4">
-            {/* Annual/monthly toggle for VIP */}
-            {isVip && (
+            {hasAnnual && (
               <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 mb-3 w-fit">
                 {["monthly", "annual"].map((c) => (
                   <button
@@ -248,17 +235,13 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
                 ))}
               </div>
             )}
-
             <p className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">
               ₦{price.toLocaleString()}
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              {isVip && billingCycle === "annual"
-                ? "per year"
-                : "per month"}
+              {hasAnnual && billingCycle === "annual" ? "per year" : "per month"}
             </p>
-
-            {isVip && billingCycle === "annual" && (
+            {hasAnnual && billingCycle === "annual" && annualSavings > 0 && (
               <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-1">
                 Save ₦{annualSavings.toLocaleString()} vs monthly
               </p>
@@ -266,7 +249,6 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
           </div>
         )}
 
-        {/* Commission highlight */}
         <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2 mb-4">
           <TrendingDown className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
           <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -274,18 +256,14 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
           </p>
         </div>
 
-        {/* Product limit */}
         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-4">
           <Package className="w-4 h-4 shrink-0" />
           <span>
-            {plan.product_limit === null
-              ? "Unlimited products"
-              : `Up to ${plan.product_limit} products`}
+            {plan.product_limit === null ? "Unlimited products" : `Up to ${plan.product_limit} products`}
           </span>
         </div>
 
-        {/* CTA */}
-        {!isCurrentPlan && !isDowngrade && plan.monthly_price > 0 && (
+        {!isCurrentPlan && !isDowngrade && planKey !== "free" && (
           <button
             onClick={() => onUpgrade(planKey, billingCycle)}
             disabled={isProcessing}
@@ -298,15 +276,12 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
             {isProcessing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <>
-                Upgrade to {plan.name}
-                <ArrowRight className="w-4 h-4" />
-              </>
+              <>Upgrade to {plan.name}<ArrowRight className="w-4 h-4" /></>
             )}
           </button>
         )}
 
-        {isCurrentPlan && plan.monthly_price > 0 && (
+        {isCurrentPlan && planKey !== "free" && (
           <button
             onClick={() => onUpgrade(planKey, billingCycle)}
             disabled={isProcessing}
@@ -315,15 +290,12 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
             {isProcessing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <>
-                <RefreshCw className="w-4 h-4" />
-                Renew {plan.name}
-              </>
+              <><RefreshCw className="w-4 h-4" />Renew {plan.name}</>
             )}
           </button>
         )}
 
-        {isCurrentPlan && plan.monthly_price === 0 && (
+        {isCurrentPlan && planKey === "free" && (
           <div className="w-full py-2.5 rounded-xl text-sm font-bold text-center bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500">
             Your current plan
           </div>
@@ -336,7 +308,6 @@ function PlanCard({ planKey, currentTier, onUpgrade, isProcessing }) {
         )}
       </div>
 
-      {/* Feature list toggle */}
       <div className="border-t border-gray-100 dark:border-gray-700">
         <button
           onClick={() => setShowFeatures((v) => !v)}
@@ -387,20 +358,14 @@ function BillingHistory({ history }) {
       <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
         <h3 className="font-bold text-gray-900 dark:text-gray-100">Billing History</h3>
       </div>
-
       <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
         {visible.map((entry) => (
-          <div
-            key={entry.id}
-            className="flex items-center gap-4 px-5 py-3.5 flex-wrap"
-          >
+          <div key={entry.id} className="flex items-center gap-4 px-5 py-3.5 flex-wrap">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize">
                 {entry.tier} Plan
                 {entry.billing_cycle && (
-                  <span className="text-gray-400 dark:text-gray-500 font-normal">
-                    {" "}· {entry.billing_cycle}
-                  </span>
+                  <span className="text-gray-400 dark:text-gray-500 font-normal"> · {entry.billing_cycle}</span>
                 )}
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
@@ -411,15 +376,12 @@ function BillingHistory({ history }) {
             <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
               ₦{(entry.amount ?? 0).toLocaleString()}
             </p>
-            <span
-              className={`text-[11px] font-bold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLE[entry.status] ?? STATUS_STYLE.expired}`}
-            >
+            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLE[entry.status] ?? STATUS_STYLE.expired}`}>
               {entry.status}
             </span>
           </div>
         ))}
       </div>
-
       {history.length > 3 && (
         <div className="px-5 py-3 border-t border-gray-50 dark:border-gray-700">
           <button
@@ -433,8 +395,6 @@ function BillingHistory({ history }) {
     </div>
   );
 }
-
-// ── Cancel modal ──────────────────────────────────────────────────────────────
 
 function CancelModal({ tier, expiresAt, onConfirm, onClose, isLoading }) {
   return (
@@ -451,7 +411,6 @@ function CancelModal({ tier, expiresAt, onConfirm, onClose, isLoading }) {
           </div>
           <h3 className="font-bold text-gray-900 dark:text-gray-100">Cancel Subscription</h3>
         </div>
-
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
           You are about to cancel your <strong className="capitalize">{tier}</strong> plan.
         </p>
@@ -467,7 +426,6 @@ function CancelModal({ tier, expiresAt, onConfirm, onClose, isLoading }) {
             </li>
           ))}
         </ul>
-
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -488,8 +446,6 @@ function CancelModal({ tier, expiresAt, onConfirm, onClose, isLoading }) {
   );
 }
 
-// ── Success banner ────────────────────────────────────────────────────────────
-
 function SuccessBanner({ tier, onDismiss }) {
   const plan = PLANS[tier];
   const TierIcon = TIER_ICONS[tier] ?? Package;
@@ -509,9 +465,7 @@ function SuccessBanner({ tier, onDismiss }) {
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           Your subscription is active. Enjoy your upgraded features — including a{" "}
           <strong>{plan?.commission_rate}% commission rate</strong> and{" "}
-          {plan?.product_limit === null
-            ? "unlimited product slots"
-            : `up to ${plan?.product_limit} products`}.
+          {plan?.product_limit === null ? "unlimited product slots" : `up to ${plan?.product_limit} products`}.
         </p>
       </div>
       <button
@@ -539,12 +493,12 @@ export default function VendorSubscriptionPage() {
     retry: false,
   });
 
-  const currentTier = data?.tier ?? "free";
-  const currentPlan = data?.plan ?? PLANS.free;
-  const subscription = data?.subscription ?? null;
-  const history = data?.history ?? [];
+  const currentTier   = data?.tier         ?? "free";
+  const currentPlan   = data?.plan         ?? PLANS.free;
+  const prices        = data?.prices       ?? DEFAULT_PRICES;
+  const subscription  = data?.subscription ?? null;
+  const history       = data?.history      ?? [];
 
-  // ── Cancel mutation ────────────────────────────────────────────────────────
   const cancelMutation = useMutation({
     mutationFn: () =>
       fetch("/api/vendor/subscription/cancel", { method: "POST" }).then((r) => r.json()),
@@ -560,11 +514,9 @@ export default function VendorSubscriptionPage() {
     onError: () => toast.error("An unexpected error occurred. Please try again."),
   });
 
-  // ── Upgrade / renew flow ────────────────────────────────────────────────────
   const handleUpgrade = async (tier, billingCycle) => {
     setProcessingTier(tier);
     try {
-      // Step 1 — create pending payment record, get reference + amount
       const res = await fetch("/api/vendor/subscription/upgrade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -577,27 +529,23 @@ export default function VendorSubscriptionPage() {
         return;
       }
 
-      // Step 2 — open Flutterwave checkout
-      const plan = PLANS[tier];
       await flutterwaveHelpers.initializePayment(
         initData.customer_email,
         initData.amount,
         initData.reference,
         initData.customer_name,
         `subscription_${tier}`,
-        // onSuccess
         async (flwResponse) => {
           try {
-            // Step 3 — verify server-side and activate
             const verifyRes = await fetch("/api/vendor/subscription/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 transaction_id: flwResponse.transaction_id,
-                reference: initData.reference,
-                flw_ref: flwResponse.flw_ref,
+                reference:      initData.reference,
+                flw_ref:        flwResponse.flw_ref,
                 tier,
-                billing_cycle: billingCycle,
+                billing_cycle:  billingCycle,
               }),
             });
             const verifyData = await verifyRes.json();
@@ -614,7 +562,6 @@ export default function VendorSubscriptionPage() {
             setProcessingTier(null);
           }
         },
-        // onClose
         () => setProcessingTier(null)
       );
     } catch (err) {
@@ -623,7 +570,6 @@ export default function VendorSubscriptionPage() {
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -643,8 +589,6 @@ export default function VendorSubscriptionPage() {
 
   return (
     <div className="space-y-7 max-w-4xl">
-
-      {/* Page header */}
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">Subscription</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -652,14 +596,12 @@ export default function VendorSubscriptionPage() {
         </p>
       </div>
 
-      {/* Success banner */}
       <AnimatePresence>
         {successTier && (
           <SuccessBanner tier={successTier} onDismiss={() => setSuccessTier(null)} />
         )}
       </AnimatePresence>
 
-      {/* Just-expired notice */}
       {data?.just_expired && (
         <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
           <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -672,14 +614,8 @@ export default function VendorSubscriptionPage() {
         </div>
       )}
 
-      {/* Current plan card */}
-      <CurrentPlanCard
-        subscription={subscription}
-        tier={currentTier}
-        plan={currentPlan}
-      />
+      <CurrentPlanCard subscription={subscription} tier={currentTier} plan={currentPlan} />
 
-      {/* Plans comparison */}
       <div>
         <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">All Plans</h2>
         <div className="grid sm:grid-cols-3 gap-4">
@@ -688,6 +624,7 @@ export default function VendorSubscriptionPage() {
               key={key}
               planKey={key}
               currentTier={currentTier}
+              prices={prices}
               onUpgrade={handleUpgrade}
               isProcessing={processingTier === key}
             />
@@ -723,11 +660,7 @@ export default function VendorSubscriptionPage() {
                   />
                 </div>
                 <div className="w-14 text-right">
-                  <span
-                    className={`text-sm font-extrabold ${
-                      isActive ? "text-primary" : "text-gray-600 dark:text-gray-400"
-                    }`}
-                  >
+                  <span className={`text-sm font-extrabold ${isActive ? "text-primary" : "text-gray-600 dark:text-gray-400"}`}>
                     {plan.commission_rate}%
                   </span>
                 </div>
@@ -745,13 +678,10 @@ export default function VendorSubscriptionPage() {
         </p>
       </div>
 
-      {/* Cancel option — only for active (non-cancelled) paid plans */}
       {currentTier !== "free" && subscription?.status === "active" && (
         <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl">
           <div>
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              Cancel Subscription
-            </p>
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Cancel Subscription</p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
               Your plan stays active until {formatDate(subscription?.expires_at)}, then reverts to Free.
             </p>
@@ -765,10 +695,8 @@ export default function VendorSubscriptionPage() {
         </div>
       )}
 
-      {/* Billing history */}
       <BillingHistory history={history} />
 
-      {/* Cancel modal */}
       <AnimatePresence>
         {showCancelModal && (
           <CancelModal

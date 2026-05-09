@@ -119,6 +119,12 @@ export async function POST(request) {
     if (sale_price && Number(sale_price) >= Number(price)) {
       return NextResponse.json({ error: "Sale price must be less than regular price" }, { status: 400 });
     }
+    if (sale_price && tier === "free") {
+      return NextResponse.json(
+        { error: "Promotions & deals are not available on the Free plan. Upgrade to Premium or VIP to set sale prices.", code: "PROMOTIONS_GATED" },
+        { status: 403 }
+      );
+    }
     const VALID_CONDITIONS = ["new", "used", "refurbished"];
 
     const { data: product, error } = await admin
