@@ -4,10 +4,12 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Mail, Lock, CheckCircle, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
+import Script from "next/script";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getTurnstileToken } from "@/lib/turnstile";
 
 // ─── Shared input ─────────────────────────────────────────────────────────────
 
@@ -122,15 +124,21 @@ export default function ForgotPassword() {
     setError("");
     setIsLoading(true);
     try {
+      const captchaToken = await getTurnstileToken("turnstile-forgot");
       const supabase = createClient();
       await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
         redirectTo: `${window.location.origin}/auth/callback?next=/settings`,
+        ...(captchaToken ? { captchaToken } : {}),
       });
       // Always advance to step 2 — never reveal whether the email is registered
       toast.success("If that email is registered, a reset code has been sent.");
       setStep(2);
-    } catch {
-      toast.error("Something went wrong. Please check your connection and try again.");
+    } catch (err) {
+      if (err.message?.startsWith("Security check")) {
+        toast.error(err.message);
+      } else {
+        toast.error("Something went wrong. Please check your connection and try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -172,6 +180,11 @@ export default function ForgotPassword() {
   };
 
   return (
+    <>
+    {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="lazyOnload" />
+    )}
+    <div id="turnstile-forgot" className="hidden" />
     <div className="min-h-screen flex">
 
       {/* ── Left: Hero panel ── */}
@@ -389,5 +402,6 @@ export default function ForgotPassword() {
         </div>
       </div>
     </div>
+    </>
   );
 }

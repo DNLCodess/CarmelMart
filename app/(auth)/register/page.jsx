@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import Script from "next/script";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
@@ -23,6 +24,7 @@ import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { signupAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+import { getTurnstileToken } from "@/lib/turnstile";
 
 import VendorVerification from "@/components/shared/auth/VendorVerification";
 import { formatNigerianPhone } from "@/lib/utils";
@@ -286,12 +288,14 @@ function RegisterPageContent() {
 
     setIsLoading(true);
     try {
+      const captchaToken = await getTurnstileToken("turnstile-register");
       const result = await signupAction({
         email: formData.email,
         password: formData.password,
         phone: formData.phone,
         role: selectedRole,
         referralCode: formData.referralCode?.trim() || null,
+        captchaToken,
       });
 
       if (result?.error) {
@@ -318,13 +322,22 @@ function RegisterPageContent() {
         router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim().toLowerCase())}`);
       }
     } catch (err) {
-      toast.error("Failed to create account. Please try again.");
+      if (err.message?.startsWith("Security check")) {
+        toast.error(err.message);
+      } else {
+        toast.error("Failed to create account. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
+    <>
+    {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="lazyOnload" />
+    )}
+    <div id="turnstile-register" className="hidden" />
     <div className="min-h-screen flex bg-linear-to-br from-gray-50 via-white to-gray-100">
       {/* Left: Banner */}
       <div className="hidden lg:flex lg:w-[45%] relative flex-col overflow-hidden">
@@ -660,6 +673,7 @@ function RegisterPageContent() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

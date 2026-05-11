@@ -78,6 +78,7 @@ export async function signupAction({
   phone,
   role = "customer",
   referralCode,
+  captchaToken = null,
 }) {
   if (!email || !password || !phone) {
     return { error: "Email, password, and phone number are required." };
@@ -95,7 +96,10 @@ export async function signupAction({
   const { data, error } = await supabase.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
-    options: { data: { role } },
+    options: {
+      data: { role },
+      ...(captchaToken ? { captchaToken } : {}),
+    },
   });
 
   if (error) return { error: error.message };
