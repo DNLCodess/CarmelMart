@@ -316,6 +316,39 @@ export async function convertGuestAction({ email, password, firstName, lastName,
 /**
  * Update password for the currently authenticated user.
  */
+/**
+ * Reset password from a forgot-password recovery session.
+ * Called after verifyOtp (type: "recovery") has established the session in cookies.
+ * Using a server action ensures the cookie-based recovery session is read reliably
+ * instead of depending on the browser client's in-memory state.
+ */
+export async function resetPasswordAction({ newPassword }) {
+  if (!newPassword || newPassword.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return { error: "Your reset session has expired. Please start the password reset process again." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    const msg = error.message?.toLowerCase() ?? "";
+    if (msg.includes("different from the old password") || msg.includes("same as the old password")) {
+      return { error: "Your new password must be different from your current password." };
+    }
+    return { error: "Failed to reset password. Please try again." };
+  }
+
+  // Clear the recovery session server-side so the middleware doesn't block /login
+  await supabase.auth.signOut({ scope: "local" });
+
+  return { error: null };
+}
+
 export async function updatePasswordAction({ currentPassword, newPassword }) {
   if (newPassword.length < 8) {
     return { error: "New password must be at least 8 characters." };

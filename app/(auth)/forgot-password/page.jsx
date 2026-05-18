@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getTurnstileToken } from "@/lib/turnstile";
+import { resetPasswordAction } from "@/app/actions/auth";
 
 // ─── Shared input ─────────────────────────────────────────────────────────────
 
@@ -77,6 +78,15 @@ const OTPInput = ({ value, onChange }) => {
     }
   };
 
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!digits) return;
+    onChange(digits.padEnd(6, "").slice(0, 6));
+    const focusIndex = Math.min(digits.length, 5);
+    document.getElementById(`otp-${focusIndex}`)?.focus();
+  };
+
   return (
     <div className="flex gap-2.5 justify-center">
       {[...Array(6)].map((_, i) => (
@@ -89,6 +99,7 @@ const OTPInput = ({ value, onChange }) => {
           value={value[i] || ""}
           onChange={(e) => handleChange(e, i)}
           onKeyDown={(e) => handleKeyDown(e, i)}
+          onPaste={handlePaste}
           className="w-11 h-12 text-xl font-bold text-center rounded-xl border border-gray-200 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all text-gray-900"
         />
       ))}
@@ -126,8 +137,12 @@ export default function ForgotPassword() {
     try {
       const captchaToken = await getTurnstileToken("turnstile-forgot");
       const supabase = createClient();
+      // redirectTo is only used when the Supabase email template sends a magic link
+      // ({{ .ConfirmationURL }}) instead of a plain OTP token ({{ .Token }}).
+      // Pointing it at /forgot-password means link-clickers land back here rather than
+      // /settings where there is no password-reset UI.
       await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${window.location.origin}/auth/callback?next=/settings`,
+        redirectTo: `${window.location.origin}/auth/callback?next=/forgot-password`,
         ...(captchaToken ? { captchaToken } : {}),
       });
       // Always advance to step 2 — never reveal whether the email is registered
@@ -154,7 +169,8 @@ export default function ForgotPassword() {
       if (error) throw error;
       toast.success("Code verified");
       setStep(3);
-    } catch {
+    } catch (err) {
+      console.error("[forgot-password] verifyOtp failed:", err);
       toast.error("Invalid or expired code — please try again");
     } finally {
       setIsLoading(false);
@@ -167,13 +183,21 @@ export default function ForgotPassword() {
     setError("");
     setIsLoading(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      toast.success("Password reset successfully!");
+      // Server action reads the recovery session from cookies (set by verifyOtp above)
+      // and calls updateUser server-side — more reliable than the browser client
+      // which can lose the session from its in-memory/cookie state.
+      // signOut is also handled server-side so the middleware lets the user through to /login.
+      const result = await resetPasswordAction({ newPassword });
+      if (result?.error) {
+        setError(result.error);
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Password reset successfully! Please sign in with your new password.");
       router.push("/login");
-    } catch {
-      toast.error("Failed to reset password. Your reset link may have expired — please try again.");
+    } catch (err) {
+      console.error("[forgot-password] resetPassword failed:", err);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -337,12 +361,21 @@ export default function ForgotPassword() {
                     ) : "Verify Code"}
                   </button>
 
-                  <button
-                    onClick={() => setStep(1)}
-                    className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    Wrong email? Go back
-                  </button>
+                  <div className="flex items-center justify-between text-sm">
+                    <button
+                      onClick={() => setStep(1)}
+                      className="text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      Wrong email? Go back
+                    </button>
+                    <button
+                      onClick={sendOTP}
+                      disabled={isLoading}
+                      className="font-semibold text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Resend code
+                    </button>
+                  </div>
                 </motion.div>
               )}
 
@@ -368,7 +401,6 @@ export default function ForgotPassword() {
                     icon={Lock}
                     value={newPassword}
                     onChange={(e) => { setNewPassword(e.target.value); setError(""); }}
-                    error={error && !confirmPassword ? error : undefined}
                   />
 
                   <Input
@@ -379,11 +411,12 @@ export default function ForgotPassword() {
                     icon={Lock}
                     value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
-                    error={error && confirmPassword ? error : undefined}
                   />
 
-                  {error && !newPassword && (
-                    <p className="text-xs text-red-500 font-medium">{error}</p>
+                  {error && (
+                    <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-red-500 font-medium">
+                      {error}
+                    </motion.p>
                   )}
 
                   <button
