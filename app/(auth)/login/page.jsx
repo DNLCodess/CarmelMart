@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { loginAction, guestSignInAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+import { getTurnstileToken } from "@/lib/turnstile";
 
 // ─── Reusable input ───────────────────────────────────────────────────────────
 
@@ -182,7 +183,8 @@ function LoginContent() {
 
     setIsLoading(true);
     try {
-      const result = await loginAction({ email: formData.email, password: formData.password });
+      const captchaToken = await getTurnstileToken("turnstile-login-widget");
+      const result = await loginAction({ email: formData.email, password: formData.password, captchaToken });
       if (result?.error) {
         toast.error(result.error);
         return;
@@ -194,7 +196,7 @@ function LoginContent() {
       const dest = from && from.startsWith("/") && !from.startsWith("//") ? from : "/";
       router.push(dest);
     } catch (err) {
-      toast.error("Login failed. Please try again.");
+      toast.error(err.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -391,7 +393,8 @@ function LoginContent() {
               </form>
             </motion.div>
 
-            {/* Hidden Turnstile widget — rendered programmatically on guest click */}
+            {/* Hidden Turnstile widgets — rendered programmatically */}
+            <div id="turnstile-login-widget" className="hidden" />
             <div id="turnstile-guest-widget" className="hidden" />
 
             {/* Guest checkout — only shown when redirected from /checkout */}

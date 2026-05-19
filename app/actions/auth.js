@@ -46,7 +46,7 @@ const NIGERIAN_PHONE_RE = /^(\+234|0)[789][01]\d{8}$/;
  * Returns { error } for expected failures (wrong credentials, unverified email).
  * Only throws for unexpected server errors.
  */
-export async function loginAction({ email, password }) {
+export async function loginAction({ email, password, captchaToken = null }) {
   const normalizedEmail = email.trim().toLowerCase();
 
   const rateCheck = _checkRate(normalizedEmail);
@@ -60,9 +60,11 @@ export async function loginAction({ email, password }) {
   const { error } = await supabase.auth.signInWithPassword({
     email: normalizedEmail,
     password,
+    options: captchaToken ? { captchaToken } : undefined,
   });
 
   if (error) {
+    console.error("[loginAction] signInWithPassword error:", error.code, error.message);
     // Return a generic message — never distinguish between "wrong password" and
     // "email not found / not confirmed" to prevent account enumeration.
     return { error: "Invalid email or password." };
@@ -454,7 +456,13 @@ export async function resetPasswordAction({ newPassword }) {
   // to persist the change (GoTrue session state mismatch). The admin API writes straight
   // to the DB with no session dependency and is always authoritative.
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(user.id, { password: newPassword });
+  // email_confirm: true — completing an OTP-verified reset proves email ownership,
+  // so we confirm the email at the same time. This fixes login failures caused by
+  // email_not_confirmed when the account was created but never verified.
+  const { error } = await admin.auth.admin.updateUserById(user.id, {
+    password: newPassword,
+    email_confirm: true,
+  });
   if (error) {
     console.error("[resetPasswordAction] updateUserById error:", error);
     const msg = error.message?.toLowerCase() ?? "";
