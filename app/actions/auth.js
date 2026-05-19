@@ -447,14 +447,24 @@ export async function resetPasswordAction({ newPassword }) {
     return { error: "Your reset session has expired. Please start the password reset process again." };
   }
 
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  console.log("[resetPasswordAction] Updating password for user:", user.id, user.email);
+
+  // Use admin API to write the password directly — supabase.auth.updateUser() in a
+  // server action with a recovery session cookie can return no error but silently fail
+  // to persist the change (GoTrue session state mismatch). The admin API writes straight
+  // to the DB with no session dependency and is always authoritative.
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(user.id, { password: newPassword });
   if (error) {
+    console.error("[resetPasswordAction] updateUserById error:", error);
     const msg = error.message?.toLowerCase() ?? "";
     if (msg.includes("different from the old password") || msg.includes("same as the old password")) {
       return { error: "Your new password must be different from your current password." };
     }
     return { error: "Failed to reset password. Please try again." };
   }
+
+  console.log("[resetPasswordAction] Password updated successfully for:", user.id);
 
   // Clear the recovery session server-side so the middleware doesn't block /login
   await supabase.auth.signOut({ scope: "local" });
