@@ -125,7 +125,7 @@ export default function AdminVendorsPage() {
   const STATUS_TABS = ["all", "pending", "verified", "suspended", "rejected"];
   const TIER_TABS   = [
     { id: "all",     label: "All Tiers" },
-    { id: "free",    label: "Free" },
+    { id: "free",    label: "Basic" },
     { id: "premium", label: "Premium" },
     { id: "vip",     label: "VIP" },
   ];

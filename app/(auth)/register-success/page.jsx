@@ -35,8 +35,7 @@ function VendorSuccessContent() {
   const vendorTier = isPremium ? "Premium" : "Standard";
   const amount = isPremium ? "₦10,000" : "₦5,000";
 
-  // Telegram community link for vendor updates
-  const telegramLink = process.env.NEXT_PUBLIC_TG_LINK;
+  const whatsappLink = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7?mode=gi_t";
 
   const benefits = isPremium
     ? [
@@ -234,47 +233,41 @@ function VendorSuccessContent() {
             </p>
           </motion.section>
 
-          {/* Primary CTA - Telegram */}
+          {/* Primary CTA - WhatsApp */}
           <motion.section
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.4 }}
-            className="bg-linear-to-br from-primary/5 to-accent/5 border-2 border-primary/20 rounded-2xl p-8 shadow-sm"
+            className="bg-linear-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-8 shadow-sm"
           >
             <div className="text-center max-w-xl mx-auto">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-linear-to-br from-primary to-accent mb-4">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-linear-to-br from-green-500 to-emerald-600 mb-4">
                 <svg
                   className="w-7 h-7 text-white"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+                  <path d="M20.52 3.449C18.245 1.166 15.207.017 12.003.017 5.457.017.071 5.403.068 11.955c-.001 2.085.552 4.115 1.602 5.91L0 24l6.305-1.654a11.886 11.886 0 005.693 1.448h.005c6.554 0 11.942-5.387 11.945-11.942.001-3.187-1.24-6.185-3.428-8.403zm-8.517 18.34h-.004a9.876 9.876 0 01-5.032-1.378l-.361-.214-3.741.981 1-.36-.214-.352a9.884 9.884 0 01-1.51-5.267C2.14 6.509 6.554 2.09 12.007 2.09c2.64 0 5.121 1.031 6.987 2.899a9.825 9.825 0 012.897 6.991c-.002 5.453-4.418 9.81-9.888 9.81zm5.44-7.356c-.298-.149-1.765-.87-2.039-.969-.273-.099-.472-.148-.671.15-.198.297-.77.968-.944 1.166-.173.199-.347.224-.645.075-.298-.149-1.258-.465-2.395-1.48-.886-.789-1.484-1.763-1.658-2.06-.173-.298-.018-.459.13-.607.134-.134.298-.348.447-.522.148-.174.198-.298.297-.497.099-.198.05-.372-.025-.521-.074-.15-.671-1.614-.919-2.21-.242-.582-.488-.502-.671-.512-.173-.008-.372-.01-.571-.01s-.522.075-.794.373c-.273.298-1.042 1.019-1.042 2.484 0 1.464 1.067 2.878 1.216 3.076.149.199 2.099 3.205 5.085 4.493.71.307 1.265.49 1.698.628.714.228 1.363.196 1.876.119.572-.087 1.762-.72 2.01-1.416.247-.696.247-1.292.173-1.416-.074-.124-.273-.198-.571-.347z" />
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900 mb-3">
                 Join the Vendor Community
               </div>
               <p className="text-gray-600 mb-6 leading-relaxed">
-                The marketplace is currently in development. Join our Telegram
-                community to receive launch updates, connect with other vendors,
-                and get early access to platform features.
+                Connect with fellow vendors, get real-time updates on platform
+                development, and receive early access to new features via our
+                WhatsApp community.
               </p>
-              {telegramLink ? (
-                <Link href={telegramLink} target="_blank" rel="noopener noreferrer">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="w-full sm:w-auto group shadow-lg shadow-primary/30"
-                  >
-                    Join Telegram Community
-                    <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </Button>
-                </Link>
-              ) : (
-                <p className="text-sm font-semibold text-primary">
-                  Telegram community link coming soon
-                </p>
-              )}
+              <Link href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full sm:w-auto group shadow-lg shadow-green-500/30 bg-green-600! hover:bg-green-700!"
+                >
+                  Join WhatsApp Community
+                  <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </Button>
+              </Link>
               <p className="text-sm text-gray-500 mt-4">
                 You'll be notified when the platform launches
               </p>
@@ -342,7 +335,7 @@ function VendorSuccessContent() {
                   step: 2,
                   title: "Join the Community",
                   description:
-                    "Connect with fellow vendors and get real-time updates on platform development via Telegram.",
+                    "Connect with fellow vendors and get real-time updates on platform development via our WhatsApp community.",
                 },
                 {
                   step: 3,

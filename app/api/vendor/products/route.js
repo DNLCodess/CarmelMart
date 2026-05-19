@@ -121,7 +121,7 @@ export async function POST(request) {
     }
     if (sale_price && tier === "free") {
       return NextResponse.json(
-        { error: "Promotions & deals are not available on the Free plan. Upgrade to Premium or VIP to set sale prices.", code: "PROMOTIONS_GATED" },
+        { error: "Promotions & deals are not available on the Basic plan. Upgrade to Premium or VIP to set sale prices.", code: "PROMOTIONS_GATED" },
         { status: 403 }
       );
     }
