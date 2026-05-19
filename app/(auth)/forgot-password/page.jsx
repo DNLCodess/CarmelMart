@@ -136,19 +136,19 @@ export default function ForgotPassword() {
     setIsLoading(true);
     try {
       const captchaToken = await getTurnstileToken("turnstile-forgot");
+      console.log("[forgot-password] sendOTP → email:", email.trim().toLowerCase(), "| captcha:", captchaToken ? "obtained" : "skipped");
       const supabase = createClient();
-      // redirectTo is only used when the Supabase email template sends a magic link
-      // ({{ .ConfirmationURL }}) instead of a plain OTP token ({{ .Token }}).
-      // Pointing it at /forgot-password means link-clickers land back here rather than
-      // /settings where there is no password-reset UI.
-      await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
         redirectTo: `${window.location.origin}/auth/callback?next=/forgot-password`,
         ...(captchaToken ? { captchaToken } : {}),
       });
+      console.log("[forgot-password] resetPasswordForEmail result:", { data, error });
+      if (error) console.error("[forgot-password] resetPasswordForEmail error:", error);
       // Always advance to step 2 — never reveal whether the email is registered
       toast.success("If that email is registered, a reset code has been sent.");
       setStep(2);
     } catch (err) {
+      console.error("[forgot-password] sendOTP unexpected error:", err);
       if (err.message?.startsWith("Security check")) {
         toast.error(err.message);
       } else {
@@ -165,7 +165,9 @@ export default function ForgotPassword() {
     setIsLoading(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: otp, type: "recovery" });
+      console.log("[forgot-password] verifyOtp → email:", email.trim().toLowerCase(), "| otp:", otp);
+      const { data, error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: otp, type: "recovery" });
+      console.log("[forgot-password] verifyOtp result:", { data, error });
       if (error) throw error;
       toast.success("Code verified");
       setStep(3);
@@ -183,11 +185,9 @@ export default function ForgotPassword() {
     setError("");
     setIsLoading(true);
     try {
-      // Server action reads the recovery session from cookies (set by verifyOtp above)
-      // and calls updateUser server-side — more reliable than the browser client
-      // which can lose the session from its in-memory/cookie state.
-      // signOut is also handled server-side so the middleware lets the user through to /login.
+      console.log("[forgot-password] resetPasswordAction → calling server action");
       const result = await resetPasswordAction({ newPassword });
+      console.log("[forgot-password] resetPasswordAction result:", result);
       if (result?.error) {
         setError(result.error);
         toast.error(result.error);

@@ -24,6 +24,13 @@ const FROM       = process.env.RESEND_FROM_EMAIL;
 const HOOK_SECRET = process.env.SUPABASE_AUTH_HOOK_SECRET;
 const BASE_URL   = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
 
+console.log("[auth-hook] ENV check:", {
+  RESEND_API_KEY:         process.env.RESEND_API_KEY ? `set (${process.env.RESEND_API_KEY.slice(0, 8)}...)` : "MISSING",
+  RESEND_FROM_EMAIL:      FROM || "MISSING",
+  SUPABASE_AUTH_HOOK_SECRET: HOOK_SECRET ? `set (${HOOK_SECRET.slice(0, 6)}...)` : "MISSING",
+  BASE_URL:               BASE_URL || "MISSING",
+});
+
 // Builds the link that lands on CarmelMart's existing /confirm-email page,
 // which calls verifyOtp({ token_hash, type }) client-side.
 function buildConfirmUrl(tokenHash, type) {
@@ -31,7 +38,10 @@ function buildConfirmUrl(tokenHash, type) {
 }
 
 async function sendEmail({ to, subject, html }) {
-  await resend.emails.send({ from: FROM, to, subject, html });
+  console.log("[auth-hook] Sending email via Resend:", { from: FROM, to, subject });
+  const result = await resend.emails.send({ from: FROM, to, subject, html });
+  console.log("[auth-hook] Resend response:", result);
+  return result;
 }
 
 export async function POST(request) {
@@ -55,6 +65,16 @@ export async function POST(request) {
     token_hash,    // hashed token for link-based verification
     token_hash_new, // second hash for email_change (new address)
   } = email_data;
+
+  console.log("[auth-hook] Incoming request:", {
+    email_action_type,
+    user_email:    user?.email,
+    user_metadata: user?.user_metadata,
+    token:         token ? `${token.slice(0, 4)}...` : null,
+    token_hash:    token_hash ? `${token_hash.slice(0, 12)}...` : null,
+    token_hash_new: token_hash_new ? `${token_hash_new.slice(0, 12)}...` : null,
+    new_email:     user?.new_email || null,
+  });
 
   const name = user.user_metadata?.name
     || user.user_metadata?.first_name
@@ -96,7 +116,7 @@ export async function POST(request) {
       const templateFn = authEmailTemplates[email_action_type];
 
       if (!templateFn) {
-        console.error(`[auth-hook] No template for action type: ${email_action_type}`);
+        console.error(`[auth-hook] No template found for action type: "${email_action_type}". Available: ${Object.keys(authEmailTemplates).join(", ")}`);
         return NextResponse.json({});
       }
 
@@ -109,10 +129,15 @@ export async function POST(request) {
 
       await sendEmail({ to: user.email, ...tmpl });
     }
+    console.log("[auth-hook] Email sent successfully for action:", email_action_type);
   } catch (err) {
     // Log but return 200 — Supabase retries on non-200 and the token does
     // not rotate between retries, so repeated sends are safe.
-    console.error("[auth-hook] Resend failed:", err?.message ?? err);
+    console.error("[auth-hook] Resend send FAILED:", {
+      message: err?.message,
+      name:    err?.name,
+      stack:   err?.stack?.split("\n")[0],
+    });
   }
 
   // Supabase expects an empty JSON object on success
