@@ -4,13 +4,11 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Mail, Lock, CheckCircle, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
-import Script from "next/script";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getTurnstileToken } from "@/lib/turnstile";
-import { resetPasswordAction } from "@/app/actions/auth";
+import { sendPasswordResetAction, resetPasswordAction } from "@/app/actions/auth";
 
 // ─── Shared input ─────────────────────────────────────────────────────────────
 
@@ -135,25 +133,19 @@ export default function ForgotPassword() {
     setError("");
     setIsLoading(true);
     try {
-      const captchaToken = await getTurnstileToken("turnstile-forgot");
-      console.log("[forgot-password] sendOTP → email:", email.trim().toLowerCase(), "| captcha:", captchaToken ? "obtained" : "skipped");
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${window.location.origin}/auth/callback?next=/forgot-password`,
-        ...(captchaToken ? { captchaToken } : {}),
-      });
-      console.log("[forgot-password] resetPasswordForEmail result:", { data, error });
-      if (error) console.error("[forgot-password] resetPasswordForEmail error:", error);
+      console.log("[forgot-password] sendOTP → email:", email.trim().toLowerCase());
+      const result = await sendPasswordResetAction(email.trim().toLowerCase());
+      console.log("[forgot-password] sendPasswordResetAction result:", result);
+      if (!result.ok) {
+        toast.error(result.error || "Something went wrong. Please try again.");
+        return;
+      }
       // Always advance to step 2 — never reveal whether the email is registered
       toast.success("If that email is registered, a reset code has been sent.");
       setStep(2);
     } catch (err) {
       console.error("[forgot-password] sendOTP unexpected error:", err);
-      if (err.message?.startsWith("Security check")) {
-        toast.error(err.message);
-      } else {
-        toast.error("Something went wrong. Please check your connection and try again.");
-      }
+      toast.error("Something went wrong. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -205,10 +197,6 @@ export default function ForgotPassword() {
 
   return (
     <>
-    {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="lazyOnload" />
-    )}
-    <div id="turnstile-forgot" className="hidden" />
     <div className="min-h-screen flex">
 
       {/* ── Left: Hero panel ── */}

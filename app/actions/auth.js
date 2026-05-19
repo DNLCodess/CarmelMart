@@ -4,31 +4,38 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { generateReferralCode } from "@/lib/utils";
+import { Resend } from "resend";
+import { authEmailTemplates } from "@/lib/email/auth";
 
-// ─── Login rate limiter ───────────────────────────────────────────────────────
+// ─── Rate limiters ────────────────────────────────────────────────────────────
 // Per-email, in-memory. Works for single-instance; swap Map for Redis in multi-node.
-const _loginAttempts = new Map(); // normalizedEmail → { count, resetAt }
-const RATE_MAX    = 5;
-const RATE_WINDOW = 15 * 60 * 1000; // 15 min
 
-function _checkRate(email) {
-  const now    = Date.now();
-  const record = _loginAttempts.get(email);
-  if (!record || now > record.resetAt) {
-    _loginAttempts.set(email, { count: 1, resetAt: now + RATE_WINDOW });
-    return { limited: false };
-  }
-  if (record.count >= RATE_MAX) {
-    const mins = Math.ceil((record.resetAt - now) / 60_000);
-    return { limited: true, retryAfter: mins };
-  }
-  record.count++;
-  return { limited: false };
+function _makeRateLimiter(max, windowMs) {
+  const store = new Map(); // email → { count, resetAt }
+  return {
+    check(email) {
+      const now    = Date.now();
+      const record = store.get(email);
+      if (!record || now > record.resetAt) {
+        store.set(email, { count: 1, resetAt: now + windowMs });
+        return { limited: false };
+      }
+      if (record.count >= max) {
+        const mins = Math.ceil((record.resetAt - now) / 60_000);
+        return { limited: true, retryAfter: mins };
+      }
+      record.count++;
+      return { limited: false };
+    },
+    clear(email) { store.delete(email); },
+  };
 }
 
-function _clearRate(email) {
-  _loginAttempts.delete(email);
-}
+const _loginRate = _makeRateLimiter(5, 15 * 60 * 1000);  // 5 attempts / 15 min
+const _resetRate = _makeRateLimiter(5, 60 * 60 * 1000);   // 5 resets   / 1 hour
+
+function _checkRate(email)  { return _loginRate.check(email); }
+function _clearRate(email)  { return _loginRate.clear(email); }
 
 // Nigerian phone: starts with +234 or 0, then 7/8/9, then 0/1, then 8 more digits
 const NIGERIAN_PHONE_RE = /^(\+234|0)[789][01]\d{8}$/;
@@ -67,6 +74,12 @@ export async function loginAction({ email, password }) {
 
 /**
  * Create a new account (customer or vendor).
+ *
+ * Uses admin.generateLink instead of supabase.auth.signUp so that:
+ *  - Supabase's per-hour email rate limit is bypassed (admin API is exempt)
+ *  - The confirmation email is sent directly via Resend (not through the auth hook)
+ *  - All DB inserts use the service-role client, so RLS never blocks the rollback path
+ *
  * Rolls back the auth.users record if any required profile insert fails,
  * so the email doesn't get permanently locked.
  *
@@ -90,50 +103,67 @@ export async function signupAction({
     return { error: "Enter a valid Nigerian phone number (e.g. 08012345678 or +2348012345678)." };
   }
 
-  const supabase = await createClient();
-  const admin = createAdminClient();
+  // Verify Turnstile captcha server-side when the secret key is configured
+  if (captchaToken && process.env.TURNSTILE_SECRET_KEY) {
+    try {
+      const cfRes  = await fetch("https://challenges.cloudflare.com/turnstile/v1/siteverify", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ secret: process.env.TURNSTILE_SECRET_KEY, response: captchaToken }),
+      });
+      const cfData = await cfRes.json();
+      if (!cfData.success) return { error: "Security check failed. Please try again." };
+    } catch {
+      // If Cloudflare is unreachable, allow through — don't block genuine users
+    }
+  }
 
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim().toLowerCase(),
+  const normalizedEmail = email.trim().toLowerCase();
+  const admin = createAdminClient();
+  const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+
+  const { data: linkData, error } = await admin.auth.admin.generateLink({
+    type: "signup",
+    email: normalizedEmail,
     password,
-    options: {
-      data: { role },
-      ...(captchaToken ? { captchaToken } : {}),
-    },
+    options: { data: { role } },
   });
 
-  if (error) return { error: error.message };
-  if (!data?.user) return { error: "Failed to create account. Please try again." };
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("already registered") || msg.includes("already been registered")) {
+      return { error: "This email is already registered. Please sign in instead." };
+    }
+    return { error: "Failed to create account. Please try again." };
+  }
+  if (!linkData?.user) return { error: "Failed to create account. Please try again." };
 
-  const userId = data.user.id;
+  const userId         = linkData.user.id;
   const newReferralCode = generateReferralCode();
 
-  // Insert user profile
-  const { error: profileError } = await supabase.from("users").insert({
-    id: userId,
-    email: email.trim().toLowerCase(),
-    phone: phone.trim(),
+  // Insert user profile — use admin client since there is no session yet
+  const { error: profileError } = await admin.from("users").insert({
+    id:           userId,
+    email:        normalizedEmail,
+    phone:        phone.trim(),
     role,
     referral_code: newReferralCode,
-    referred_by: referralCode?.trim().toUpperCase() || null,
+    referred_by:  referralCode?.trim().toUpperCase() || null,
     wallet_balance: 0,
   });
 
   if (profileError) {
-    // Rollback: delete the orphaned auth user so the email is not permanently locked.
     await admin.auth.admin.deleteUser(userId);
     return { error: "Failed to complete registration. Please try again." };
   }
 
-  // If vendor, create the vendor record shell (pending verification).
-  // Fatal: if this fails the user would have role="vendor" in users but no vendors row,
-  // breaking every vendor-specific query downstream.
+  // Vendor shell record — fatal if missing (every vendor query depends on it)
   if (role === "vendor") {
-    const { error: vendorError } = await supabase.from("vendors").insert({
-      id: userId,
+    const { error: vendorError } = await admin.from("vendors").insert({
+      id:                  userId,
       verification_status: "pending",
-      nin_verified: false,
-      cac_verified: false,
+      nin_verified:        false,
+      cac_verified:        false,
     });
 
     if (vendorError) {
@@ -142,27 +172,45 @@ export async function signupAction({
     }
   }
 
-  // Record referral relationship (non-fatal if it fails)
+  // Referral relationship (non-fatal)
   if (referralCode) {
     try {
-      const { data: referrer } = await supabase
+      const { data: referrer } = await admin
         .from("users")
         .select("id")
         .eq("referral_code", referralCode.trim().toUpperCase())
         .single();
 
       if (referrer) {
-        await supabase.from("referrals").insert({
-          referrer_id: referrer.id,
-          referred_id: userId,
+        await admin.from("referrals").insert({
+          referrer_id:   referrer.id,
+          referred_id:   userId,
           referral_code: referralCode.trim().toUpperCase(),
-          bonus_amount: 500,
-          status: "pending",
+          bonus_amount:  500,
+          status:        "pending",
         });
       }
     } catch {
       // Non-fatal — don't block registration over referral issues
     }
+  }
+
+  // Send confirmation email directly via Resend — bypasses hook + Supabase rate limits
+  try {
+    const tokenHash  = linkData.properties?.hashed_token;
+    const confirmUrl = `${BASE_URL}/confirm-email?token_hash=${encodeURIComponent(tokenHash)}&type=signup`;
+    const name       = normalizedEmail.split("@")[0];
+    const resend     = new Resend(process.env.RESEND_API_KEY);
+    const template   = authEmailTemplates.signup({ name, confirmUrl });
+    await resend.emails.send({
+      from:    process.env.RESEND_FROM_EMAIL,
+      to:      normalizedEmail,
+      subject: template.subject,
+      html:    template.html,
+    });
+  } catch (emailError) {
+    console.error("[signupAction] Confirmation email failed:", emailError?.message);
+    // Non-fatal — user can request a resend; account is created
   }
 
   revalidatePath("/", "layout");
@@ -171,7 +219,7 @@ export async function signupAction({
     error: null,
     userId,
     role,
-    requiresEmailVerification: !data.session, // true when email confirmation is on
+    requiresEmailVerification: true, // always true — email confirmation is required
   };
 }
 
@@ -316,6 +364,71 @@ export async function convertGuestAction({ email, password, firstName, lastName,
 /**
  * Update password for the currently authenticated user.
  */
+/**
+ * Send a password reset OTP directly via Resend, bypassing Supabase's
+ * per-email rate limit (2/hr on free plan) by using the admin generateLink API.
+ * Returns generic { ok: true } on both success and "email not found" to prevent
+ * user enumeration. Only fails loudly for validation errors.
+ */
+export async function sendPasswordResetAction(email) {
+  if (!email || !email.includes("@")) {
+    return { ok: false, error: "Please provide a valid email address." };
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Rate limit: 5 reset attempts per email per hour to prevent Resend credit abuse
+  const rateCheck = _resetRate.check(normalizedEmail);
+  if (rateCheck.limited) {
+    return {
+      ok: false,
+      error: `Too many reset attempts. Please try again in ${rateCheck.retryAfter} minute${rateCheck.retryAfter === 1 ? "" : "s"}.`,
+    };
+  }
+
+  const admin = createAdminClient();
+
+  const { data: linkData, error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email: normalizedEmail,
+  });
+
+  if (error) {
+    // Could be "user not found" — return success to prevent enumeration
+    console.error("[sendPasswordResetAction] generateLink error:", error.message);
+    return { ok: true };
+  }
+
+  const otp  = linkData.properties?.email_otp;
+  const name = linkData.user?.user_metadata?.name
+    || linkData.user?.user_metadata?.first_name
+    || normalizedEmail.split("@")[0];
+
+  console.log("[sendPasswordResetAction] OTP generated for:", normalizedEmail, "| otp:", otp ? `${otp.slice(0, 2)}****` : "MISSING");
+
+  if (!otp) {
+    console.error("[sendPasswordResetAction] generateLink returned no email_otp — cannot send usable code");
+    return { ok: true }; // still return ok to avoid enumeration; user can retry
+  }
+
+  try {
+    const resend   = new Resend(process.env.RESEND_API_KEY);
+    const template = authEmailTemplates.recovery({ name, otp });
+    const result   = await resend.emails.send({
+      from:    process.env.RESEND_FROM_EMAIL,
+      to:      normalizedEmail,
+      subject: template.subject,
+      html:    template.html,
+    });
+    console.log("[sendPasswordResetAction] Resend result:", result);
+  } catch (emailError) {
+    console.error("[sendPasswordResetAction] Resend failed:", emailError?.message);
+    // Non-fatal — the OTP is valid even if delivery fails; user can retry
+  }
+
+  return { ok: true };
+}
+
 /**
  * Reset password from a forgot-password recovery session.
  * Called after verifyOtp (type: "recovery") has established the session in cookies.

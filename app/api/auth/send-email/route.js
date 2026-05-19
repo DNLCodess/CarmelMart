@@ -1,18 +1,23 @@
 /**
  * app/api/auth/send-email/route.js
  *
- * Supabase "Send Email" auth hook — intercepts every Supabase auth email
- * (signup, password reset, magic link, email change, re-auth OTP) and
- * delivers it via Resend instead of Supabase's built-in mailer.
+ * Supabase "Send Email" auth hook — handles auth email types that cannot be
+ * bypassed via the admin API and must still go through Supabase's hook system:
+ *
+ *   email_change    — triggered by auth.updateUser({ email }); requires two
+ *                     confirmation emails (old + new address) that Supabase
+ *                     constructs internally; no admin.generateLink equivalent.
+ *   reauthentication — triggered by auth.reauthenticate(); OTP is generated
+ *                     internally by Supabase; no admin API equivalent.
+ *
+ * Events handled elsewhere (NOT via this hook):
+ *   signup   → signupAction in app/actions/auth.js (admin.generateLink + Resend)
+ *   recovery → sendPasswordResetAction in app/actions/auth.js (admin.generateLink + Resend)
  *
  * Configure in Supabase dashboard:
  *   Authentication → Hooks → Send Email
  *   URL:    https://<your-domain>/api/auth/send-email
  *   Secret: value of SUPABASE_AUTH_HOOK_SECRET env var
- *
- * Supabase retries the hook on any non-2xx response, so we always return
- * 200 even when Resend fails — a failed send is logged but never causes
- * Supabase to block the auth flow.
  */
 
 import { Resend } from "resend";
@@ -110,29 +115,17 @@ export async function POST(request) {
 
       await Promise.all(jobs);
 
-    } else if (email_action_type === "recovery") {
-      // CarmelMart uses an OTP-based reset flow (verifyOtp), NOT a magic link,
-      // so we send the 6-digit code rather than a confirm button.
-      const tmpl = authEmailTemplates.recovery({ name, otp: token });
+    } else if (email_action_type === "reauthentication") {
+      const tmpl = authEmailTemplates.reauthentication({ name, otp: token });
       await sendEmail({ to: user.email, from: fromEmail, ...tmpl });
 
     } else {
-      const templateFn = authEmailTemplates[email_action_type];
-
-      if (!templateFn) {
-        console.error(`[auth-hook] No template found for action type: "${email_action_type}". Available: ${Object.keys(authEmailTemplates).join(", ")}`);
-        return NextResponse.json({});
-      }
-
-      const tmpl = templateFn({
-        name,
-        email: user.email,
-        confirmUrl: token_hash ? buildConfirmUrl(token_hash, email_action_type, baseUrl) : null,
-        otp: token,
-      });
-
-      await sendEmail({ to: user.email, from: fromEmail, ...tmpl });
+      // signup and recovery are handled by server actions (admin.generateLink + Resend).
+      // magiclink and invite are not used in this app but would land here if triggered.
+      console.warn(`[auth-hook] Unhandled action type: "${email_action_type}" — no email sent.`);
+      return NextResponse.json({});
     }
+
     console.log("[auth-hook] Email sent successfully for action:", email_action_type);
   } catch (err) {
     // Log but return 200 — Supabase retries on non-200 and the token does
