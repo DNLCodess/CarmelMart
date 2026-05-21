@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShoppingCart, Truck, MessageCircle, Mail, RefreshCw,
-  X, ChevronDown, Search, Check, AlertCircle, Loader2,
-  Package, User, MapPin, Phone, Clock, ExternalLink,
-  CheckCircle2, Circle, ShieldAlert, ChevronRight,
+  ShoppingCart, Truck, RefreshCw,
+  X, Search, Check, AlertCircle, Loader2,
+  Package, User, MapPin, Phone,
+  CheckCircle2, ShieldAlert,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
@@ -20,9 +20,9 @@ async function fetchOrders(params) {
   return r.json();
 }
 
-async function fetchPartners() {
-  const r = await fetch("/api/admin/logistics-partners?active=true");
-  if (!r.ok) return { partners: [] };
+async function fetchRiders() {
+  const r = await fetch("/api/admin/riders");
+  if (!r.ok) return { riders: [] };
   return r.json();
 }
 
@@ -69,39 +69,35 @@ function StatusBadge({ status }) {
 
 // ── Order detail drawer ───────────────────────────────────────────────────────
 
-function OrderDrawer({ orderId, partners, onClose }) {
+function OrderDrawer({ orderId, riders, onClose }) {
   const qc = useQueryClient();
-  const [selectedPartnerId, setSelectedPartnerId] = useState("");
-  const [sendEmail, setSendEmail] = useState(true);
-  const [refundAmount, setRefundAmount] = useState("");
-  const [refundReason, setRefundReason] = useState("");
-  const [showRefundForm, setShowRefundForm] = useState(false);
+  const [selectedRiderId, setSelectedRiderId] = useState("");
+  const [refundAmount,    setRefundAmount]    = useState("");
+  const [refundReason,    setRefundReason]    = useState("");
+  const [showRefundForm,  setShowRefundForm]  = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["logistics-order-detail", orderId],
-    queryFn: () => fetchOrderDetail(orderId),
+    queryFn:  () => fetchOrderDetail(orderId),
     staleTime: 10_000,
-    retry: false,
+    retry:    false,
   });
 
   const assignMutation = useMutation({
-    mutationFn: async ({ partner_id }) => {
+    mutationFn: async ({ rider_id }) => {
       const r = await fetch(`/api/logistics/orders/${orderId}/assign`, {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ partner_id, send_email: sendEmail }),
+        body:    JSON.stringify({ rider_id }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Assignment failed");
       return d;
     },
-    onSuccess: (res) => {
-      toast.success("Partner assigned successfully!");
+    onSuccess: () => {
+      toast.success("Rider assigned successfully!");
       qc.invalidateQueries({ queryKey: ["logistics-orders"] });
       qc.invalidateQueries({ queryKey: ["logistics-order-detail", orderId] });
-      if (res.whatsapp_url) {
-        window.open(res.whatsapp_url, "_blank", "noopener,noreferrer");
-      }
     },
     onError: (e) => toast.error(e.message),
   });
@@ -153,41 +149,6 @@ function OrderDrawer({ orderId, partners, onClose }) {
     onError: (e) => toast.error(e.message),
   });
 
-  const handleWhatsApp = (assignment) => {
-    if (!assignment?.partner) return;
-    const order = data?.order ?? {};
-    const addr  = order.delivery_address ?? {};
-    const shortId = order.shortId ?? `#CM-${orderId.slice(0, 8).toUpperCase()}`;
-    const itemLines = (data?.items ?? [])
-      .map((it) => `• ${it.name} ×${it.quantity} (₦${(it.unit_price * it.quantity).toLocaleString("en-NG")})`)
-      .join("\n");
-
-    const msg = [
-      `🚚 *CarmelMart Delivery Assignment*`,
-      ``,
-      `*Order:* ${shortId}`,
-      `*Customer:* ${addr.fullName ?? "—"}`,
-      `*Phone:* ${addr.phone ?? "—"}`,
-      `*Address:* ${[addr.houseNumber, addr.street].filter(Boolean).join(" ") || "—"}`,
-      addr.area ? `*Area:* ${addr.area}` : null,
-      `*City:* ${addr.city ?? "—"}, ${addr.state ?? ""}`,
-      addr.landmark ? `*Landmark:* ${addr.landmark}` : null,
-      ``,
-      `*Items:*`,
-      itemLines,
-      ``,
-      `*Total:* ₦${(order.total ?? 0).toLocaleString("en-NG")}`,
-      `*Payment:* ${order.payment_method === "pod" ? "⚠️ Pay on Delivery" : "✅ Paid online"}`,
-      ``,
-      `Please confirm receipt and update on pickup & delivery.`,
-      `- CarmelMart Logistics`,
-    ].filter((l) => l !== null).join("\n");
-
-    let phone = assignment.partner.phone.replace(/\D/g, "");
-    if (phone.startsWith("0")) phone = "234" + phone.slice(1);
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
-  };
-
   if (isLoading) {
     return (
       <DrawerShell onClose={onClose} title="Loading…">
@@ -210,9 +171,9 @@ function OrderDrawer({ orderId, partners, onClose }) {
   }
 
   const { order, customer, items, assignment } = data;
-  const addr = order.delivery_address ?? {};
-  const nextStatus = STATUS_NEXT[order.status];
-  const isTerminal = ["delivered", "cancelled", "refunded"].includes(order.status);
+  const addr         = order.delivery_address ?? {};
+  const nextStatus   = STATUS_NEXT[order.status];
+  const isTerminal   = ["delivered", "cancelled", "refunded"].includes(order.status);
   const currentStepIdx = DELIVERY_STEPS.findIndex((s) => s.status === order.status);
 
   return (
@@ -229,7 +190,6 @@ function OrderDrawer({ orderId, partners, onClose }) {
             </span>
           </div>
 
-          {/* Delivery progress bar */}
           <div className="flex items-center gap-0.5">
             {DELIVERY_STEPS.map((step, i) => {
               const done    = currentStepIdx >= i;
@@ -285,80 +245,43 @@ function OrderDrawer({ orderId, partners, onClose }) {
           </div>
         </Section>
 
-        {/* Logistics assignment */}
-        <Section title="Logistics Partner" icon={Truck}>
-          {assignment?.partner ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{assignment.partner.name}</p>
-                  {assignment.partner.contact_name && (
-                    <p className="text-xs text-gray-500">{assignment.partner.contact_name}</p>
-                  )}
-                  <p className="text-xs text-gray-400">{assignment.partner.phone}</p>
+        {/* Rider assignment */}
+        <Section title="Assigned Rider" icon={Truck}>
+          {assignment?.rider ? (
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{assignment.rider.name}</p>
+              {assignment.rider.phone && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <a href={`tel:${assignment.rider.phone}`}>{assignment.rider.phone}</a>
                 </div>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => handleWhatsApp(assignment)}
-                    className="p-2 rounded-xl bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-100 transition-colors"
-                    title="Send WhatsApp"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-                {assignment.whatsapp_sent && (
-                  <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> WhatsApp sent
-                  </span>
-                )}
-                {assignment.email_sent && (
-                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Email sent
-                  </span>
-                )}
-                {assignment.pickup_confirmed_at && (
-                  <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Pickup confirmed
-                  </span>
-                )}
-              </div>
+              )}
             </div>
           ) : (
-            <p className="text-sm text-gray-400 dark:text-gray-500 italic">No partner assigned yet.</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 italic">No rider assigned yet.</p>
           )}
 
           {/* Assign / reassign form */}
           {!isTerminal && (
             <div className="mt-3 space-y-2">
               <label className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                {assignment?.partner ? "Reassign partner" : "Assign partner"}
+                {assignment?.rider ? "Reassign rider" : "Assign rider"}
               </label>
               <select
-                value={selectedPartnerId}
-                onChange={(e) => setSelectedPartnerId(e.target.value)}
+                value={selectedRiderId}
+                onChange={(e) => setSelectedRiderId(e.target.value)}
                 className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
               >
-                <option value="">— Select partner —</option>
-                {(partners ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.phone})
+                <option value="">— Select rider —</option>
+                {(riders ?? []).map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}{r.phone ? ` (${r.phone})` : ""}
                   </option>
                 ))}
               </select>
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sendEmail}
-                  onChange={(e) => setSendEmail(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                Send email to partner
-              </label>
               <button
-                onClick={() => assignMutation.mutate({ partner_id: selectedPartnerId })}
-                disabled={!selectedPartnerId || assignMutation.isPending}
+                onClick={() => assignMutation.mutate({ rider_id: selectedRiderId })}
+                disabled={!selectedRiderId || assignMutation.isPending}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors disabled:opacity-60"
               >
                 {assignMutation.isPending ? (
@@ -366,7 +289,7 @@ function OrderDrawer({ orderId, partners, onClose }) {
                 ) : (
                   <>
                     <Truck className="w-4 h-4" />
-                    {assignment?.partner ? "Reassign & Notify" : "Assign & Notify"}
+                    {assignment?.rider ? "Reassign Rider" : "Assign Rider"}
                   </>
                 )}
               </button>
@@ -514,27 +437,10 @@ function InfoRow({ label, value }) {
   return (
     <div className="flex gap-3 py-0.5">
       <span className="text-xs text-gray-400 dark:text-gray-500 w-24 shrink-0">{label}</span>
-      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 flex-1 min-w-0 break-words">{value}</span>
+      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 flex-1 min-w-0 wrap-break-word">{value}</span>
     </div>
   );
 }
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
-const STATUS_TABS = [
-  { value: "",           label: "All"        },
-  { value: "pending",    label: "Pending"    },
-  { value: "confirmed",  label: "Confirmed"  },
-  { value: "processing", label: "Processing" },
-  { value: "shipped",    label: "Shipped"    },
-  { value: "delivered",  label: "Delivered"  },
-];
-
-const ASSIGNED_TABS = [
-  { value: "",    label: "All"         },
-  { value: "no",  label: "Unassigned"  },
-  { value: "yes", label: "Assigned"    },
-];
 
 // ── Mobile order card ─────────────────────────────────────────────────────────
 
@@ -545,13 +451,11 @@ function MobileOrderCard({ order, onOpen, onQuickStatus, mutatingId }) {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-      {/* Top row: ID + status */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <p className="font-extrabold text-emerald-700 dark:text-emerald-400 text-base">{order.shortId}</p>
         <StatusBadge status={order.status} />
       </div>
 
-      {/* Customer + address */}
       <div className="px-4 pb-3 space-y-1">
         <div className="flex items-center gap-2">
           <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -573,9 +477,9 @@ function MobileOrderCard({ order, onOpen, onQuickStatus, mutatingId }) {
         )}
         <div className="flex items-center justify-between pt-1">
           <p className="font-bold text-gray-900 dark:text-gray-100">₦{(order.total ?? 0).toLocaleString()}</p>
-          {order.assignment?.partner ? (
+          {order.assignment?.rider ? (
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px]">
-              {order.assignment.partner.name}
+              {order.assignment.rider.name}
             </p>
           ) : (
             <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold italic">Unassigned</p>
@@ -583,7 +487,6 @@ function MobileOrderCard({ order, onOpen, onQuickStatus, mutatingId }) {
         </div>
       </div>
 
-      {/* Action buttons */}
       <div className="flex border-t border-gray-100 dark:border-gray-700">
         <button
           onClick={() => onOpen(order.id)}
@@ -618,6 +521,21 @@ function MobileOrderCard({ order, onOpen, onQuickStatus, mutatingId }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const STATUS_TABS = [
+  { value: "",           label: "All"        },
+  { value: "pending",    label: "Pending"    },
+  { value: "confirmed",  label: "Confirmed"  },
+  { value: "processing", label: "Processing" },
+  { value: "shipped",    label: "Shipped"    },
+  { value: "delivered",  label: "Delivered"  },
+];
+
+const ASSIGNED_TABS = [
+  { value: "",    label: "All"        },
+  { value: "no",  label: "Unassigned" },
+  { value: "yes", label: "Assigned"   },
+];
+
 export default function LogisticsOrdersPage() {
   const qc = useQueryClient();
   const [statusFilter,   setStatusFilter]   = useState("");
@@ -639,9 +557,9 @@ export default function LogisticsOrdersPage() {
     retry:    false,
   });
 
-  const { data: partnersData } = useQuery({
-    queryKey: ["logistics-partners-active"],
-    queryFn:  fetchPartners,
+  const { data: ridersData } = useQuery({
+    queryKey: ["riders-active"],
+    queryFn:  fetchRiders,
     staleTime: 300_000,
   });
 
@@ -657,12 +575,11 @@ export default function LogisticsOrdersPage() {
     return () => { supabase.removeChannel(channel); };
   }, [qc]);
 
-  const orders   = data?.orders  ?? [];
-  const pages    = data?.pages   ?? 1;
-  const total    = data?.total   ?? 0;
-  const partners = partnersData?.partners ?? [];
+  const orders = data?.orders ?? [];
+  const pages  = data?.pages  ?? 1;
+  const total  = data?.total  ?? 0;
+  const riders = ridersData?.riders ?? [];
 
-  // Quick status update from mobile cards (no drawer needed)
   const handleQuickStatus = async (orderId, newStatus) => {
     setMutatingId(orderId);
     try {
@@ -727,7 +644,7 @@ export default function LogisticsOrdersPage() {
         <div>
           <h2 className="font-bold text-gray-900 dark:text-gray-100 text-xl">Orders</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {total.toLocaleString()} total orders · {partners.length} active partner{partners.length !== 1 ? "s" : ""}
+            {total.toLocaleString()} total orders · {riders.length} active rider{riders.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button
@@ -783,7 +700,7 @@ export default function LogisticsOrdersPage() {
         </div>
       </div>
 
-      {/* ── Mobile card list (hidden on lg+) ─────────────────────────────── */}
+      {/* Mobile card list */}
       <div className="lg:hidden space-y-3">
         {isLoading ? loadingState : orders.length === 0 ? emptyState : (
           <>
@@ -801,14 +718,14 @@ export default function LogisticsOrdersPage() {
         )}
       </div>
 
-      {/* ── Desktop table (hidden below lg) ─────────────────────────────── */}
+      {/* Desktop table */}
       <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
         {isLoading ? loadingState : orders.length === 0 ? emptyState : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>
-                  {["Order ID", "Customer", "Amount", "Status", "Partner", "City", "Date", ""].map((h) => (
+                  {["Order ID", "Customer", "Amount", "Status", "Rider", "City", "Date", ""].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide last:text-right"
@@ -839,18 +756,10 @@ export default function LogisticsOrdersPage() {
                     </td>
                     <td className="px-4 py-4"><StatusBadge status={o.status} /></td>
                     <td className="px-4 py-4">
-                      {o.assignment?.partner ? (
-                        <div>
-                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{o.assignment.partner.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {o.assignment.email_sent && (
-                              <span title="Email sent" className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                            )}
-                            {o.assignment.whatsapp_sent && (
-                              <span title="WhatsApp sent" className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                            )}
-                          </div>
-                        </div>
+                      {o.assignment?.rider ? (
+                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {o.assignment.rider.name}
+                        </p>
                       ) : (
                         <span className="text-xs text-gray-400 dark:text-gray-500 italic">Unassigned</span>
                       )}
@@ -877,7 +786,7 @@ export default function LogisticsOrdersPage() {
           <OrderDrawer
             key={openOrderId}
             orderId={openOrderId}
-            partners={partners}
+            riders={riders}
             onClose={() => setOpenOrderId(null)}
           />
         )}

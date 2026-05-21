@@ -23,7 +23,7 @@ export async function POST(request, { params }) {
     // Verify order exists, is delivered, and belongs to this customer
     const { data: order, error: orderErr } = await admin
       .from("orders")
-      .select("id, status, customer_id")
+      .select("id, status, customer_id, rider_id")
       .eq("id", orderId)
       .single();
 
@@ -59,25 +59,18 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "rating must be an integer between 1 and 5." }, { status: 400 });
     }
 
-    // Fetch logistics partner assigned to this order
-    const { data: logisticsRow } = await admin
-      .from("order_logistics")
-      .select("partner_id")
-      .eq("order_id", orderId)
-      .maybeSingle();
-
     const { data: review, error: insertErr } = await admin
       .from("rider_reviews")
       .insert({
-        order_id:             orderId,
-        customer_id:          user.id,
-        logistics_partner_id: logisticsRow?.partner_id ?? null,
-        rating:               Math.round(rating),
-        on_time:              on_time    ?? null,
-        professional:         professional ?? null,
-        package_condition:    package_condition ?? null,
-        would_recommend:      would_recommend ?? null,
-        comment:              comment?.trim() || null,
+        order_id:          orderId,
+        customer_id:       user.id,
+        rider_id:          order.rider_id ?? null,
+        rating:            Math.round(rating),
+        on_time:           on_time           ?? null,
+        professional:      professional      ?? null,
+        package_condition: package_condition ?? null,
+        would_recommend:   would_recommend   ?? null,
+        comment:           comment?.trim()   || null,
       })
       .select("id")
       .single();

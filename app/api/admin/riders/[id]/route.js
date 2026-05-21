@@ -7,22 +7,14 @@ async function guardAdmin() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: "Unauthorized", status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
   if (!profile || profile.role !== "admin") return { error: "Forbidden", status: 403 };
   return { admin };
 }
 
 /**
- * PATCH /api/admin/logistics-staff/[id]
+ * PATCH /api/admin/riders/[id]
  * Body: { status: 'active' | 'suspended' | 'banned' }
- *
- * - 'active'    → re-activates the account
- * - 'suspended' → temporarily blocks login (redirect to /suspended)
- * - 'banned'    → permanently deactivates (same block, irreversible via UI)
  */
 export async function PATCH(request, { params }) {
   try {
@@ -41,7 +33,6 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    // Verify target is a logistics_admin
     const { data: target, error: fetchErr } = await admin
       .from("users")
       .select("id, role, status")
@@ -49,13 +40,10 @@ export async function PATCH(request, { params }) {
       .single();
 
     if (fetchErr || !target) {
-      return NextResponse.json({ error: "Staff account not found." }, { status: 404 });
+      return NextResponse.json({ error: "Rider not found." }, { status: 404 });
     }
-    if (target.role !== "logistics_admin") {
-      return NextResponse.json(
-        { error: "Can only manage logistics_admin accounts via this endpoint." },
-        { status: 400 }
-      );
+    if (target.role !== "rider") {
+      return NextResponse.json({ error: "Can only manage rider accounts via this endpoint." }, { status: 400 });
     }
 
     const { error: updateErr } = await admin
@@ -67,15 +55,14 @@ export async function PATCH(request, { params }) {
 
     return NextResponse.json({ success: true, new_status: status });
   } catch (error) {
-    console.error("[PATCH /api/admin/logistics-staff/[id]]", error);
+    console.error("[PATCH /api/admin/riders/[id]]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 /**
- * DELETE /api/admin/logistics-staff/[id]
- * Permanently deletes the auth user and their profile.
- * Only safe for accounts with no order history. Otherwise, use PATCH status=banned.
+ * DELETE /api/admin/riders/[id]
+ * Hard deletes if no order history; bans otherwise to preserve delivery records.
  */
 export async function DELETE(request, { params }) {
   try {
@@ -84,7 +71,6 @@ export async function DELETE(request, { params }) {
     const { admin } = guard;
     const { id } = await params;
 
-    // Verify target is a logistics_admin
     const { data: target, error: fetchErr } = await admin
       .from("users")
       .select("id, role")
@@ -92,37 +78,36 @@ export async function DELETE(request, { params }) {
       .single();
 
     if (fetchErr || !target) {
-      return NextResponse.json({ error: "Staff account not found." }, { status: 404 });
+      return NextResponse.json({ error: "Rider not found." }, { status: 404 });
     }
-    if (target.role !== "logistics_admin") {
-      return NextResponse.json(
-        { error: "Can only delete logistics_admin accounts via this endpoint." },
-        { status: 400 }
-      );
+    if (target.role !== "rider") {
+      return NextResponse.json({ error: "Can only delete rider accounts via this endpoint." }, { status: 400 });
     }
 
-    // Check if this user has submitted any auth requests (preserve audit trail)
+    // Check if rider has any order history
     const { count } = await admin
-      .from("auth_requests")
+      .from("orders")
       .select("id", { count: "exact", head: true })
-      .eq("requested_by", id);
+      .eq("rider_id", id);
 
     if (count > 0) {
-      // Has history — ban instead of delete to preserve audit trail
       await admin
         .from("users")
         .update({ status: "banned", updated_at: new Date().toISOString() })
         .eq("id", id);
-      return NextResponse.json({ success: true, deactivated: true, message: "Account deactivated (has request history)." });
+      return NextResponse.json({
+        success: true,
+        deactivated: true,
+        message: "Rider deactivated (has delivery history — account retained for records).",
+      });
     }
 
-    // No history — hard delete
     const { error: deleteErr } = await admin.auth.admin.deleteUser(id);
     if (deleteErr) throw deleteErr;
 
     return NextResponse.json({ success: true, deleted: true });
   } catch (error) {
-    console.error("[DELETE /api/admin/logistics-staff/[id]]", error);
+    console.error("[DELETE /api/admin/riders/[id]]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

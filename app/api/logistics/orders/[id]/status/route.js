@@ -18,9 +18,12 @@ async function guardLogistics() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: "Unauthorized", status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
-  if (!profile || !["admin", "logistics_admin"].includes(profile.role)) {
+  const { data: profile } = await admin.from("users").select("role, status").eq("id", user.id).single();
+  if (!profile || !["admin", "logistics_admin", "rider"].includes(profile.role)) {
     return { error: "Forbidden", status: 403 };
+  }
+  if (profile.role === "rider" && (profile.status === "suspended" || profile.status === "banned")) {
+    return { error: "Account suspended.", status: 403 };
   }
   return { user, admin, role: profile.role };
 }
@@ -59,8 +62,16 @@ export async function PATCH(request, { params }) {
     // Validate transition
     const currentStatus = order.status;
 
-    if (role === "logistics_admin") {
-      // Logistics admins: strict delivery-state transitions only
+    // Riders can only update orders assigned to them
+    if (role === "rider" && order.rider_id !== user.id) {
+      return NextResponse.json(
+        { error: "This order is not assigned to you." },
+        { status: 403 }
+      );
+    }
+
+    if (role === "logistics_admin" || role === "rider") {
+      // Strict delivery-state transitions only
       const allowed = ALLOWED_TRANSITIONS[currentStatus] ?? [];
       if (!allowed.includes(newStatus)) {
         return NextResponse.json(
@@ -97,19 +108,6 @@ export async function PATCH(request, { params }) {
       .update({ status: newStatus, updated_at: now })
       .eq("id", orderId);
     if (updateErr) throw updateErr;
-
-    // Track delivery milestones on order_logistics
-    if (["shipped", "delivered"].includes(newStatus)) {
-      const logUpdate = {};
-      if (newStatus === "shipped")   logUpdate.pickup_confirmed_at   = now;
-      if (newStatus === "delivered") logUpdate.delivery_confirmed_at = now;
-      logUpdate.updated_at = now;
-
-      // Upsert: create record if not exists (orders without an explicit assignment)
-      await admin
-        .from("order_logistics")
-        .upsert({ order_id: orderId, ...logUpdate }, { onConflict: "order_id" });
-    }
 
     // Build a short display ID for notification messages
     const shortId = `#CM-${orderId.slice(0, 8).toUpperCase()}`;

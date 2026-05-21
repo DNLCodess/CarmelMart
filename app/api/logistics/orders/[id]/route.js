@@ -22,7 +22,6 @@ export async function GET(request, { params }) {
     const { admin } = guard;
     const { id } = await params;
 
-    // Fetch order
     const { data: order, error: orderErr } = await admin
       .from("orders")
       .select("*")
@@ -54,12 +53,25 @@ export async function GET(request, { params }) {
       .in("id", vendorIds);
     const vendorMap = Object.fromEntries((vendors ?? []).map((v) => [v.id, v]));
 
-    // Fetch logistics assignment
-    const { data: assignment } = await admin
-      .from("order_logistics")
-      .select("*, logistics_partners(id, name, contact_name, phone, email)")
-      .eq("order_id", id)
-      .maybeSingle();
+    // Fetch assigned rider info (if any)
+    let assignment = null;
+    if (order.rider_id) {
+      const { data: rider } = await admin
+        .from("users")
+        .select("id, first_name, last_name, phone")
+        .eq("id", order.rider_id)
+        .single();
+      if (rider) {
+        assignment = {
+          rider: {
+            id:    rider.id,
+            name:  [rider.first_name, rider.last_name].filter(Boolean).join(" ") || "Rider",
+            phone: rider.phone ?? "",
+          },
+          rider_id: order.rider_id,
+        };
+      }
+    }
 
     const normalizedItems = (items ?? []).map((it) => ({
       id:         it.id,
@@ -77,9 +89,9 @@ export async function GET(request, { params }) {
         ...order,
         shortId: `#CM-${order.id.slice(0, 8).toUpperCase()}`,
       },
-      customer: customer ?? null,
-      items:    normalizedItems,
-      assignment: assignment ?? null,
+      customer:   customer ?? null,
+      items:      normalizedItems,
+      assignment,
     });
   } catch (error) {
     console.error("[GET /api/logistics/orders/[id]]", error);

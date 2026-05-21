@@ -21,17 +21,16 @@ export async function GET(request) {
     const { admin } = guard;
 
     const { searchParams } = new URL(request.url);
-    const status     = searchParams.get("status") || null;
-    const assigned   = searchParams.get("assigned");    // "yes" | "no"
-    const search     = searchParams.get("search") || null;
-    const page       = Math.max(1, Number(searchParams.get("page") || 1));
-    const limit      = 20;
+    const status   = searchParams.get("status") || null;
+    const assigned = searchParams.get("assigned");    // "yes" | "no"
+    const search   = searchParams.get("search") || null;
+    const page     = Math.max(1, Number(searchParams.get("page") || 1));
+    const limit    = 20;
 
-    // Fetch orders with delivery address + payment info
     let query = admin
       .from("orders")
       .select(
-        "id, status, total, payment_method, payment_status, delivery_address, created_at, customer_id",
+        "id, status, total, payment_method, payment_status, delivery_address, created_at, customer_id, rider_id",
         { count: "exact" }
       )
       .order("created_at", { ascending: false })
@@ -48,6 +47,7 @@ export async function GET(request) {
 
     const orderIds    = orderRows.map((o) => o.id);
     const customerIds = [...new Set(orderRows.map((o) => o.customer_id).filter(Boolean))];
+    const riderIds    = [...new Set(orderRows.map((o) => o.rider_id).filter(Boolean))];
 
     // Bulk-fetch customer info
     const { data: customers } = await admin
@@ -56,26 +56,34 @@ export async function GET(request) {
       .in("id", customerIds);
     const customerMap = Object.fromEntries((customers ?? []).map((c) => [c.id, c]));
 
-    // Bulk-fetch logistics assignments
-    const { data: assignments } = await admin
-      .from("order_logistics")
-      .select("order_id, partner_id, assigned_at, whatsapp_sent, email_sent, pickup_confirmed_at, delivery_confirmed_at, logistics_partners(id, name, phone, contact_name)")
-      .in("order_id", orderIds);
-    const assignMap = Object.fromEntries(
-      (assignments ?? []).map((a) => [a.order_id, a])
-    );
+    // Bulk-fetch rider info
+    const riderMap = {};
+    if (riderIds.length) {
+      const { data: riders } = await admin
+        .from("users")
+        .select("id, first_name, last_name, phone")
+        .in("id", riderIds);
+      for (const r of riders ?? []) {
+        riderMap[r.id] = {
+          id:    r.id,
+          name:  [r.first_name, r.last_name].filter(Boolean).join(" ") || "Rider",
+          phone: r.phone ?? "",
+        };
+      }
+    }
 
     let orders = orderRows.map((o) => {
-      const c = customerMap[o.customer_id] ?? {};
-      const a = assignMap[o.id] ?? null;
+      const c    = customerMap[o.customer_id] ?? {};
       const addr = o.delivery_address ?? {};
+      const rider = o.rider_id ? (riderMap[o.rider_id] ?? null) : null;
       return {
-        id:              o.id,
-        shortId:         `#CM-${o.id.slice(0, 8).toUpperCase()}`,
-        status:          o.status,
-        total:           o.total,
-        payment_method:  o.payment_method,
-        payment_status:  o.payment_status,
+        id:             o.id,
+        shortId:        `#CM-${o.id.slice(0, 8).toUpperCase()}`,
+        status:         o.status,
+        total:          o.total,
+        payment_method: o.payment_method,
+        payment_status: o.payment_status,
+        rider_id:       o.rider_id ?? null,
         customer: {
           id:    o.customer_id,
           name:  [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "Unknown",
@@ -83,31 +91,21 @@ export async function GET(request) {
           phone: c.phone ?? addr.phone ?? null,
         },
         delivery_address: addr,
-        city:            addr.city ?? "—",
-        state:           addr.state ?? "—",
-        date:            new Date(o.created_at).toLocaleDateString("en-NG", {
+        city:       addr.city ?? "—",
+        state:      addr.state ?? "—",
+        date:       new Date(o.created_at).toLocaleDateString("en-NG", {
           day: "numeric", month: "short", year: "numeric",
         }),
-        created_at:      o.created_at,
-        assignment:      a
-          ? {
-              partner:         a.logistics_partners ?? null,
-              partner_id:      a.partner_id,
-              assigned_at:     a.assigned_at,
-              whatsapp_sent:   a.whatsapp_sent,
-              email_sent:      a.email_sent,
-              pickup_confirmed_at:   a.pickup_confirmed_at,
-              delivery_confirmed_at: a.delivery_confirmed_at,
-            }
-          : null,
+        created_at: o.created_at,
+        assignment: rider ? { rider, rider_id: o.rider_id } : null,
       };
     });
 
     // Filter by assignment status
-    if (assigned === "yes") orders = orders.filter((o) => o.assignment?.partner_id);
-    if (assigned === "no")  orders = orders.filter((o) => !o.assignment?.partner_id);
+    if (assigned === "yes") orders = orders.filter((o) => o.rider_id);
+    if (assigned === "no")  orders = orders.filter((o) => !o.rider_id);
 
-    // Search by customer name, email, order ID
+    // Search by customer name, email, order ID, phone
     if (search) {
       const q = search.toLowerCase();
       orders = orders.filter(
