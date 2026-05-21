@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import {
   Package, Truck, CheckCircle, Clock, XCircle,
   MapPin, Phone, ArrowLeft, RefreshCw, Copy,
-  AlertTriangle, ThumbsUp, Star,
+  AlertTriangle, ThumbsUp, Star, Download,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -345,10 +345,12 @@ export default function OrderDetailPage() {
   const total       = order?.total ?? subtotal + deliveryFee;
   const addr        = order?.address ?? {};
 
-  const canCancel   = ["pending", "confirmed", "processing"].includes(order?.status);
-  const canConfirm  = ["pending", "confirmed", "processing", "shipped"].includes(order?.status);
-  const isDelivered = order?.status === "delivered";
-  const isCancelled = order?.status === "cancelled";
+  const canCancel    = ["pending", "confirmed", "processing"].includes(order?.status);
+  const canConfirm   = ["pending", "confirmed", "processing", "shipped"].includes(order?.status);
+  const isDelivered  = order?.status === "delivered";
+  const isCancelled  = order?.status === "cancelled";
+  const isAllDigital = (order?.items ?? []).length > 0 && (order?.items ?? []).every((i) => i.delivery_format === "digital");
+  const isPaid       = order?.payment_status === "paid";
 
   const existingReview = reviewData?.review ?? null;
   const showReviewForm = isDelivered && !existingReview && !reviewSubmitted;
@@ -528,6 +530,20 @@ export default function OrderDetailPage() {
                           <p className="text-sm font-semibold text-gray-900 line-clamp-1 hover:text-primary">{item.name}</p>
                         </Link>
                         <p className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity}</p>
+                        {item.delivery_format === "digital" && (
+                          isPaid ? (
+                            <a
+                              href={`/api/orders/${order.id}/download?item=${item.id}`}
+                              className="inline-flex items-center gap-1.5 mt-1.5 text-xs font-semibold text-primary hover:underline"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Download
+                            </a>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 mt-1.5 text-xs text-gray-400">
+                              <Download className="w-3.5 h-3.5" /> Available after payment
+                            </span>
+                          )
+                        )}
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-bold text-gray-900">₦{(item.price * item.quantity).toLocaleString()}</p>
@@ -541,30 +557,47 @@ export default function OrderDetailPage() {
 
             {/* ── Right: address + payment summary ──────────────────────── */}
             <div className="space-y-5">
-              {/* Delivery address */}
+              {/* Delivery address / digital receipt */}
               <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-primary" /> Delivery Address
-                </h3>
-                <div className="text-sm text-gray-700 space-y-1">
-                  {addr.fullName && <p className="font-semibold">{addr.fullName}</p>}
-                  {addr.street   && <p>{[addr.houseNumber, addr.street].filter(Boolean).join(" ")}</p>}
-                  {addr.landmark && <p className="text-gray-500">Near: {addr.landmark}</p>}
-                  {(addr.city || addr.state) && (
-                    <p>{[addr.area, addr.city, addr.lga, addr.state].filter(Boolean).join(", ")}</p>
-                  )}
-                  {addr.phone && (
-                    <p className="flex items-center gap-1.5 font-medium mt-2">
-                      <Phone className="w-3.5 h-3.5 text-gray-400" />
-                      <a href={`tel:${addr.phone}`} className="hover:text-primary">{addr.phone}</a>
-                    </p>
-                  )}
-                  {addr.delivery_instructions && (
-                    <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                      {addr.delivery_instructions}
-                    </p>
-                  )}
-                </div>
+                {isAllDigital ? (
+                  <>
+                    <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
+                      <Download className="w-4 h-4 text-primary" /> Digital Delivery
+                    </h3>
+                    <div className="text-sm text-gray-700 space-y-1">
+                      {addr.fullName && <p className="font-semibold">{addr.fullName}</p>}
+                      {addr.email    && <p className="text-gray-500">{addr.email}</p>}
+                      <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 mt-2">
+                        Downloads are available instantly after payment is confirmed.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-primary" /> Delivery Address
+                    </h3>
+                    <div className="text-sm text-gray-700 space-y-1">
+                      {addr.fullName && <p className="font-semibold">{addr.fullName}</p>}
+                      {addr.street   && <p>{[addr.houseNumber, addr.street].filter(Boolean).join(" ")}</p>}
+                      {addr.landmark && <p className="text-gray-500">Near: {addr.landmark}</p>}
+                      {(addr.city || addr.state) && (
+                        <p>{[addr.area, addr.city, addr.lga, addr.state].filter(Boolean).join(", ")}</p>
+                      )}
+                      {addr.phone && (
+                        <p className="flex items-center gap-1.5 font-medium mt-2">
+                          <Phone className="w-3.5 h-3.5 text-gray-400" />
+                          <a href={`tel:${addr.phone}`} className="hover:text-primary">{addr.phone}</a>
+                        </p>
+                      )}
+                      {addr.delivery_instructions && (
+                        <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                          {addr.delivery_instructions}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Payment & cost summary */}

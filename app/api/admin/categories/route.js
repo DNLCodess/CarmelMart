@@ -19,7 +19,7 @@ export async function GET() {
 
     const { data: categories } = await ctx.admin
       .from("categories")
-      .select("id, name, slug, parent_id, image, created_at")
+      .select("id, name, slug, parent_id, image, template, created_at")
       .order("name", { ascending: true });
 
     // Count products per category
@@ -39,6 +39,7 @@ export async function GET() {
       slug:         c.slug,
       parentId:     c.parent_id,
       image:        c.image,
+      template:     c.template ?? "standard",
       productCount: countMap[c.id] ?? 0,
       createdAt:    new Date(c.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
     }));
@@ -54,15 +55,22 @@ export async function POST(request) {
     const ctx = await requireAdmin();
     if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { name, slug, parent_id, image } = await request.json();
+    const { name, slug, parent_id, image, template } = await request.json();
     if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
+    const VALID_TEMPLATES = ["standard", "books_media"];
     const finalSlug = slug?.trim()
       || name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
     const { data, error } = await ctx.admin
       .from("categories")
-      .insert({ name: name.trim(), slug: finalSlug, parent_id: parent_id || null, image: image?.trim() || null })
+      .insert({
+        name:     name.trim(),
+        slug:     finalSlug,
+        parent_id: parent_id || null,
+        image:    image?.trim() || null,
+        template: VALID_TEMPLATES.includes(template) ? template : "standard",
+      })
       .select()
       .single();
 

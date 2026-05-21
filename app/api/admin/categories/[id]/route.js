@@ -18,13 +18,15 @@ export async function PATCH(request, { params }) {
     if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
-    const { name, slug, parent_id, image } = await request.json();
+    const { name, slug, parent_id, image, template } = await request.json();
 
+    const VALID_TEMPLATES = ["standard", "books_media"];
     const update = {};
-    if (name !== undefined)      update.name      = name.trim();
-    if (slug !== undefined)      update.slug      = slug.trim();
+    if (name !== undefined)     update.name      = name.trim();
+    if (slug !== undefined)     update.slug      = slug.trim();
     if (parent_id !== undefined) update.parent_id = parent_id || null;
-    if (image !== undefined)     update.image     = image?.trim() || null;
+    if (image !== undefined)    update.image     = image?.trim() || null;
+    if (template !== undefined) update.template  = VALID_TEMPLATES.includes(template) ? template : "standard";
 
     if (Object.keys(update).length === 0)
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });

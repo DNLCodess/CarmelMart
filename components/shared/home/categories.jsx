@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCategories } from "@/lib/useCategories";
 
 const CATEGORY_META = {
+  // ── canonical slugs ───────────────────────────────────────────────────────
   consumables: {
     image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
     sub: "Food, drinks & essentials",
@@ -26,9 +27,89 @@ const CATEGORY_META = {
     image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80",
     sub: "Sports, hobbies & wellness",
   },
+  // ── common slug variants (in case DB slugs differ) ────────────────────────
+  electronics: {
+    image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80",
+    sub: "Gadgets, tools & appliances",
+  },
+  technology: {
+    image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80",
+    sub: "Gadgets, tools & appliances",
+  },
+  clothing: {
+    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
+    sub: "Clothing, shoes & accessories",
+  },
+  fashion: {
+    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
+    sub: "Clothing, shoes & accessories",
+  },
+  apparel: {
+    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
+    sub: "Clothing, shoes & accessories",
+  },
+  food: {
+    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
+    sub: "Food, drinks & essentials",
+  },
+  grocery: {
+    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
+    sub: "Food, drinks & essentials",
+  },
+  home: {
+    image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80",
+    sub: "Furniture, decor & kitchen",
+  },
+  furniture: {
+    image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80",
+    sub: "Furniture, decor & kitchen",
+  },
+  sports: {
+    image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80",
+    sub: "Sports, hobbies & wellness",
+  },
+  fitness: {
+    image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80",
+    sub: "Sports, hobbies & wellness",
+  },
+  health: {
+    image: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=800&q=80",
+    sub: "Health, beauty & personal care",
+  },
+  beauty: {
+    image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&q=80",
+    sub: "Skincare, makeup & grooming",
+  },
+  "baby-kids": {
+    image: "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=800&q=80",
+    sub: "Toys, clothing & essentials",
+  },
+  toys: {
+    image: "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=800&q=80",
+    sub: "Toys & kids' essentials",
+  },
+  automotive: {
+    image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&q=80",
+    sub: "Car accessories & parts",
+  },
+  books: {
+    image: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&q=80",
+    sub: "Books, stationery & education",
+  },
 };
 
-const FALLBACK_CATEGORIES = Object.entries(CATEGORY_META).map(([slug, meta]) => ({
+// Diverse fallback pool — used for any category whose slug isn't in CATEGORY_META
+// Each position maps to a visually distinct image so no two unmatched categories look alike.
+const FALLBACK_IMAGES = [
+  "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&q=80", // shopping bags
+  "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=800&q=80", // market stalls
+  "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=800&q=80", // products
+  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80", // shoes
+  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=80", // friends shopping
+  "https://images.unsplash.com/photo-1560343090-f0409e92791a?w=800&q=80", // store interior
+];
+
+const FALLBACK_CATEGORIES = Object.entries(CATEGORY_META).slice(0, 6).map(([slug, meta]) => ({
   name: slug.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
   slug,
   productCount: null,
@@ -38,12 +119,13 @@ const FALLBACK_CATEGORIES = Object.entries(CATEGORY_META).map(([slug, meta]) => 
 export default function CategoriesSection() {
   const { parents, isLoading } = useCategories();
 
-  const defaultImage = CATEGORY_META.consumables.image;
   const categories = parents.length
-    ? parents.slice(0, 6).map((category) => ({
+    ? parents.slice(0, 6).map((category, i) => ({
         ...category,
-        image: CATEGORY_META[category.slug]?.image ?? defaultImage,
-        sub: CATEGORY_META[category.slug]?.sub ?? "Shop verified products",
+        image: category.image
+          ?? CATEGORY_META[category.slug]?.image
+          ?? FALLBACK_IMAGES[i % FALLBACK_IMAGES.length],
+        sub: CATEGORY_META[category.slug]?.sub ?? category.description ?? "Shop verified products",
       }))
     : isLoading ? [] : FALLBACK_CATEGORIES;
 

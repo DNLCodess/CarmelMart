@@ -29,6 +29,8 @@ import {
   ThumbsUp,
   BadgeCheck,
   ShoppingBag,
+  BookOpen,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -190,6 +192,47 @@ function AttributeSelector({ label, options, selected, onChange }) {
   );
 }
 
+// ── Books & Media metadata card ───────────────────────────────────────────────
+function MediaMetaCard({ product }) {
+  const rows = [
+    { label: "Author / Artist",  value: product.mediaAuthor },
+    { label: "Publisher / Label", value: product.mediaPublisher },
+    { label: "ISBN",             value: product.mediaIsbn },
+    { label: "Edition",          value: product.mediaEdition },
+    { label: "Language",         value: product.mediaLanguage },
+    { label: "Pages / Runtime",  value: product.mediaPages ? `${product.mediaPages}` : null },
+    { label: "Release Date",     value: product.mediaPublishDate
+        ? new Date(product.mediaPublishDate).toLocaleDateString("en-NG", { year: "numeric", month: "long", day: "numeric" })
+        : null },
+  ].filter((r) => r.value);
+
+  if (!rows.length && !product.mediaGenre?.length) return null;
+
+  return (
+    <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <BookOpen className="w-4 h-4 text-blue-600 shrink-0" />
+        <p className="text-sm font-bold text-blue-800">Book / Media Details</p>
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+        {rows.map(({ label, value }) => (
+          <div key={label} className="col-span-2 sm:col-span-1">
+            <dt className="text-xs text-gray-500 font-medium">{label}</dt>
+            <dd className="text-sm font-semibold text-gray-800 wrap-break-word">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {product.mediaGenre?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {product.mediaGenre.map((g) => (
+            <span key={g} className="text-xs font-semibold px-2.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">{g}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Sticky CTA bar ────────────────────────────────────────────────────────────
 function StickyCTABar({ product, quantity, onAddToCart, onBuyNow, inStock }) {
   const [show, setShow] = useState(false);
@@ -320,28 +363,32 @@ export default function ProductDetailPage() {
   const handleAddToCart = useCallback(() => {
     if (!product) return;
     addItem({
-      productId: product.id,
-      vendorId: product.vendor?.id ?? null,
-      name: product.name,
-      price: product.salePrice ?? product.price,
-      image: product.images?.[0] ?? null,
+      productId:      product.id,
+      vendorId:       product.vendor?.id ?? null,
+      name:           product.name,
+      price,
+      image:          product.images?.[0] ?? null,
       quantity,
+      isDigital:      product.isDigital ?? false,
+      deliveryFormat,
     });
     toast.success(`${product.name} added to cart`);
-  }, [product, quantity, addItem]);
+  }, [product, price, quantity, deliveryFormat, addItem]);
 
   const handleBuyNow = useCallback(() => {
     if (!product) return;
     addItem({
-      productId: product.id,
-      vendorId: product.vendor?.id ?? null,
-      name: product.name,
-      price: product.salePrice ?? product.price,
-      image: product.images?.[0] ?? null,
+      productId:      product.id,
+      vendorId:       product.vendor?.id ?? null,
+      name:           product.name,
+      price,
+      image:          product.images?.[0] ?? null,
       quantity,
+      isDigital:      product.isDigital ?? false,
+      deliveryFormat,
     });
     window.location.href = "/checkout";
-  }, [product, quantity, addItem]);
+  }, [product, price, quantity, deliveryFormat, addItem]);
 
   const handleWishlist = useCallback(() => {
     if (isWishlisted) {
@@ -365,11 +412,28 @@ export default function ProductDetailPage() {
   const images = product?.images?.length
     ? product.images
     : ["/placeholder-product.jpg"];
-  const price = product?.salePrice ?? product?.price ?? 0;
-  const discount = product?.salePrice
+
+  // Format selection: "digital" | "physical"
+  // - digital-only product (is_digital=true, stock=0) → always digital
+  // - physical-only product → always physical
+  // - dual-format product (is_digital=true, stock>0) → customer picks; default digital
+  const hasDigital  = product?.isDigital && !!product?.digitalPrice;
+  const hasPhysical = (product?.stock ?? 0) > 0;
+  const isDualFormat = hasDigital && hasPhysical;
+
+  const [deliveryFormat, setDeliveryFormat] = useState(
+    hasDigital ? "digital" : "physical"
+  );
+
+  const physicalPrice = product?.salePrice ?? product?.price ?? 0;
+  const price = deliveryFormat === "digital" && hasDigital
+    ? (product.digitalPrice ?? physicalPrice)
+    : physicalPrice;
+
+  const discount = deliveryFormat === "physical" && product?.salePrice
     ? Math.round(((product.price - product.salePrice) / product.price) * 100)
     : null;
-  const inStock = (product?.stock ?? 1) > 0;
+  const inStock = deliveryFormat === "digital" ? hasDigital : hasPhysical;
   const deliveryEstimate = getDeliveryEstimate();
 
   // Parse attributes safely
@@ -590,6 +654,45 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
+                {/* Format picker — shown only when both digital and physical are available */}
+                {isDualFormat && (
+                  <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl w-fit">
+                    {[
+                      { id: "digital",  label: "Digital Download", icon: Download },
+                      { id: "physical", label: "Physical Copy",    icon: Truck    },
+                    ].map(({ id: fid, label, icon: Icon }) => (
+                      <button
+                        key={fid}
+                        type="button"
+                        onClick={() => setDeliveryFormat(fid)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                          deliveryFormat === fid
+                            ? "bg-white shadow text-primary"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Digital badge (digital-only products only) */}
+                {product.isDigital && !isDualFormat && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-full text-xs font-bold">
+                    <Download className="w-3.5 h-3.5" />
+                    Digital Download — instant access after payment
+                  </div>
+                )}
+
+                {/* Format badge */}
+                {product.mediaFormat && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                    {product.mediaFormat}
+                  </span>
+                )}
+
                 {/* Stock + delivery */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
@@ -597,9 +700,9 @@ export default function ProductDetailPage() {
                       <>
                         <CheckCircle className="w-4 h-4 text-green-500" />
                         <span className="text-green-700 font-medium">
-                          In Stock
+                          {deliveryFormat === "digital" ? "Available" : "In Stock"}
                         </span>
-                        {product.stock > 0 && product.stock <= 10 && (
+                        {deliveryFormat === "physical" && product.stock > 0 && product.stock <= 10 && (
                           <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full text-xs">
                             Only {product.stock} left!
                           </span>
@@ -614,32 +717,40 @@ export default function ProductDetailPage() {
                     ) : (
                       <>
                         <XCircle className="w-4 h-4 text-red-500" />
-                        <span className="text-red-600 font-medium">
-                          Out of Stock
-                        </span>
+                        <span className="text-red-600 font-medium">Out of Stock</span>
                       </>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Truck className="w-4 h-4 text-primary shrink-0" />
-                    <span>
-                      Estimated delivery:{" "}
-                      <span className="font-semibold text-gray-900">
-                        {deliveryEstimate}
+                  {(product.isDigital && deliveryFormat === "digital") ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Download className="w-4 h-4 text-primary shrink-0" />
+                      <span>Download link sent to your email and order page immediately after payment</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Truck className="w-4 h-4 text-primary shrink-0" />
+                      <span>
+                        Estimated delivery:{" "}
+                        <span className="font-semibold text-gray-900">{deliveryEstimate}</span>
+                        {product.location && ` · Ships from ${product.location}`}
                       </span>
-                      {product.location && ` · Ships from ${product.location}`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <RotateCcw className="w-4 h-4 text-primary shrink-0" />
-                    <span>
-                      7-day easy returns —{" "}
-                      <span className="font-semibold text-gray-900">
-                        no questions asked
+                    </div>
+                  )}
+                  {(!product.isDigital || deliveryFormat === "physical") && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <RotateCcw className="w-4 h-4 text-primary shrink-0" />
+                      <span>
+                        7-day easy returns —{" "}
+                        <span className="font-semibold text-gray-900">no questions asked</span>
                       </span>
-                    </span>
-                  </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* Books & Media metadata */}
+                {product.category?.template === "books_media" && (
+                  <MediaMetaCard product={product} />
+                )}
 
                 {/* Attributes (size, color, etc.) */}
                 {Object.keys(attrs).length > 0 && (

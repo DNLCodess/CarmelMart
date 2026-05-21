@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bike, Package, Menu, X, LogOut, Sun, Moon, Store } from "lucide-react";
+import { Bike, Package, Menu, X, LogOut, Sun, Moon, Store, Download } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { logoutAction } from "@/app/actions/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDashboardTheme } from "@/lib/useDashboardTheme";
+import { usePWAInstall } from "@/lib/pwa-install-context";
 
 const NAV_ITEMS = [
   { href: "/rider/orders", label: "My Deliveries", icon: Package },
@@ -20,6 +21,7 @@ export default function RiderShell({ children }) {
   const qc       = useQueryClient();
   const { user } = useAuth();
   const { dark, toggle, mounted } = useDashboardTheme("cm-rider-theme");
+  const { canInstall, isStandalone, triggerInstall, isIOS } = usePWAInstall() ?? {};
 
   const displayName = user?.user_metadata?.first_name
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name ?? ""}`.trim()
@@ -130,6 +132,17 @@ export default function RiderShell({ children }) {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Install nudge — only shown when app is not yet installed */}
+            {canInstall && !isStandalone && (
+              <button
+                onClick={() => triggerInstall?.()}
+                title="Install app for faster access"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-700 rounded-xl transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Install
+              </button>
+            )}
             <button
               onClick={toggle}
               className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"

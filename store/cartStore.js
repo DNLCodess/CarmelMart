@@ -8,16 +8,29 @@ import { persist } from "zustand/middleware";
 export const useCartStore = create(
   persist(
     (set, get) => ({
-      items: [], // [{ productId, vendorId, name, price, quantity, image }]
+      // Item shape: { productId, vendorId, name, price, quantity, image, isDigital, deliveryFormat }
+      // deliveryFormat: "digital" | "physical" — set at product page when customer picks format
+      items: [],
 
       addItem: (product) =>
         set((state) => {
           const existing = state.items.find((i) => i.productId === product.productId);
           if (existing) {
+            if (existing.deliveryFormat === product.deliveryFormat) {
+              // Same format: increment quantity
+              return {
+                items: state.items.map((i) =>
+                  i.productId === product.productId
+                    ? { ...i, quantity: i.quantity + (product.quantity ?? 1) }
+                    : i,
+                ),
+              };
+            }
+            // Different format: replace format + price, keep quantity
             return {
               items: state.items.map((i) =>
                 i.productId === product.productId
-                  ? { ...i, quantity: i.quantity + (product.quantity ?? 1) }
+                  ? { ...i, price: product.price, deliveryFormat: product.deliveryFormat }
                   : i,
               ),
             };

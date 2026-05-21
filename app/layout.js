@@ -19,6 +19,15 @@ export const metadata = {
   description:
     "Shop from verified Nigerian vendors or grow your business on CarmelMart — Nigeria's most trusted multi-vendor marketplace.",
   keywords: ["e-commerce", "Nigeria", "marketplace", "vendors", "online shopping", "Jumia alternative", "Konga alternative"],
+  manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CarmelMart",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   openGraph: {
     title: "CarmelMart — Nigeria's Trusted Marketplace",
     description: "Shop from verified Nigerian vendors or grow your business on CarmelMart.",
@@ -31,6 +40,10 @@ export const metadata = {
     title: "CarmelMart — Nigeria's Trusted Marketplace",
     description: "Shop from verified Nigerian vendors or grow your business on CarmelMart.",
   },
+};
+
+export const viewport = {
+  themeColor: "#560238",
 };
 
 const organizationSchema = {
@@ -67,13 +80,7 @@ export default function RootLayout({ children }) {
         />
         <script src="https://js.paystack.co/v1/inline.js" async></script>
         <link rel="icon" href="/favicon.ico" />
-        <link rel="manifest" href="/site.webmanifest" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <meta name="theme-color" content="#560238" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="CarmelMart" />
       </head>
       <body className="antialiased font-sans">
         <Providers>

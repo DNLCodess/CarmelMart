@@ -168,8 +168,9 @@ export async function POST(request) {
 
     const admin = createAdminClient();
     const normalizedItems = items.map((item) => ({
-      productId: item.productId,
-      quantity: toPositiveInt(item.quantity, 1),
+      productId:      item.productId,
+      quantity:       toPositiveInt(item.quantity, 1),
+      deliveryFormat: item.delivery_format === "digital" ? "digital" : "physical",
     }));
 
     const productIds = [...new Set(normalizedItems.map((i) => i.productId).filter(Boolean))];
@@ -179,7 +180,7 @@ export async function POST(request) {
 
     const { data: products, error: prodErr } = await admin
       .from("products")
-      .select("id, name, price, sale_price, stock, vendor_id")
+      .select("id, name, price, sale_price, stock, vendor_id, is_digital, digital_price")
       .in("id", productIds)
       .eq("status", "active");
 
@@ -190,19 +191,29 @@ export async function POST(request) {
     for (const item of normalizedItems) {
       const prod = productMap[item.productId];
       if (!prod) return jsonError("One or more products are no longer available.");
-      if (prod.stock < item.quantity) return jsonError(`Insufficient stock for: ${prod.name}`);
+      // Digital items don't need stock; physical items do
+      if (item.deliveryFormat === "physical" && prod.stock < item.quantity) {
+        return jsonError(`Insufficient stock for: ${prod.name}`);
+      }
+      if (item.deliveryFormat === "digital" && !prod.is_digital) {
+        return jsonError(`${prod.name} is not available as a digital download.`);
+      }
     }
 
     const orderItems = normalizedItems.map((item) => {
       const product = productMap[item.productId];
-      const unitPrice = Math.round(product.sale_price ?? product.price);
+      // Server-side authoritative price based on chosen delivery format
+      const unitPrice = item.deliveryFormat === "digital" && product.is_digital && product.digital_price
+        ? Math.round(product.digital_price)
+        : Math.round(product.sale_price ?? product.price);
       return {
-        product_id: item.productId,
-        vendor_id: product.vendor_id,
-        quantity: item.quantity,
-        unit_price: unitPrice,
-        total: unitPrice * item.quantity,
-        name: product.name,
+        product_id:      item.productId,
+        vendor_id:       product.vendor_id,
+        quantity:        item.quantity,
+        unit_price:      unitPrice,
+        total:           unitPrice * item.quantity,
+        name:            product.name,
+        delivery_format: item.deliveryFormat,
       };
     });
 
@@ -257,6 +268,19 @@ export async function POST(request) {
     });
 
     if (createErr) throw createErr;
+
+    // Set delivery_format on any digital items (default in DB is 'physical')
+    const digitalProductIds = orderItems
+      .filter((i) => i.delivery_format === "digital")
+      .map((i) => i.product_id);
+
+    if (digitalProductIds.length > 0) {
+      await admin
+        .from("order_items")
+        .update({ delivery_format: "digital" })
+        .eq("order_id", orderId)
+        .in("product_id", digitalProductIds);
+    }
 
     sendOrderConfirmation({
       to: user.email,

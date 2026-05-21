@@ -8,7 +8,7 @@ export async function GET(request, { params }) {
 
     const { data, error } = await supabase
       .from("products")
-      .select(`*, categories ( id, name, slug )`)
+      .select(`*, categories ( id, name, slug, template )`)
       .eq("id", id)
       .eq("status", "active")
       .single();
@@ -50,6 +50,7 @@ export async function GET(request, { params }) {
       description: data.description,
       price: data.price,
       salePrice: data.sale_price,
+      digitalPrice: data.digital_price ?? null,
       stock: data.stock,
       image: Array.isArray(data.images) ? data.images[0] : null,
       images: Array.isArray(data.images) ? data.images : [],
@@ -63,6 +64,17 @@ export async function GET(request, { params }) {
       badge: data.badge,
       createdAt: data.created_at,
       category: data.categories ?? null,
+      // Books & Media metadata — null for non-media products
+      mediaAuthor:      data.media_author ?? null,
+      mediaIsbn:        data.media_isbn ?? null,
+      mediaPublisher:   data.media_publisher ?? null,
+      mediaPublishDate: data.media_publish_date ?? null,
+      mediaEdition:     data.media_edition ?? null,
+      mediaPages:       data.media_pages ?? null,
+      mediaLanguage:    data.media_language ?? null,
+      mediaFormat:      data.media_format ?? null,
+      mediaGenre:       data.media_genre ?? [],
+      isDigital:        data.is_digital ?? false,
       vendor: vendorData
         ? {
             id: vendorData.id,

@@ -43,10 +43,16 @@ function ModBadge({ status }) {
 
 // ─── Category modal ───────────────────────────────────────────────────────────
 
+const TEMPLATE_OPTIONS = [
+  { value: "standard",    label: "Standard",      desc: "General merchandise (default)" },
+  { value: "books_media", label: "Books & Media",  desc: "Books, eBooks, music, film, games — unlocks media metadata fields and digital download support" },
+];
+
 function CategoryModal({ open, initial, parents, onClose, onSave, saving }) {
-  const [name, setName]       = useState(initial?.name ?? "");
-  const [slug, setSlug]       = useState(initial?.slug ?? "");
-  const [image, setImage]     = useState(initial?.image ?? "");
+  const [name, setName]         = useState(initial?.name ?? "");
+  const [slug, setSlug]         = useState(initial?.slug ?? "");
+  const [image, setImage]       = useState(initial?.image ?? "");
+  const [template, setTemplate] = useState(initial?.template ?? "standard");
   const [parentId, setParentId] = useState(initial?.parentId ?? "");
 
   if (!open) return null;
@@ -54,7 +60,7 @@ function CategoryModal({ open, initial, parents, onClose, onSave, saving }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) { toast.error("Name is required"); return; }
-    onSave({ name: name.trim(), slug: slug.trim(), image: image.trim(), parent_id: parentId || null });
+    onSave({ name: name.trim(), slug: slug.trim(), image: image.trim(), parent_id: parentId || null, template });
   };
 
   return (
@@ -108,6 +114,37 @@ function CategoryModal({ open, initial, parents, onClose, onSave, saving }) {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Product Template</label>
+            <div className="space-y-2">
+              {TEMPLATE_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+                    template === opt.value
+                      ? "border-primary bg-primary/5 dark:bg-primary/10"
+                      : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="template"
+                    value={opt.value}
+                    checked={template === opt.value}
+                    onChange={() => setTemplate(opt.value)}
+                    className="mt-0.5 accent-primary shrink-0"
+                  />
+                  <div>
+                    <p className={`text-sm font-semibold ${template === opt.value ? "text-primary" : "text-gray-800 dark:text-gray-200"}`}>
+                      {opt.label}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{opt.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
 
           <div>
@@ -328,7 +365,7 @@ function CategoryRow({ c, isExpanded, onToggle, onEdit, onDelete, onAddSub, dept
       <td className={`${indent} pr-5 py-4`}>
         <div className="flex items-center gap-3">
           {depth > 0 && (
-            <div className="w-5 h-5 flex items-center justify-center shrink-0 ml-[-4px]">
+            <div className="w-5 h-5 flex items-center justify-center shrink-0 -ml-1">
               <div className="w-3 h-3 border-l-2 border-b-2 border-gray-200 dark:border-gray-600 rounded-bl" />
             </div>
           )}

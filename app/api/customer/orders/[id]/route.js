@@ -18,8 +18,8 @@ export async function GET(request, { params }) {
         id, status, total, pod_deposit, payment_method, payment_status,
         payment_ref, delivery_address, notes, created_at,
         order_items (
-          id, quantity, unit_price, total,
-          products ( id, name, images, slug )
+          id, quantity, unit_price, total, delivery_format,
+          products ( id, name, images, slug, is_digital, digital_file_path )
         )
       `)
       .eq("id", id)
@@ -74,14 +74,16 @@ export async function GET(request, { params }) {
         delivery_fee:   addr.delivery_fee ?? 0,
         tracking,
         items: (order.order_items ?? []).map((it) => ({
-          id:         it.id,
-          product_id: it.products?.id ?? null,
-          name:       it.products?.name ?? "Product",
-          slug:       it.products?.slug ?? null,
-          image:      it.products?.images?.[0] ?? null,
-          quantity:   it.quantity,
-          price:      it.unit_price,
-          total:      it.total ?? it.unit_price * it.quantity,
+          id:              it.id,
+          product_id:      it.products?.id ?? null,
+          name:            it.products?.name ?? "Product",
+          slug:            it.products?.slug ?? null,
+          image:           it.products?.images?.[0] ?? null,
+          quantity:        it.quantity,
+          price:           it.unit_price,
+          total:           it.total ?? it.unit_price * it.quantity,
+          is_digital:      it.products?.is_digital ?? false,
+          delivery_format: it.delivery_format ?? "physical",
         })),
       },
     });

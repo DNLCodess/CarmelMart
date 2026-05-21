@@ -41,7 +41,8 @@ const PAYMENT_METHODS = [
   { id: "pod",         label: "Pay on Delivery (POD)",        icon: Banknote,    sub: "10% deposit required for orders above ₦10,000" },
 ];
 
-const STEPS = ["Address", "Delivery", "Payment", "Review"];
+const STEPS_PHYSICAL = ["Address", "Delivery", "Payment", "Review"];
+const STEPS_DIGITAL  = ["Contact",  "Payment",  "Review"];
 
 // ─── Step indicator ────────────────────────────────────────────────────────────
 function StepBar({ current }) {
@@ -87,9 +88,13 @@ function Field({ label, required, children, hint }) {
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, isGuest } = useAuth();
-  const items = useCartStore((s) => s.items);
-  const total = useCartStore((s) => s.items.reduce((sum, i) => sum + i.price * i.quantity, 0));
+  const items  = useCartStore((s) => s.items);
+  const total  = useCartStore((s) => s.items.reduce((sum, i) => sum + i.price * i.quantity, 0));
   const clearCart = useCartStore((s) => s.clearCart);
+
+  // True when every item in the cart is being purchased as a digital download
+  const isAllDigital = items.length > 0 && items.every((i) => i.deliveryFormat === "digital");
+  const STEPS = isAllDigital ? STEPS_DIGITAL : STEPS_PHYSICAL;
   const savedDeliveryState = useUIStore((s) => s.deliveryLocation);
 
   const [step, setStep] = useState(0);
@@ -138,15 +143,16 @@ export default function CheckoutPage() {
     ];
   }, [zoneData]);
 
-  // Guests cannot use POD — no account history to assess fraud risk
-  const availablePayments = isGuest
+  // Guests and digital-only orders cannot use POD
+  const availablePayments = (isGuest || isAllDigital)
     ? PAYMENT_METHODS.filter((m) => m.id !== "pod")
     : PAYMENT_METHODS;
 
-  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.id === delivery)?.fee ?? 1500;
+  // Digital orders have no delivery fee and cannot use POD
+  const deliveryFee = isAllDigital ? 0 : (DELIVERY_OPTIONS.find((o) => o.id === delivery)?.fee ?? 1500);
   const discount = appliedPromo?.discount ?? 0;
   const discountedSubtotal = Math.max(0, total - discount);
-  const requiresPODDeposit = payment === "pod" && discountedSubtotal > 10000;
+  const requiresPODDeposit = !isAllDigital && payment === "pod" && discountedSubtotal > 10000;
   const podDeposit = requiresPODDeposit ? Math.ceil(discountedSubtotal * 0.1) : 0;
   const grandTotal = discountedSubtotal + deliveryFee;
   const amountDue = payment === "pod" ? podDeposit + deliveryFee : grandTotal;
@@ -181,6 +187,13 @@ export default function CheckoutPage() {
 
   // ── Validation ───────────────────────────────────────────────────────────────
   const validateAddress = () => {
+    if (isAllDigital) {
+      // Digital only needs name + email for the receipt
+      if (!address.fullName.trim()) { toast.error("Please enter your name"); return false; }
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.email);
+      if (!emailOk) { toast.error("Please enter a valid email address"); return false; }
+      return true;
+    }
     const required = ["fullName", "phone", "street", "landmark", "city", "state", "lga"];
     if (isGuest) required.push("email");
     const missing = required.filter((f) => !address[f].trim());
@@ -196,6 +209,7 @@ export default function CheckoutPage() {
     return true;
   };
 
+  // Map visual step → logical step index accounting for the skipped Delivery step
   const next = () => {
     if (step === 0 && !validateAddress()) return;
     setStep((s) => s + 1);
@@ -214,14 +228,20 @@ export default function CheckoutPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         items: items.map((i) => ({
-          productId: i.productId,
-          vendorId:  i.vendorId,
-          name:      i.name,
-          price:     i.price,
-          quantity:  i.quantity,
-          image:     i.image ?? null,
+          productId:       i.productId,
+          vendorId:        i.vendorId,
+          name:            i.name,
+          price:           i.price,
+          quantity:        i.quantity,
+          image:           i.image ?? null,
+          delivery_format: i.deliveryFormat ?? "physical",
         })),
-        delivery_address: {
+        delivery_address: isAllDigital ? {
+          fullName:      address.fullName,
+          email:         address.email,
+          delivery_method: "digital",
+          delivery_fee:  0,
+        } : {
           fullName:               address.fullName,
           phone:                  address.phone,
           houseNumber:            address.houseNumber,
@@ -235,6 +255,7 @@ export default function CheckoutPage() {
           delivery_method:        delivery,
           delivery_fee:           deliveryFee,
         },
+        is_all_digital: isAllDigital,
         payment_method: payment === "pod" ? "pod" : "card",
         payment_ref:    paymentRef ?? null,
         payment_transaction_id: paymentTransactionId ?? null,
@@ -361,8 +382,39 @@ export default function CheckoutPage() {
           {/* ── Main content ──────────────────────────────────────────── */}
           <div className="lg:col-span-3">
             <AnimatePresence mode="wait">
-              {/* STEP 0 — Address */}
-              {step === 0 && (
+              {/* STEP 0 — Contact (digital) or Address (physical) */}
+              {step === 0 && isAllDigital && (
+                <motion.div key="contact" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                  className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Download className="w-5 h-5 text-primary" />
+                    <h2 className="font-bold text-gray-900">Contact Details</h2>
+                  </div>
+                  <p className="text-sm text-gray-500">Your download links will be sent to this email immediately after payment.</p>
+                  <div className="space-y-4">
+                    <Field label="Full Name" required>
+                      <input value={address.fullName} onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm"
+                        placeholder="Adebayo Johnson" />
+                    </Field>
+                    <Field label="Email Address" required hint="Download links are sent here">
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input type="email" value={address.email} onChange={(e) => setAddress({ ...address, email: e.target.value })}
+                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none text-sm"
+                          placeholder="you@example.com" />
+                      </div>
+                    </Field>
+                  </div>
+                  <button onClick={next}
+                    className="w-full py-3.5 bg-primary text-white font-bold rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 mt-2">
+                    Continue to Payment <ChevronRight className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              )}
+
+              {step === 0 && !isAllDigital && (
                 <motion.div key="address" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                   className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5"
                 >
@@ -463,8 +515,8 @@ export default function CheckoutPage() {
                 </motion.div>
               )}
 
-              {/* STEP 1 — Delivery */}
-              {step === 1 && (
+              {/* STEP 1 — Delivery (physical only) */}
+              {step === 1 && !isAllDigital && (
                 <motion.div key="delivery" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                   className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4"
                 >
@@ -488,8 +540,8 @@ export default function CheckoutPage() {
                 </motion.div>
               )}
 
-              {/* STEP 2 — Payment */}
-              {step === 2 && (
+              {/* STEP 2 (physical) / STEP 1 (digital) — Payment */}
+              {(step === 2 || (step === 1 && isAllDigital)) && (
                 <motion.div key="payment" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                   className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4"
                 >
@@ -518,8 +570,8 @@ export default function CheckoutPage() {
                 </motion.div>
               )}
 
-              {/* STEP 3 — Review */}
-              {step === 3 && (
+              {/* STEP 3 (physical) / STEP 2 (digital) — Review */}
+              {(step === 3 || (step === 2 && isAllDigital)) && (
                 <motion.div key="review" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                   className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6"
                 >
@@ -542,13 +594,21 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Address summary */}
-                  <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-1">
-                    <p className="font-semibold text-gray-900 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary" /> Delivery to</p>
-                    <p className="text-gray-700">{[address.houseNumber, address.street].filter(Boolean).join(" ")}</p>
-                    <p className="text-gray-700">{address.landmark}</p>
-                    <p className="text-gray-700">{[address.area, address.city, address.lga, address.state].filter(Boolean).join(", ")}</p>
-                    <p className="text-gray-700 font-medium">{address.phone}</p>
-                  </div>
+                  {isAllDigital ? (
+                    <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-1">
+                      <p className="font-semibold text-gray-900 flex items-center gap-1.5"><Download className="w-4 h-4 text-primary" /> Download to</p>
+                      <p className="text-gray-700">{address.fullName}</p>
+                      <p className="text-gray-700 font-medium">{address.email}</p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-1">
+                      <p className="font-semibold text-gray-900 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary" /> Delivery to</p>
+                      <p className="text-gray-700">{[address.houseNumber, address.street].filter(Boolean).join(" ")}</p>
+                      <p className="text-gray-700">{address.landmark}</p>
+                      <p className="text-gray-700">{[address.area, address.city, address.lga, address.state].filter(Boolean).join(", ")}</p>
+                      <p className="text-gray-700 font-medium">{address.phone}</p>
+                    </div>
+                  )}
 
                   {/* Delivery & payment summary */}
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -572,7 +632,7 @@ export default function CheckoutPage() {
                   Back
                 </button>
               )}
-              {step < 3 ? (
+              {step < STEPS.length - 1 ? (
                 <button onClick={next} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full bg-primary text-white text-sm font-semibold hover:opacity-90 transition-opacity">
                   Continue <ChevronRight className="w-4 h-4" />
                 </button>
