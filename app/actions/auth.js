@@ -76,7 +76,7 @@ export async function loginAction({ email, password, captchaToken = null }) {
   // eliminates the second round-trip (fetchAuthUser) that was needed for the role redirect.
   const { data: profile } = await supabase
     .from("users")
-    .select("id, first_name, last_name, email, phone, role, referral_code, wallet_balance")
+    .select("id, first_name, last_name, email, phone, role, referral_code, wallet_balance, avatar_url")
     .eq("id", authData.user.id)
     .single();
 
