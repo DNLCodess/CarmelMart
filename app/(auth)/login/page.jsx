@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { loginAction, guestSignInAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAuthUser } from "@/lib/auth";
 import { getTurnstileToken } from "@/lib/turnstile";
 
 // ─── Reusable input ───────────────────────────────────────────────────────────
@@ -189,12 +190,21 @@ function LoginContent() {
         toast.error(result.error);
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
+      // Fetch fresh user + role — populates React Query cache and gives us the role for redirect
+      const userData = await queryClient.fetchQuery({ queryKey: ["auth-user"], queryFn: fetchAuthUser, staleTime: 0 });
       toast.success("Welcome back!");
       const from = searchParams.get("from");
       // Reject protocol-relative URLs like //evil.com
-      const dest = from && from.startsWith("/") && !from.startsWith("//") ? from : "/";
-      router.push(dest);
+      if (from && from.startsWith("/") && !from.startsWith("//")) {
+        router.push(from);
+      } else {
+        const role = userData?.role;
+        if (role === "vendor")          router.push("/vendor");
+        else if (role === "admin")      router.push("/admin");
+        else if (role === "logistics_admin") router.push("/logistics");
+        else if (role === "rider")      router.push("/rider");
+        else                            router.push("/");
+      }
     } catch (err) {
       toast.error(err.message || "Login failed. Please try again.");
     } finally {

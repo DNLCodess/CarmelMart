@@ -19,11 +19,13 @@ export async function PATCH(request, { params }) {
     if (!action) return NextResponse.json({ error: "action is required" }, { status: 400 });
 
     let update = {};
-    if (action === "suspend")   update = { status: "suspended" };
-    if (action === "ban")       update = { status: "banned" };
-    if (action === "unsuspend") update = { status: "active" };
-    if (action === "promote")   update = { role: "admin" };
-    if (action === "demote")    update = { role: "customer" };
+    if (action === "suspend")             update = { status: "suspended" };
+    if (action === "ban")                 update = { status: "banned" };
+    if (action === "unsuspend")           update = { status: "active" };
+    if (action === "promote")             update = { role: "admin" };
+    if (action === "demote")              update = { role: "customer" };
+    if (action === "set_logistics_admin") update = { role: "logistics_admin" };
+    if (action === "set_rider")           update = { role: "rider" };
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Users, RefreshCw, ShieldCheck, ShieldOff, Ban, CheckCircle, ChevronDown, AlertTriangle, X } from "lucide-react";
+import { Search, Users, RefreshCw, ShieldCheck, ShieldOff, Ban, CheckCircle, ChevronDown, AlertTriangle, X, Truck, Bike } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -25,9 +25,11 @@ async function updateUser(id, action) {
 }
 
 const ROLE_CFG = {
-  customer: { label: "Customer", cls: "bg-blue-50   text-blue-700   border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"   },
-  vendor:   { label: "Vendor",   cls: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800" },
-  admin:    { label: "Admin",    cls: "bg-red-50    text-red-700    border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"     },
+  customer:        { label: "Customer",  cls: "bg-blue-50   text-blue-700   border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"     },
+  vendor:          { label: "Vendor",    cls: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800" },
+  admin:           { label: "Admin",     cls: "bg-red-50    text-red-700    border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"       },
+  logistics_admin: { label: "Logistics", cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800" },
+  rider:           { label: "Rider",     cls: "bg-green-50  text-green-700  border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"   },
 };
 
 const STATUS_CFG = {
@@ -78,6 +80,15 @@ function ActionsMenu({ user, onAction, onRecordPOD }) {
     actions.push({ key: "promote", label: "Promote to Admin", icon: ShieldCheck, cls: "text-violet-600" });
   } else {
     actions.push({ key: "demote", label: "Remove Admin",      icon: ShieldOff,   cls: "text-gray-600"  });
+  }
+  if (user.role !== "logistics_admin") {
+    actions.push({ key: "set_logistics_admin", label: "Set as Logistics Admin", icon: Truck, cls: "text-orange-600 dark:text-orange-400" });
+  }
+  if (user.role !== "rider") {
+    actions.push({ key: "set_rider", label: "Set as Rider", icon: Bike, cls: "text-green-600 dark:text-green-400" });
+  }
+  if (user.role === "logistics_admin" || user.role === "rider") {
+    actions.push({ key: "demote", label: "Demote to Customer", icon: ShieldOff, cls: "text-gray-600 dark:text-gray-400" });
   }
 
   return (

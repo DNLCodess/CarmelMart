@@ -22,7 +22,7 @@ const IDLE_EVENTS = ["mousemove", "keydown", "click", "scroll", "touchstart"];
 
 // Paths that require authentication — used to decide whether a SIGNED_OUT event
 // from another tab should force-navigate the current tab to /login.
-const PROTECTED_PATH_RE = /^\/(account|checkout|cart|wishlist|dashboard|orders|settings|vendor|admin)/;
+const PROTECTED_PATH_RE = /^\/(account|checkout|cart|wishlist|dashboard|orders|settings|vendor|admin|logistics|rider)/;
 
 export function AuthProvider({ children }) {
   const queryClient = useQueryClient();
@@ -43,6 +43,8 @@ export function AuthProvider({ children }) {
   const isAdmin = role === "admin";
   const isVendor = role === "vendor";
   const isCustomer = role === "customer";
+  const isLogisticsAdmin = role === "logistics_admin";
+  const isRider = role === "rider";
 
   // Admin idle timeout — auto-logout after 15 min inactivity
   const idleTimerRef    = useRef(null);
@@ -144,8 +146,10 @@ export function AuthProvider({ children }) {
       isAdmin,
       isVendor,
       isCustomer,
+      isLogisticsAdmin,
+      isRider,
     }),
-    [user, role, isLoading, isAuthenticated, isAdmin, isVendor, isCustomer],
+    [user, role, isLoading, isAuthenticated, isAdmin, isVendor, isCustomer, isLogisticsAdmin, isRider],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
