@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Mail, Users, Store, ShieldCheck, Globe, Zap, Crown, Gift, Star,
+  Mail, Users, Store, ShieldCheck, Globe, Gem, Crown, Gift, Star,
   RefreshCw, Megaphone, Newspaper, Send, FlaskConical, ChevronRight,
   AlertCircle, CheckCircle, Eye, Edit3, Tag,
 } from "lucide-react";
@@ -20,8 +20,8 @@ const AUDIENCES = [
   { id: "customers",        label: "Customers Only",     sub: "Buyers with at least one account",      icon: Users,       color: "bg-blue-50 text-blue-700 border-blue-200"         },
   { id: "vendors",          label: "All Vendors",        sub: "Every vendor account",                  icon: Store,       color: "bg-emerald-50 text-emerald-700 border-emerald-200"},
   { id: "verified_vendors", label: "Verified Vendors",   sub: "KYC-approved vendors only",             icon: ShieldCheck, color: "bg-teal-50 text-teal-700 border-teal-200"         },
-  { id: "paid_vendors",     label: "Premium + VIP",      sub: "All paying vendor subscribers",         icon: Zap,         color: "bg-indigo-50 text-indigo-700 border-indigo-200"   },
-  { id: "premium_vendors",  label: "Premium Vendors",    sub: "Premium-tier subscribers only",         icon: Zap,         color: "bg-blue-50 text-blue-700 border-blue-200"         },
+  { id: "paid_vendors",     label: "Premium + VIP",      sub: "All paying vendor subscribers",         icon: Gem,         color: "bg-indigo-50 text-indigo-700 border-indigo-200"   },
+  { id: "premium_vendors",  label: "Premium Vendors",    sub: "Premium-tier subscribers only",         icon: Gem,         color: "bg-blue-50 text-blue-700 border-blue-200"         },
   { id: "vip_vendors",      label: "VIP Vendors",        sub: "VIP-tier — exclusive campaigns",        icon: Crown,       color: "bg-amber-50 text-amber-700 border-amber-200"      },
 ];
 

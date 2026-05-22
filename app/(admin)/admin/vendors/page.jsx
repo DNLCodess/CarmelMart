@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, Search, Check, XCircle, Ban, UserCheck, Eye,
-  RefreshCw, Mail, Phone, CheckCircle, Clock, Zap, Crown, Package,
+  RefreshCw, Mail, Phone, CheckCircle, Clock, Gem, Crown, Package,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -32,7 +32,7 @@ function StatusBadge({ status }) {
 
 const TIER_CFG = {
   vip:     { label: "VIP",     Icon: Crown, cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" },
-  premium: { label: "Premium", Icon: Zap,   cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"       },
+  premium: { label: "Premium", Icon: Gem,   cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"       },
 };
 
 function TierBadge({ tier }) {

@@ -21,7 +21,7 @@ import {
   ArrowLeft,
   Package,
   RefreshCw,
-  Zap,
+  TrendingUp,
   Eye,
   MapPin,
   Clock,
@@ -709,7 +709,7 @@ export default function ProductDetailPage() {
                         )}
                         {product.soldToday > 0 && (
                           <span className="text-orange-600 font-medium bg-orange-50 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
-                            <Zap className="w-3 h-3" />
+                            <TrendingUp className="w-3 h-3" />
                             {product.soldToday} sold in last 24h
                           </span>
                         )}

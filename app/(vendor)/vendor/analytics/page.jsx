@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Lock, Zap } from "lucide-react";
+import { Download, Lock, Gem } from "lucide-react";
 import Link from "next/link";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -31,7 +31,7 @@ function AnalyticsGate() {
           href="/vendor/subscription"
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors"
         >
-          <Zap className="w-4 h-4" /> Upgrade to Premium
+          <Gem className="w-4 h-4" /> Upgrade to Premium
         </Link>
         <Link
           href="/vendor/dashboard"

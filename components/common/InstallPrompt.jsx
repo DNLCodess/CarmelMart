@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, X, Zap, BellRing, WifiOff, ChevronRight } from "lucide-react";
+import { Download, X, Rocket, BellRing, WifiOff, ChevronRight } from "lucide-react";
 import { usePWAInstall } from "@/lib/pwa-install-context";
 
 const BENEFITS = [
-  { icon: Zap,       text: "Faster checkout — 1-tap ordering" },
+  { icon: Rocket,    text: "Faster checkout — 1-tap ordering" },
   { icon: BellRing,  text: "Real-time order & delivery alerts" },
   { icon: WifiOff,   text: "Browse & wishlist even offline"    },
 ];

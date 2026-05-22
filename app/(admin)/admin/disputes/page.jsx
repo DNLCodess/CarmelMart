@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle, RefreshCw, X, CheckCircle, ThumbsUp, ThumbsDown, Eye, Zap, Crown, Package,
+  AlertTriangle, RefreshCw, X, CheckCircle, ThumbsUp, ThumbsDown, Eye, Gem, Crown, Package,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -42,7 +42,7 @@ function StatusBadge({ status }) {
 
 const TIER_CFG = {
   vip:     { label: "VIP",     icon: Crown, cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" },
-  premium: { label: "Premium", icon: Zap,   cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800" },
+  premium: { label: "Premium", icon: Gem,   cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800" },
   free:    { label: "Basic",   icon: Package, cls: "bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600" },
 };
 

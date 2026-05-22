@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Crown, Zap, Package, Check, X, AlertCircle,
+  Crown, Gem, Package, Check, X, AlertCircle,
   Calendar, RefreshCw, ArrowRight, TrendingDown,
   BadgeCheck, Loader2, ChevronDown, ChevronUp,
 } from "lucide-react";
@@ -45,7 +45,7 @@ function getPrice(prices, tier, billingCycle) {
 
 const TIER_ICONS = {
   free:    Package,
-  premium: Zap,
+  premium: Gem,
   vip:     Crown,
 };
 

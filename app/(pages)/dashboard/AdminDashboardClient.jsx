@@ -5,7 +5,7 @@ import {
   Shield, Users, ShoppingBag, Store, TrendingUp, AlertCircle,
   CheckCircle, Clock, DollarSign, Package, BarChart3, Settings,
   ArrowUp, ArrowRight, Bell, Search, MoreHorizontal, Eye,
-  ChevronRight, UserCheck, Ban, Zap, Activity,
+  ChevronRight, UserCheck, Ban, Megaphone, Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -44,7 +44,7 @@ const QUICK_ACTIONS = [
   { href: "/dashboard/kyc",      icon: CheckCircle,  label: "KYC Reviews",         desc: "NIN & CAC submissions",             color: "bg-cyan-50 text-cyan-600"    },
   { href: "/dashboard/finance",  icon: DollarSign,   label: "Financial Overview",  desc: "GMV, payouts, reconciliation",      color: "bg-rose-50 text-rose-600"    },
   { href: "/dashboard/analytics",icon: BarChart3,    label: "Analytics",           desc: "Traffic, conversion, revenue",      color: "bg-indigo-50 text-indigo-600"},
-  { href: "/dashboard/marketing",icon: Zap,          label: "Marketing & Promo",   desc: "Promo codes, flash sales",          color: "bg-orange-50 text-orange-600"},
+  { href: "/dashboard/marketing",icon: Megaphone,     label: "Marketing & Promo",   desc: "Promo codes, flash sales",          color: "bg-orange-50 text-orange-600"},
 ];
 
 export default function AdminDashboardClient({ stats, adminName, trendData = [] }) {

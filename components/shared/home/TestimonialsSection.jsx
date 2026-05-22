@@ -3,64 +3,24 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, ChevronLeft, ChevronRight, Quote } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import Image from "next/image";
 
-const TESTIMONIALS = [
-  {
-    id: 1,
-    name: "Adaeze Okonkwo",
-    location: "Lagos Island",
-    avatar: "AO",
-    color: "bg-purple-100 text-purple-700",
-    rating: 5,
-    text: "I ordered a skincare bundle from Beauty Haven and it arrived the next day — fully packaged, genuine products. CarmelMart is now my go-to for everything beauty. The vendors here are very legit.",
-    product: "Organic Skincare Collection",
-    date: "2 weeks ago",
-  },
-  {
-    id: 2,
-    name: "Emeka Chukwu",
-    location: "Abuja, FCT",
-    avatar: "EC",
-    color: "bg-blue-100 text-blue-700",
-    rating: 5,
-    text: "Bought a gaming laptop from TechZone Nigeria. Price was unbeatable compared to other platforms, and the seller was very responsive. Delivery took 2 days to Abuja — faster than I expected!",
-    product: "Gaming Laptop Pro",
-    date: "1 month ago",
-  },
-  {
-    id: 3,
-    name: "Fatima Abdullahi",
-    location: "Kano",
-    avatar: "FA",
-    color: "bg-green-100 text-green-700",
-    rating: 5,
-    text: "The Pay on Delivery option was a lifesaver. I was skeptical at first, but when my African print dresses arrived perfectly packaged, I paid without hesitation. Will definitely order again.",
-    product: "African Print Dresses (x3)",
-    date: "3 weeks ago",
-  },
-  {
-    id: 4,
-    name: "Tunde Bakare",
-    location: "Port Harcourt",
-    avatar: "TB",
-    color: "bg-orange-100 text-orange-700",
-    rating: 5,
-    text: "Best Nigerian marketplace I've used. The seller verification gives me confidence. I bought gym equipment and it's exactly as described — no fake pictures, real quality. 100% recommend.",
-    product: "Home Gym Equipment Set",
-    date: "1 week ago",
-  },
-  {
-    id: 5,
-    name: "Chidinma Eze",
-    location: "Enugu",
-    avatar: "CE",
-    color: "bg-pink-100 text-pink-700",
-    rating: 5,
-    text: "The flash sale got me a noise-cancelling headphone for 40% off! Couldn't believe it. Even the return process when I had a size issue was smooth — refund was back in 3 days. Excellent platform.",
-    product: "Premium Headphones",
-    date: "5 days ago",
-  },
+const AVATAR_COLORS = [
+  "bg-purple-100 text-purple-700",
+  "bg-blue-100 text-blue-700",
+  "bg-green-100 text-green-700",
+  "bg-orange-100 text-orange-700",
+  "bg-pink-100 text-pink-700",
 ];
+
+function initials(name) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 function Stars({ count }) {
   return (
@@ -72,24 +32,107 @@ function Stars({ count }) {
   );
 }
 
+function TestimonialCard({ t, colorClass }) {
+  return (
+    <>
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          {t.avatarUrl ? (
+            <Image
+              src={t.avatarUrl}
+              alt={t.name}
+              width={44}
+              height={44}
+              className="w-11 h-11 rounded-2xl object-cover shrink-0"
+            />
+          ) : (
+            <div
+              className={`w-11 h-11 rounded-2xl ${colorClass} flex items-center justify-center text-sm font-bold shrink-0`}
+            >
+              {initials(t.name)}
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-bold text-gray-900">{t.name}</p>
+            <p className="text-xs text-gray-500">{t.location}</p>
+          </div>
+        </div>
+        <Quote className="w-8 h-8 text-primary/20 shrink-0" />
+      </div>
+      <Stars count={t.rating} />
+      <p className="text-sm text-gray-700 leading-relaxed mt-3 mb-4">
+        &ldquo;{t.text}&rdquo;
+      </p>
+      {t.product && (
+        <div className="pt-3 border-t border-gray-50">
+          <p className="text-xs text-primary font-semibold truncate">
+            {t.product}
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function TestimonialsSection() {
   const [current, setCurrent] = useState(0);
-  const total = TESTIMONIALS.length;
 
+  const { data, isLoading } = useQuery({
+    queryKey: ["testimonials"],
+    queryFn: () =>
+      fetch("/api/reviews/testimonials").then((r) => r.json()),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const testimonials = data?.reviews ?? [];
+
+  if (!isLoading && testimonials.length === 0) return null;
+
+  const total = testimonials.length;
   const prev = () => setCurrent((c) => (c - 1 + total) % total);
   const next = () => setCurrent((c) => (c + 1) % total);
 
-  // Show 3 visible on desktop, 1 on mobile
-  const visible = [
-    TESTIMONIALS[(current) % total],
-    TESTIMONIALS[(current + 1) % total],
-    TESTIMONIALS[(current + 2) % total],
-  ];
+  const visible = total >= 3
+    ? [
+        testimonials[current % total],
+        testimonials[(current + 1) % total],
+        testimonials[(current + 2) % total],
+      ]
+    : testimonials;
+
+  if (isLoading) {
+    return (
+      <section className="py-16 sm:py-24 bg-linear-to-br from-primary/5 via-white to-accent/5 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="hidden sm:grid grid-cols-3 gap-5">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-3xl border border-gray-100 p-6 h-52 animate-pulse"
+              >
+                <div className="flex gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-2xl bg-gray-200" />
+                  <div className="flex-1 space-y-2 py-1">
+                    <div className="h-3 bg-gray-200 rounded w-2/3" />
+                    <div className="h-2.5 bg-gray-200 rounded w-1/3" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-2.5 bg-gray-200 rounded" />
+                  <div className="h-2.5 bg-gray-200 rounded w-5/6" />
+                  <div className="h-2.5 bg-gray-200 rounded w-4/6" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-16 sm:py-24 bg-linear-to-br from-primary/5 via-white to-accent/5 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
         {/* Header */}
         <motion.div
           className="text-center mb-12"
@@ -119,35 +162,30 @@ export default function TestimonialsSection() {
                 transition={{ delay: i * 0.07 }}
                 className={`bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow ${i === 1 ? "ring-2 ring-primary/20" : ""}`}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-11 h-11 rounded-2xl ${t.color} flex items-center justify-center text-sm font-bold shrink-0`}>
-                      {t.avatar}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">{t.name}</p>
-                      <p className="text-xs text-gray-500">{t.location}</p>
-                    </div>
-                  </div>
-                  <Quote className="w-8 h-8 text-primary/20 shrink-0" />
-                </div>
-                <Stars count={t.rating} />
-                <p className="text-sm text-gray-700 leading-relaxed mt-3 mb-4">"{t.text}"</p>
-                <div className="pt-3 border-t border-gray-50 flex items-center justify-between">
-                  <p className="text-xs text-primary font-semibold truncate">{t.product}</p>
-                  <p className="text-xs text-gray-400 shrink-0 ml-2">{t.date}</p>
-                </div>
+                <TestimonialCard
+                  t={t}
+                  colorClass={AVATAR_COLORS[i % AVATAR_COLORS.length]}
+                />
               </motion.div>
             ))}
           </div>
 
-          {/* Nav arrows */}
-          <button onClick={prev} className="absolute -left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-md border border-gray-100 flex items-center justify-center hover:border-primary transition-colors z-10">
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <button onClick={next} className="absolute -right-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-md border border-gray-100 flex items-center justify-center hover:border-primary transition-colors z-10">
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          </button>
+          {total > 3 && (
+            <>
+              <button
+                onClick={prev}
+                className="absolute -left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-md border border-gray-100 flex items-center justify-center hover:border-primary transition-colors z-10"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              </button>
+              <button
+                onClick={next}
+                className="absolute -right-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-md border border-gray-100 flex items-center justify-center hover:border-primary transition-colors z-10"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Mobile: single card */}
@@ -161,48 +199,38 @@ export default function TestimonialsSection() {
               transition={{ duration: 0.25 }}
               className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm"
             >
-              {(() => {
-                const t = TESTIMONIALS[current];
-                return (
-                  <>
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-11 h-11 rounded-2xl ${t.color} flex items-center justify-center text-sm font-bold`}>
-                          {t.avatar}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">{t.name}</p>
-                          <p className="text-xs text-gray-500">{t.location}</p>
-                        </div>
-                      </div>
-                      <Quote className="w-7 h-7 text-primary/20" />
-                    </div>
-                    <Stars count={t.rating} />
-                    <p className="text-sm text-gray-700 leading-relaxed mt-3 mb-4">"{t.text}"</p>
-                    <div className="pt-3 border-t border-gray-50 flex items-center justify-between">
-                      <p className="text-xs text-primary font-semibold truncate">{t.product}</p>
-                      <p className="text-xs text-gray-400 shrink-0 ml-2">{t.date}</p>
-                    </div>
-                  </>
-                );
-              })()}
+              <TestimonialCard
+                t={testimonials[current]}
+                colorClass={AVATAR_COLORS[current % AVATAR_COLORS.length]}
+              />
             </motion.div>
           </AnimatePresence>
 
-          {/* Dots + arrows */}
-          <div className="flex items-center justify-center gap-4 mt-5">
-            <button onClick={prev} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:border-primary transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <div className="flex gap-1.5">
-              {TESTIMONIALS.map((_, i) => (
-                <button key={i} onClick={() => setCurrent(i)} className={`h-2 rounded-full transition-all ${i === current ? "w-6 bg-primary" : "w-2 bg-gray-300"}`} />
-              ))}
+          {total > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-5">
+              <button
+                onClick={prev}
+                className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:border-primary transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex gap-1.5">
+                {testimonials.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrent(i)}
+                    className={`h-2 rounded-full transition-all ${i === current ? "w-6 bg-primary" : "w-2 bg-gray-300"}`}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={next}
+                className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:border-primary transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-            <button onClick={next} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:border-primary transition-colors">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </section>

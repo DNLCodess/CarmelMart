@@ -95,26 +95,6 @@ const heroSlides = [
   },
 ];
 
-const featuredProducts = [
-  {
-    id: 1,
-    name: "Premium Wireless Headphones",
-    price: 45000,
-    rating: 4.8,
-    badge: "Bestseller",
-    image:
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80",
-  },
-  {
-    id: 2,
-    name: "Designer Leather Bag",
-    price: 35000,
-    rating: 4.9,
-    badge: "New",
-    image:
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
-  },
-];
 
 export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -127,6 +107,25 @@ export default function HeroSection() {
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
+
+  const { data: productsData } = useQuery({
+    queryKey: ["hero-featured-products"],
+    queryFn: () =>
+      fetch("/api/products?featured=true&per_page=2").then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const heroProducts = useMemo(() => {
+    return (productsData?.products ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.sale_price ?? p.price,
+      rating: p.avg_rating ?? 0,
+      badge: p.sale_price ? "Sale" : "Featured",
+      image: Array.isArray(p.images) ? p.images[0] : null,
+    }));
+  }, [productsData]);
 
   const slides = useMemo(() => {
     const db = bannerData?.banners ?? [];
@@ -319,87 +318,95 @@ export default function HeroSection() {
           </AnimatePresence>
 
           {/* Right - Featured Products Showcase */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="hidden lg:block relative h-[600px]"
-          >
-            {/* Main Product Card */}
-            <Link
-              href="/shop"
-              className="animate-float absolute top-0 right-0 w-80 h-96 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm border border-white/10 transform rotate-3 hover:rotate-0 transition-transform duration-500 group"
+          {heroProducts.length >= 2 && (
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="hidden lg:block relative h-[600px]"
             >
-              <Image
-                src={featuredProducts[0].image}
-                alt={featuredProducts[0].name}
-                fill
-                className="object-cover group-hover:scale-110 transition-transform duration-700"
-                placeholder="blur"
-                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
-              />
-              <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                <div className="inline-block gradient-accent px-3 py-1 rounded-full text-xs font-semibold mb-3 text-white">
-                  {featuredProducts[0].badge}
-                </div>
-                <h3 className="text-xl font-bold mb-2">
-                  {featuredProducts[0].name}
-                </h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold">
-                    ₦{featuredProducts[0].price.toLocaleString()}
-                  </span>
-                  <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm font-semibold">
-                      {featuredProducts[0].rating}
+              {/* Main Product Card */}
+              <Link
+                href={`/product/${heroProducts[0].id}`}
+                className="animate-float absolute top-0 right-0 w-80 h-96 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm border border-white/10 transform rotate-3 hover:rotate-0 transition-transform duration-500 group"
+              >
+                {heroProducts[0].image && (
+                  <Image
+                    src={heroProducts[0].image}
+                    alt={heroProducts[0].name}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                    placeholder="blur"
+                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
+                  />
+                )}
+                <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                  <div className="inline-block gradient-accent px-3 py-1 rounded-full text-xs font-semibold mb-3 text-white">
+                    {heroProducts[0].badge}
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">
+                    {heroProducts[0].name}
+                  </h3>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold">
+                      ₦{heroProducts[0].price.toLocaleString()}
                     </span>
+                    {heroProducts[0].rating > 0 && (
+                      <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="text-sm font-semibold">
+                          {heroProducts[0].rating.toFixed(1)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Link>
+
+              {/* Secondary Product Card */}
+              <Link
+                href={`/product/${heroProducts[1].id}`}
+                className="animate-float-reverse absolute bottom-0 left-0 w-64 h-80 rounded-3xl overflow-hidden shadow-xl backdrop-blur-sm border border-white/10 transform -rotate-6 hover:rotate-0 transition-transform duration-500 group"
+              >
+                {heroProducts[1].image && (
+                  <Image
+                    src={heroProducts[1].image}
+                    alt={heroProducts[1].name}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                    placeholder="blur"
+                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
+                  />
+                )}
+                <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                  <div className="inline-block gradient-primary px-3 py-1 rounded-full text-xs font-semibold mb-2 text-white">
+                    {heroProducts[1].badge}
+                  </div>
+                  <h3 className="text-lg font-bold mb-2 line-clamp-2">
+                    {heroProducts[1].name}
+                  </h3>
+                  <span className="text-xl font-bold">
+                    ₦{heroProducts[1].price.toLocaleString()}
+                  </span>
+                </div>
+              </Link>
+
+              {/* Floating Stats Card */}
+              <div className="animate-float-sm absolute top-1/2 left-0 bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-52 border border-white/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full gradient-accent flex items-center justify-center shadow-lg">
+                    <span className="text-2xl text-white">✓</span>
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-white">100%</div>
+                    <div className="text-xs text-gray-400">Buyer Protection</div>
                   </div>
                 </div>
               </div>
-            </Link>
-
-            {/* Secondary Product Card */}
-            <Link
-              href="/shop"
-              className="animate-float-reverse absolute bottom-0 left-0 w-64 h-80 rounded-3xl overflow-hidden shadow-xl backdrop-blur-sm border border-white/10 transform -rotate-6 hover:rotate-0 transition-transform duration-500 group"
-            >
-              <Image
-                src={featuredProducts[1].image}
-                alt={featuredProducts[1].name}
-                fill
-                className="object-cover group-hover:scale-110 transition-transform duration-700"
-                placeholder="blur"
-                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
-              />
-              <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                <div className="inline-block gradient-primary px-3 py-1 rounded-full text-xs font-semibold mb-2 text-white">
-                  {featuredProducts[1].badge}
-                </div>
-                <h3 className="text-lg font-bold mb-2 line-clamp-2">
-                  {featuredProducts[1].name}
-                </h3>
-                <span className="text-xl font-bold">
-                  ₦{featuredProducts[1].price.toLocaleString()}
-                </span>
-              </div>
-            </Link>
-
-            {/* Floating Stats Card */}
-            <div className="animate-float-sm absolute top-1/2 left-0 bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-52 border border-white/20">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full gradient-accent flex items-center justify-center shadow-lg">
-                  <span className="text-2xl text-white">✓</span>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-white">100%</div>
-                  <div className="text-xs text-gray-400">Buyer Protection</div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          )}
         </div>
       </div>
 

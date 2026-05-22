@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Zap, Plus, Pencil, Trash2, X, AlertCircle, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Flame, Plus, Pencil, Trash2, X, AlertCircle, Clock, CheckCircle, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 const STATE_CFG = {
@@ -183,7 +183,7 @@ export default function FlashSalesPage() {
       ) : sales.length === 0 ? (
         <div className="p-12 flex flex-col items-center gap-3 text-center bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
           <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center">
-            <Zap className="w-6 h-6 text-amber-500" />
+            <Flame className="w-6 h-6 text-amber-500" />
           </div>
           <div>
             <p className="font-semibold text-gray-700 dark:text-gray-300">No flash sales yet</p>
@@ -197,7 +197,7 @@ export default function FlashSalesPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center shrink-0">
-                    <Zap className="w-4 h-4 text-amber-500" />
+                    <Flame className="w-4 h-4 text-amber-500" />
                   </div>
                   <p className="font-bold text-gray-900 dark:text-gray-100 text-sm leading-tight line-clamp-2">{s.title}</p>
                 </div>

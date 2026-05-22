@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Zap, Truck, Shield } from "lucide-react";
+import { ArrowRight, Cpu, Truck, Shield } from "lucide-react";
 
 const BANNERS = [
   {
@@ -13,7 +13,7 @@ const BANNERS = [
     href: "/shop?category=electronics",
     bg: "from-blue-600 to-indigo-700",
     accent: "bg-blue-500/30",
-    icon: Zap,
+    icon: Cpu,
     image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600&q=80",
   },
   {

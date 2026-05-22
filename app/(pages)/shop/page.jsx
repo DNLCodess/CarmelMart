@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, SlidersHorizontal, X, Star, ShoppingCart, Heart,
   ChevronDown, Grid3X3, List, ChevronLeft, ChevronRight,
-  CheckCircle, Flame, Tag, Zap, LayoutGrid, Filter, Eye,
+  CheckCircle, Flame, Tag, LayoutGrid, Filter, Eye,
   Truck, BadgeCheck, Package, Home, ChevronRight as Chevron, Scale,
 } from "lucide-react";
 import Image from "next/image";
@@ -588,9 +588,9 @@ function PriceRangeSlider({ minPrice, maxPrice, onCommit }) {
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           style={{ zIndex: 4 }}
         />
-        {/* Visual thumb dots */}
-        <div className="absolute w-4 h-4 bg-white border-2 border-primary rounded-full shadow -top-1.5 -translate-x-1/2 pointer-events-none" style={{ left: `${minPct}%` }} />
-        <div className="absolute w-4 h-4 bg-white border-2 border-primary rounded-full shadow -top-1.5 -translate-x-1/2 pointer-events-none" style={{ left: `${maxPct}%` }} />
+        {/* Visual thumb dots — centered on the track so they don't overflow above */}
+        <div className="absolute w-4 h-4 bg-white border-2 border-primary rounded-full shadow top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none" style={{ left: `${minPct}%` }} />
+        <div className="absolute w-4 h-4 bg-white border-2 border-primary rounded-full shadow top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none" style={{ left: `${maxPct}%` }} />
       </div>
 
       {/* Labels */}
@@ -602,9 +602,165 @@ function PriceRangeSlider({ minPrice, maxPrice, onCommit }) {
   );
 }
 
+// ── Filter Section (collapsible) ──────────────────────────────────────────────
+function FilterSection({ title, isActive = false, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-gray-100 last:border-0 pb-3 last:pb-0">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between py-2 group"
+      >
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest group-hover:text-gray-700 transition-colors flex items-center gap-2">
+          {title}
+          {isActive && (
+            <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
+          )}
+        </span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="pt-2 pb-2">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Categories filter with hierarchy ─────────────────────────────────────────
+const CAT_SHOW_LIMIT = 7;
+
+function CategoriesFilter({ filters, setFilter, parents, subsByParent }) {
+  const [showAll, setShowAll] = useState(false);
+
+  // Auto-expand the parent that owns the currently selected sub-category
+  const initialExpanded = (() => {
+    for (const [parentId, subs] of Object.entries(subsByParent)) {
+      if (subs.some((s) => s.slug === filters.category)) return parentId;
+    }
+    return null;
+  })();
+  const [expandedParent, setExpandedParent] = useState(initialExpanded);
+
+  const displayed = showAll ? parents : parents.slice(0, CAT_SHOW_LIMIT);
+  const hidden = parents.length - CAT_SHOW_LIMIT;
+
+  return (
+    <div className="space-y-0.5">
+      <button
+        onClick={() => setFilter("category", null)}
+        className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+          !filters.category ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        All Products
+      </button>
+
+      {displayed.map((cat) => {
+        const subs = subsByParent[cat.id] ?? [];
+        const isSelected = filters.category === cat.slug;
+        const hasActiveSub = subs.some((s) => s.slug === filters.category);
+        const isExpanded = expandedParent === cat.id || hasActiveSub;
+
+        return (
+          <div key={cat.id}>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => setFilter("category", cat.slug)}
+                className={`flex-1 min-w-0 text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 ${
+                  isSelected || hasActiveSub
+                    ? "bg-primary text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <span className="truncate">{cat.name}</span>
+                {cat.productCount > 0 && (
+                  <span className={`text-xs shrink-0 ${isSelected || hasActiveSub ? "text-white/70" : "text-gray-400"}`}>
+                    {cat.productCount}
+                  </span>
+                )}
+              </button>
+              {subs.length > 0 && (
+                <button
+                  onClick={() =>
+                    setExpandedParent(isExpanded ? null : cat.id)
+                  }
+                  className={`p-1.5 rounded-lg shrink-0 transition-colors ${
+                    isExpanded ? "text-primary bg-primary/5" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                  }`}
+                  aria-label={isExpanded ? "Collapse subcategories" : "Expand subcategories"}
+                >
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                  />
+                </button>
+              )}
+            </div>
+
+            <AnimatePresence initial={false}>
+              {isExpanded && subs.length > 0 && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="overflow-hidden"
+                >
+                  <div className="ml-3 pl-3 border-l-2 border-gray-100 mt-0.5 mb-0.5 space-y-0.5">
+                    {subs.map((sub) => (
+                      <button
+                        key={sub.id}
+                        onClick={() => setFilter("category", sub.slug)}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between gap-2 ${
+                          filters.category === sub.slug
+                            ? "bg-primary/10 text-primary font-semibold"
+                            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                        }`}
+                      >
+                        <span className="truncate">{sub.name}</span>
+                        {sub.productCount > 0 && (
+                          <span className="text-[10px] text-gray-400 shrink-0">{sub.productCount}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+
+      {parents.length > CAT_SHOW_LIMIT && (
+        <button
+          onClick={() => setShowAll((s) => !s)}
+          className="w-full text-left px-3 py-2 text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+        >
+          {showAll ? (
+            <>Show less <ChevronDown className="w-3 h-3 rotate-180" /></>
+          ) : (
+            <>+{hidden} more <ChevronDown className="w-3 h-3" /></>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Filter Sidebar ────────────────────────────────────────────────────────────
-function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
-  // no local price state needed — PriceRangeSlider handles it
+function FilterSidebar({ filters, setFilter, parents, subsByParent, isOpen, onClose }) {
+  const hasPrice = filters.minPrice !== null || filters.maxPrice !== null;
 
   return (
     <>
@@ -614,14 +770,15 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
         fixed lg:static inset-y-0 left-0 z-50 lg:z-0
         w-72 lg:w-56 xl:w-64 bg-white lg:bg-transparent
         border-r lg:border-0 border-gray-100
-        overflow-y-auto lg:overflow-visible
+        overflow-y-auto
         flex-shrink-0
         transition-transform duration-300
+        lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-5rem)]
         ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
-        <div className="p-5 lg:p-0 space-y-6">
+        <div className="p-5 lg:p-0 lg:pr-1 space-y-1">
           {/* Close (mobile) */}
-          <div className="flex items-center justify-between lg:hidden">
+          <div className="flex items-center justify-between mb-4 lg:hidden">
             <h2 className="font-bold text-gray-900">Filters</h2>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
               <X className="w-5 h-5" />
@@ -629,39 +786,31 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
           </div>
 
           {/* Categories */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Categories</h3>
-            <div className="space-y-1">
-              <button
-                onClick={() => setFilter("category", null)}
-                className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${filters.category ? "text-gray-700 hover:bg-gray-100" : "bg-primary text-white"}`}
-              >
-                All Products
-              </button>
-              {(categories || []).map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setFilter("category", cat.slug)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${filters.category === cat.slug ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"}`}
-                >
-                  <span>{cat.name}</span>
-                  <span className={`text-xs ${filters.category === cat.slug ? "text-white/70" : "text-gray-400"}`}>
-                    {cat.productCount}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <FilterSection
+            title="Categories"
+            isActive={!!filters.category}
+            defaultOpen
+          >
+            <CategoriesFilter
+              filters={filters}
+              setFilter={setFilter}
+              parents={parents}
+              subsByParent={subsByParent}
+            />
+          </FilterSection>
 
-          {/* Price Range — dual slider */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Price Range</h3>
+          {/* Price Range */}
+          <FilterSection
+            title="Price Range"
+            isActive={hasPrice}
+            defaultOpen
+          >
             <PriceRangeSlider
               minPrice={filters.minPrice}
               maxPrice={filters.maxPrice}
               onCommit={(min, max) => { setFilter("minPrice", min); setFilter("maxPrice", max); }}
             />
-            {(filters.minPrice !== null || filters.maxPrice !== null) && (
+            {hasPrice && (
               <button
                 onClick={() => { setFilter("minPrice", null); setFilter("maxPrice", null); }}
                 className="mt-2 text-xs text-primary hover:underline"
@@ -669,17 +818,20 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 Clear price
               </button>
             )}
-          </div>
+          </FilterSection>
 
           {/* Customer Rating */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Customer Rating</h3>
-            <div className="space-y-1">
+          <FilterSection title="Rating" isActive={!!filters.minRating} defaultOpen>
+            <div className="space-y-0.5">
               {RATING_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => setFilter("minRating", opt.value || null)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${filters.minRating === opt.value || (!filters.minRating && opt.value === 0) ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"}`}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${
+                    filters.minRating === opt.value || (!filters.minRating && opt.value === 0)
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
                 >
                   {opt.value > 0 ? (
                     <>
@@ -690,12 +842,35 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 </button>
               ))}
             </div>
-          </div>
+          </FilterSection>
+
+          {/* Verified Sellers */}
+          <FilterSection title="Seller" isActive={filters.verifiedOnly} defaultOpen={false}>
+            <button
+              onClick={() => setFilter("verifiedOnly", !filters.verifiedOnly)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors ${
+                filters.verifiedOnly
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-gray-200 text-gray-700 hover:border-primary/40"
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                filters.verifiedOnly ? "border-primary bg-primary" : "border-gray-300"
+              }`}>
+                {filters.verifiedOnly && (
+                  <svg viewBox="0 0 10 8" fill="none" className="w-3 h-3">
+                    <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </span>
+              <span>Verified sellers only</span>
+              <BadgeCheck className={`w-4 h-4 ml-auto shrink-0 ${filters.verifiedOnly ? "text-primary" : "text-gray-300"}`} />
+            </button>
+          </FilterSection>
 
           {/* Condition */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Condition</h3>
-            <div className="space-y-1">
+          <FilterSection title="Condition" isActive={!!filters.condition} defaultOpen={false}>
+            <div className="space-y-0.5">
               {CONDITION_OPTIONS.map((cond) => (
                 <button
                   key={cond}
@@ -710,12 +885,11 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 </button>
               ))}
             </div>
-          </div>
+          </FilterSection>
 
           {/* Delivery */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Delivery</h3>
-            <div className="space-y-1">
+          <FilterSection title="Delivery" isActive={!!filters.delivery} defaultOpen={false}>
+            <div className="space-y-0.5">
               {DELIVERY_OPTIONS.map((opt) => (
                 <button
                   key={opt}
@@ -731,12 +905,11 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 </button>
               ))}
             </div>
-          </div>
+          </FilterSection>
 
           {/* Brand */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Brand</h3>
-            <div className="space-y-1 max-h-44 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
+          <FilterSection title="Brand" isActive={!!filters.brand} defaultOpen={false}>
+            <div className="space-y-0.5">
               <button
                 onClick={() => setFilter("brand", null)}
                 className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
@@ -757,12 +930,11 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 </button>
               ))}
             </div>
-          </div>
+          </FilterSection>
 
           {/* Color */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Color</h3>
-            <div className="flex flex-wrap gap-2">
+          <FilterSection title="Color" isActive={!!filters.color} defaultOpen={false}>
+            <div className="flex flex-wrap gap-2 pt-1">
               {COLOR_OPTIONS.map(({ name, hex }) => (
                 <button
                   key={name}
@@ -786,12 +958,11 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 Clear color
               </button>
             )}
-          </div>
+          </FilterSection>
 
           {/* Size */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Size</h3>
-            <div className="flex flex-wrap gap-1.5">
+          <FilterSection title="Size" isActive={!!filters.size} defaultOpen={false}>
+            <div className="flex flex-wrap gap-1.5 pt-1">
               {SIZE_OPTIONS.map((s) => (
                 <button
                   key={s}
@@ -806,12 +977,11 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 </button>
               ))}
             </div>
-          </div>
+          </FilterSection>
 
-          {/* Discount % */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Discount</h3>
-            <div className="space-y-1">
+          {/* Discount */}
+          <FilterSection title="Discount" isActive={!!filters.minDiscount} defaultOpen={false}>
+            <div className="space-y-0.5">
               {[null, 10, 20, 30, 50].map((pct) => (
                 <button
                   key={pct ?? "all"}
@@ -826,32 +996,7 @@ function FilterSidebar({ filters, setFilter, categories, isOpen, onClose }) {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Verified Sellers */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Seller</h3>
-            <button
-              onClick={() => setFilter("verifiedOnly", !filters.verifiedOnly)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors ${
-                filters.verifiedOnly
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-gray-200 text-gray-700 hover:border-primary/40"
-              }`}
-            >
-              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                filters.verifiedOnly ? "border-primary bg-primary" : "border-gray-300"
-              }`}>
-                {filters.verifiedOnly && (
-                  <svg viewBox="0 0 10 8" fill="none" className="w-3 h-3">
-                    <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </span>
-              <span>Verified sellers only</span>
-              <BadgeCheck className={`w-4 h-4 ml-auto shrink-0 ${filters.verifiedOnly ? "text-primary" : "text-gray-300"}`} />
-            </button>
-          </div>
+          </FilterSection>
         </div>
       </aside>
     </>
@@ -1009,7 +1154,7 @@ function ShopContent() {
     staleTime: 30_000,
   });
 
-  const { categories } = useCategories();
+  const { categories, parents, subsByParent } = useCategories();
 
   const products   = productsData?.products ?? [];
   const pagination = productsData?.pagination ?? { total: 0, pages: 1, page: 1 };
@@ -1164,7 +1309,8 @@ function ShopContent() {
           <FilterSidebar
             filters={filters}
             setFilter={setFilter}
-            categories={categories}
+            parents={parents}
+            subsByParent={subsByParent}
             isOpen={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
           />

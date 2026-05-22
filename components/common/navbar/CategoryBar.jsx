@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronRight, LayoutGrid, Zap, Tag } from "lucide-react";
+import { ChevronDown, ChevronRight, LayoutGrid, Flame, Tag } from "lucide-react";
 import Link from "next/link";
 
 // Map known category slugs to icons so the bar looks rich
@@ -27,8 +27,8 @@ export default function CategoryBar({ categories = [], subsByParent = {}, active
   const clearHoverTimer = () => clearTimeout(megaMenuTimer.current);
   const scheduleHide    = () => { megaMenuTimer.current = setTimeout(() => setHovered(null), 150); };
 
-  const allDepts = { name: "All Departments", href: "/shop", icon: LayoutGrid, slug: "_all" };
-  const flashSale = { name: "Flash Sale", href: "/shop?sort=flash_sale", icon: Zap, slug: "_flash", hot: true };
+  const allDepts = { name: "All Categories", href: "/shop", icon: LayoutGrid, slug: "_all" };
+  const flashSale = { name: "Flash Sale", href: "/shop?sort=flash_sale", icon: Flame, slug: "_flash", hot: true };
 
   const navItems = [
     allDepts,
@@ -112,26 +112,28 @@ export default function CategoryBar({ categories = [], subsByParent = {}, active
               onMouseLeave={scheduleHide}
             >
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-                <div className="flex items-start gap-8">
-                  <div className="flex-1 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1">
                     {subs.map((sub) => (
                       <Link
                         key={sub.id}
                         href={`/shop?category=${item.slug}&sub=${encodeURIComponent(sub.slug)}`}
                         onClick={() => setHovered(null)}
-                        className="px-3 py-2 text-sm text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors font-medium whitespace-nowrap"
+                        className="px-3 py-2 text-sm text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors font-medium leading-snug"
                       >
                         {sub.name}
                       </Link>
                     ))}
                   </div>
-                  <Link
-                    href={item.href}
-                    onClick={() => setHovered(null)}
-                    className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 px-4 py-2 rounded-full transition-colors whitespace-nowrap"
-                  >
-                    Browse all {hoveredCategory} <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="border-t border-gray-100 pt-3">
+                    <Link
+                      href={item.href}
+                      onClick={() => setHovered(null)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 px-4 py-2 rounded-full transition-colors"
+                    >
+                      Browse all {hoveredCategory} <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </motion.div>
