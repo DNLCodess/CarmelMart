@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, ShieldCheck, Store, Star } from "lucide-react";
 import Image from "next/image";
@@ -11,8 +11,6 @@ import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { loginAction, guestSignInAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
-import { fetchAuthUser } from "@/lib/auth";
-import { getTurnstileToken } from "@/lib/turnstile";
 
 // ─── Reusable input ───────────────────────────────────────────────────────────
 
@@ -85,15 +83,44 @@ function LoginContent() {
   const [guestLoading, setGuestLoading]   = useState(false);
   const [formData, setFormData]           = useState({ email: "", password: "" });
   const [errors, setErrors]               = useState({});
-  const turnstileWidgetIdRef = useRef(null);
+  const tokenRef             = useRef(null); // pre-warmed Turnstile token
+  const widgetRef            = useRef(null); // login Turnstile widget ID
+  const turnstileWidgetIdRef = useRef(null); // guest widget ID
   const TURNSTILE_SITE_KEY   = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const router       = useRouter();
   const searchParams = useSearchParams();
   const queryClient  = useQueryClient();
 
-  const oauthError      = searchParams.get("oauth_error");
-  // Show email-verification notice only when redirected here from registration
+  const oauthError        = searchParams.get("oauth_error");
   const needsVerification = searchParams.get("verify") === "1";
+
+  // Prefetch the destination while the user is still typing — free speed gain
+  // on the navigation that happens right after login.
+  useEffect(() => {
+    const from = searchParams.get("from");
+    if (from && from.startsWith("/") && !from.startsWith("//")) {
+      router.prefetch(from);
+    }
+  }, [router, searchParams]);
+
+  // Pre-warm the Turnstile widget as soon as the SDK loads so the token is ready
+  // by the time the user clicks "Sign In" — eliminates the challenge wait on submit.
+  const mountLoginTurnstile = () => {
+    if (!TURNSTILE_SITE_KEY || typeof window?.turnstile === "undefined") return;
+    if (widgetRef.current !== null) return;
+    widgetRef.current = window.turnstile.render("#turnstile-login-widget", {
+      sitekey: TURNSTILE_SITE_KEY,
+      size: "invisible",
+      callback: (token) => { tokenRef.current = token; },
+      "expired-callback": () => {
+        tokenRef.current = null;
+        try { window.turnstile.reset(widgetRef.current); } catch {}
+        try { window.turnstile.execute(widgetRef.current); } catch {}
+      },
+      "error-callback": () => { tokenRef.current = null; },
+    });
+    window.turnstile.execute(widgetRef.current);
+  };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -184,25 +211,59 @@ function LoginContent() {
 
     setIsLoading(true);
     try {
-      const captchaToken = await getTurnstileToken("turnstile-login-widget");
+      // Use pre-warmed token if available — avoids blocking challenge at click time.
+      // Fall back to executing a fresh challenge if the token expired or wasn't ready.
+      let captchaToken = tokenRef.current;
+      tokenRef.current = null;
+
+      if (!captchaToken && TURNSTILE_SITE_KEY && typeof window?.turnstile !== "undefined") {
+        if (widgetRef.current !== null) {
+          try { window.turnstile.remove(widgetRef.current); } catch {}
+          widgetRef.current = null;
+        }
+        captchaToken = await new Promise((resolve, reject) => {
+          widgetRef.current = window.turnstile.render("#turnstile-login-widget", {
+            sitekey: TURNSTILE_SITE_KEY,
+            size: "invisible",
+            callback: resolve,
+            "error-callback": (code) => reject(new Error(`Security check failed (${code}). Please try again.`)),
+            "expired-callback": () => reject(new Error("Security token expired. Please try again.")),
+          });
+          window.turnstile.execute(widgetRef.current);
+        });
+      }
+
       const result = await loginAction({ email: formData.email, password: formData.password, captchaToken });
+
       if (result?.error) {
         toast.error(result.error);
+        // Re-warm for the next attempt
+        if (widgetRef.current !== null) {
+          try { window.turnstile.reset(widgetRef.current); window.turnstile.execute(widgetRef.current); } catch {}
+        }
         return;
       }
-      // Fetch fresh user + role — populates React Query cache and gives us the role for redirect
-      const userData = await queryClient.fetchQuery({ queryKey: ["auth-user"], queryFn: fetchAuthUser, staleTime: 0 });
+
+      // loginAction now returns the user profile — seed the cache directly so
+      // the auth context has data instantly without a second network round-trip.
+      queryClient.setQueryData(["auth-user"], {
+        user: result.user,
+        role: result.user?.role ?? null,
+        isGuest: false,
+      });
+
       toast.success("Welcome back!");
+
       const from = searchParams.get("from");
-      // Reject protocol-relative URLs like //evil.com
       if (from && from.startsWith("/") && !from.startsWith("//")) {
         router.push(from);
       } else {
-        const role = userData?.role;
-        if (role === "vendor")     router.push("/vendor");
-        else if (role === "admin") router.push("/admin");
-        else if (role === "rider") router.push("/rider");
-        else                       router.push("/");
+        const role = result.user?.role;
+        if      (role === "admin")           router.push("/admin/dashboard");
+        else if (role === "vendor")          router.push("/vendor/dashboard");
+        else if (role === "rider")           router.push("/rider/dashboard");
+        else if (role === "logistics_admin") router.push("/logistics/dashboard");
+        else                                 router.push("/");
       }
     } catch (err) {
       toast.error(err.message || "Login failed. Please try again.");
@@ -213,9 +274,12 @@ function LoginContent() {
 
   return (
     <>
-    {/* Load Turnstile only when a site key is configured */}
     {TURNSTILE_SITE_KEY && (
-      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="lazyOnload" />
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        strategy="afterInteractive"
+        onLoad={mountLoginTurnstile}
+      />
     )}
     <div className="min-h-screen flex">
 

@@ -57,7 +57,7 @@ export async function loginAction({ email, password, captchaToken = null }) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error } = await supabase.auth.signInWithPassword({
     email: normalizedEmail,
     password,
     options: captchaToken ? { captchaToken } : undefined,
@@ -71,7 +71,19 @@ export async function loginAction({ email, password, captchaToken = null }) {
   }
 
   _clearRate(normalizedEmail);
-  return { error: null };
+
+  // Fetch the DB profile server-side so the client gets role + user data immediately —
+  // eliminates the second round-trip (fetchAuthUser) that was needed for the role redirect.
+  const { data: profile } = await supabase
+    .from("users")
+    .select("id, first_name, last_name, email, phone, role, referral_code, wallet_balance")
+    .eq("id", authData.user.id)
+    .single();
+
+  return {
+    error: null,
+    user: profile ?? { id: authData.user.id, email: authData.user.email, role: null },
+  };
 }
 
 /**
