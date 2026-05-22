@@ -302,13 +302,8 @@ export async function guestSignInAction(captchaToken = null) {
   const placeholderEmail = `guest_${userId.replace(/-/g, "").slice(0, 12)}@carmelmart.guest`;
 
   const admin = createAdminClient();
-  const { error: profileError } = await admin.from("users").insert({
-    id: userId,
-    email: placeholderEmail,
-    role: "customer",
-    status: "active",
-    wallet_balance: 0,
-  });
+  const guestProfile = { id: userId, email: placeholderEmail, role: "customer", status: "active", wallet_balance: 0 };
+  const { error: profileError } = await admin.from("users").insert(guestProfile);
 
   if (profileError) {
     await admin.auth.admin.deleteUser(userId);
@@ -316,7 +311,7 @@ export async function guestSignInAction(captchaToken = null) {
   }
 
   revalidatePath("/", "layout");
-  return { error: null };
+  return { error: null, user: guestProfile, isGuest: true };
 }
 
 /**

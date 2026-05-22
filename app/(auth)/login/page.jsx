@@ -147,7 +147,13 @@ function LoginContent() {
         toast.error(result.error);
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
+      if (result.user) {
+        queryClient.setQueryData(["auth-user"], {
+          user: result.user,
+          role: result.user.role ?? "customer",
+          isGuest: result.isGuest ?? true,
+        });
+      }
       const from = searchParams.get("from");
       const dest = from && from.startsWith("/") && !from.startsWith("//") ? from : "/checkout";
       router.push(dest);

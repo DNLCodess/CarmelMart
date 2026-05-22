@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Script from "next/script";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,7 +24,6 @@ import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { signupAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
-import { getTurnstileToken } from "@/lib/turnstile";
 
 import VendorVerification from "@/components/shared/auth/VendorVerification";
 import { formatNigerianPhone } from "@/lib/utils";
@@ -153,6 +152,26 @@ function RegisterPageContent() {
   const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const [isValidatingReferral, setIsValidatingReferral] = useState(false);
   const [referralValid, setReferralValid] = useState(null);
+  const tokenRef  = useRef(null);
+  const widgetRef = useRef(null);
+  const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  const mountRegisterTurnstile = () => {
+    if (!TURNSTILE_SITE_KEY || typeof window?.turnstile === "undefined") return;
+    if (widgetRef.current !== null) return;
+    widgetRef.current = window.turnstile.render("#turnstile-register", {
+      sitekey: TURNSTILE_SITE_KEY,
+      size: "invisible",
+      callback: (token) => { tokenRef.current = token; },
+      "expired-callback": () => {
+        tokenRef.current = null;
+        try { window.turnstile.reset(widgetRef.current); } catch {}
+        try { window.turnstile.execute(widgetRef.current); } catch {}
+      },
+      "error-callback": () => { tokenRef.current = null; },
+    });
+    window.turnstile.execute(widgetRef.current);
+  };
 
   const {
     register,
@@ -288,7 +307,26 @@ function RegisterPageContent() {
 
     setIsLoading(true);
     try {
-      const captchaToken = await getTurnstileToken("turnstile-register");
+      let captchaToken = tokenRef.current;
+      tokenRef.current = null;
+
+      if (!captchaToken && TURNSTILE_SITE_KEY && typeof window?.turnstile !== "undefined") {
+        if (widgetRef.current !== null) {
+          try { window.turnstile.remove(widgetRef.current); } catch {}
+          widgetRef.current = null;
+        }
+        captchaToken = await new Promise((resolve, reject) => {
+          widgetRef.current = window.turnstile.render("#turnstile-register", {
+            sitekey: TURNSTILE_SITE_KEY,
+            size: "invisible",
+            callback: resolve,
+            "error-callback": (code) => reject(new Error(`Security check failed (${code}). Please try again.`)),
+            "expired-callback": () => reject(new Error("Security token expired. Please try again.")),
+          });
+          window.turnstile.execute(widgetRef.current);
+        });
+      }
+
       const result = await signupAction({
         email: formData.email,
         password: formData.password,
@@ -334,8 +372,12 @@ function RegisterPageContent() {
 
   return (
     <>
-    {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="lazyOnload" />
+    {TURNSTILE_SITE_KEY && (
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        strategy="afterInteractive"
+        onLoad={mountRegisterTurnstile}
+      />
     )}
     <div id="turnstile-register" className="hidden" />
     <div className="min-h-screen flex bg-linear-to-br from-gray-50 via-white to-gray-100">
