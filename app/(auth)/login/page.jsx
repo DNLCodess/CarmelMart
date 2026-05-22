@@ -199,11 +199,10 @@ function LoginContent() {
         router.push(from);
       } else {
         const role = userData?.role;
-        if (role === "vendor")          router.push("/vendor");
-        else if (role === "admin")      router.push("/admin");
-        else if (role === "logistics_admin") router.push("/logistics");
-        else if (role === "rider")      router.push("/rider");
-        else                            router.push("/");
+        if (role === "vendor")     router.push("/vendor");
+        else if (role === "admin") router.push("/admin");
+        else if (role === "rider") router.push("/rider");
+        else                       router.push("/");
       }
     } catch (err) {
       toast.error(err.message || "Login failed. Please try again.");

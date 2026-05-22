@@ -19,7 +19,7 @@ export async function GET(request) {
 
     let query = admin
       .from("orders")
-      .select("id, customer_id, status, total, created_at, delivery_address", { count: "exact" })
+      .select("id, customer_id, rider_id, status, total, created_at, delivery_address", { count: "exact" })
       .order("created_at", { ascending: false })
       .range((page - 1) * limit, page * limit - 1);
 
@@ -28,19 +28,24 @@ export async function GET(request) {
     const { data: orderRows, error: qErr, count } = await query;
     if (qErr) throw qErr;
 
-    // Bulk-fetch customer emails from public.users
-    const customerIds = [...new Set((orderRows ?? []).map((o) => o.customer_id).filter(Boolean))];
-    let customerMap = {};
-    if (customerIds.length > 0) {
-      const { data: customers } = await admin
+    // Bulk-fetch customer + rider info
+    const personIds = [...new Set([
+      ...(orderRows ?? []).map((o) => o.customer_id),
+      ...(orderRows ?? []).map((o) => o.rider_id),
+    ].filter(Boolean))];
+
+    let personMap = {};
+    if (personIds.length > 0) {
+      const { data: persons } = await admin
         .from("users")
-        .select("id, email, phone")
-        .in("id", customerIds);
-      customerMap = Object.fromEntries((customers ?? []).map((c) => [c.id, c]));
+        .select("id, email, phone, first_name, last_name, role")
+        .in("id", personIds);
+      personMap = Object.fromEntries((persons ?? []).map((p) => [p.id, p]));
     }
 
     const orders = (orderRows || []).map((o) => {
-      const c = customerMap[o.customer_id];
+      const c = personMap[o.customer_id];
+      const r = o.rider_id ? personMap[o.rider_id] : null;
       return {
         id:         o.id,
         customerId: o.customer_id,
@@ -51,6 +56,8 @@ export async function GET(request) {
         phone:      c?.phone ?? o.delivery_address?.phone ?? null,
         city:       o.delivery_address?.city ?? "—",
         date:       new Date(o.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
+        rider_id:   o.rider_id ?? null,
+        rider_name: r ? [r.first_name, r.last_name].filter(Boolean).join(" ") || r.email : null,
       };
     });
 

@@ -45,7 +45,6 @@ const NAV_ITEMS = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
   { href: "/admin/delivery-zones", label: "Delivery", icon: Truck },
-  { href: "/admin/logistics-staff", label: "Logistics Staff", icon: Users },
   { href: "/admin/riders", label: "Riders", icon: Truck },
   { href: "/admin/auth-requests", label: "Auth Requests", icon: ShieldCheck },
   { href: "/admin/financials", label: "Financials", icon: BarChart2 },

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ShoppingCart, Download, RefreshCw, RotateCcw, X } from "lucide-react";
+import { ShoppingCart, Download, RefreshCw, RotateCcw, X, Bike, ChevronDown } from "lucide-react";
 import toast from "react-hot-toast";
 
 async function fetchOrders(params) {
@@ -10,9 +10,15 @@ async function fetchOrders(params) {
   return r.json();
 }
 
+async function fetchActiveRiders() {
+  const r = await fetch("/api/admin/riders?active=true");
+  return r.json();
+}
+
 const STATUS_CFG = {
   pending:   { label: "Pending",   cls: "bg-amber-50  text-amber-700  border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"   },
   confirmed: { label: "Confirmed", cls: "bg-blue-50   text-blue-700   border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"    },
+  processing:{ label: "Processing",cls: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800"},
   shipped:   { label: "Shipped",   cls: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"  },
   delivered: { label: "Delivered", cls: "bg-green-50  text-green-700  border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"   },
   cancelled: { label: "Cancelled", cls: "bg-red-50    text-red-700    border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"     },
@@ -70,6 +76,56 @@ function RefundModal({ order, onClose, onConfirm, saving }) {
   );
 }
 
+function AssignRiderModal({ order, riders, onClose, onConfirm, saving }) {
+  const [riderId, setRiderId] = useState(order?.rider_id ?? "");
+  if (!order) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100">Assign Rider</h3>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Order <strong>{order.shortId}</strong> · {order.city}
+        </p>
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Select Rider</label>
+          <div className="relative">
+            <select
+              value={riderId}
+              onChange={(e) => setRiderId(e.target.value)}
+              className="w-full appearance-none px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 pr-10"
+            >
+              <option value="">— Unassign —</option>
+              {riders.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}{r.phone ? ` · ${r.phone}` : ""}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          {riders.length === 0 && (
+            <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">No active riders found. Add riders from the Riders page.</p>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 pt-1">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">Cancel</button>
+          <button
+            onClick={() => onConfirm(riderId || null)}
+            disabled={saving}
+            className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 rounded-xl transition-colors flex items-center gap-2"
+          >
+            {saving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+            Assign
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const STATUS_TABS = [
   { value: "",          label: "All"       },
   { value: "pending",   label: "Pending"   },
@@ -84,6 +140,25 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [page,         setPage]         = useState(1);
   const [refundOrder,  setRefundOrder]  = useState(null);
+  const [assignOrder,  setAssignOrder]  = useState(null);
+
+  const params = new URLSearchParams({ page });
+  if (statusFilter) params.set("status", statusFilter);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-orders", statusFilter, page],
+    queryFn: () => fetchOrders(params.toString()),
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const { data: ridersData } = useQuery({
+    queryKey: ["admin-active-riders"],
+    queryFn: fetchActiveRiders,
+    staleTime: 60_000,
+    enabled: !!assignOrder,
+  });
+  const activeRiders = ridersData?.riders ?? [];
 
   const refundMutation = useMutation({
     mutationFn: async ({ order_id, customer_id, amount, reason }) => {
@@ -105,14 +180,23 @@ export default function AdminOrdersPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const params = new URLSearchParams({ page });
-  if (statusFilter) params.set("status", statusFilter);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin-orders", statusFilter, page],
-    queryFn: () => fetchOrders(params.toString()),
-    staleTime: 30_000,
-    retry: false,
+  const assignMutation = useMutation({
+    mutationFn: async ({ order_id, rider_id }) => {
+      const r = await fetch(`/api/admin/orders/${order_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rider_id }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Assignment failed");
+      return d;
+    },
+    onSuccess: (_, { rider_id }) => {
+      toast.success(rider_id ? "Rider assigned" : "Rider unassigned");
+      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      setAssignOrder(null);
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   const orders = data?.orders ?? [];
@@ -127,6 +211,14 @@ export default function AdminOrdersPage() {
         onClose={() => setRefundOrder(null)}
         onConfirm={(amount, reason) => refundMutation.mutate({ order_id: refundOrder.id, customer_id: refundOrder.customerId, amount, reason })}
       />
+      <AssignRiderModal
+        order={assignOrder}
+        riders={activeRiders}
+        saving={assignMutation.isPending}
+        onClose={() => setAssignOrder(null)}
+        onConfirm={(rider_id) => assignMutation.mutate({ order_id: assignOrder.id, rider_id })}
+      />
+
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="font-bold text-gray-900 dark:text-gray-100 text-xl">Orders</h2>
@@ -173,7 +265,8 @@ export default function AdminOrdersPage() {
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Customer</th>
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">City</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Rider</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">City</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Date</th>
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
                 </tr>
@@ -191,18 +284,42 @@ export default function AdminOrdersPage() {
                     </td>
                     <td className="px-5 py-4 text-right font-bold text-gray-900 dark:text-gray-100">₦{(o.total || 0).toLocaleString()}</td>
                     <td className="px-5 py-4"><StatusBadge status={o.status} /></td>
-                    <td className="px-5 py-4 text-gray-500 dark:text-gray-400 hidden md:table-cell">{o.city}</td>
+                    <td className="px-5 py-4 hidden md:table-cell">
+                      {o.rider_name ? (
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                          <Bike className="w-3.5 h-3.5" /> {o.rider_name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-gray-500 dark:text-gray-400 hidden lg:table-cell">{o.city}</td>
                     <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400 hidden lg:table-cell">{o.date}</td>
                     <td className="px-5 py-4 text-right">
-                      {!["refunded", "cancelled"].includes(o.status) && (
-                        <button
-                          onClick={() => setRefundOrder(o)}
-                          title="Issue refund to customer wallet"
-                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </button>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        {!["delivered", "cancelled", "refunded"].includes(o.status) && (
+                          <button
+                            onClick={() => setAssignOrder(o)}
+                            title={o.rider_name ? `Reassign rider (${o.rider_name})` : "Assign rider"}
+                            className={`p-2 rounded-lg transition-colors ${
+                              o.rider_name
+                                ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                : "text-gray-400 dark:text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                            }`}
+                          >
+                            <Bike className="w-4 h-4" />
+                          </button>
+                        )}
+                        {!["refunded", "cancelled"].includes(o.status) && (
+                          <button
+                            onClick={() => setRefundOrder(o)}
+                            title="Issue refund to customer wallet"
+                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
