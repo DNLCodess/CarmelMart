@@ -39,19 +39,6 @@ export async function PATCH(request, { params }) {
     const body = await request.json();
     const admin = createAdminClient();
 
-    if (body.sale_price != null) {
-      const { data: vendor } = await admin
-        .from("vendors")
-        .select("subscription_tier")
-        .eq("id", user.id)
-        .single();
-      if ((vendor?.subscription_tier ?? "free") === "free") {
-        return NextResponse.json(
-          { error: "Promotions & deals are not available on the Basic plan. Upgrade to Premium or VIP to set sale prices.", code: "PROMOTIONS_GATED" },
-          { status: 403 }
-        );
-      }
-    }
 
     const { error } = await admin
       .from("products")

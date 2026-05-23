@@ -151,12 +151,7 @@ export async function POST(request) {
     if (digital_price && Number(digital_price) <= 0) {
       return NextResponse.json({ error: "Digital price must be greater than zero" }, { status: 400 });
     }
-    if (sale_price && tier === "free") {
-      return NextResponse.json(
-        { error: "Promotions & deals are not available on the Basic plan. Upgrade to Premium or VIP to set sale prices.", code: "PROMOTIONS_GATED" },
-        { status: 403 }
-      );
-    }
+
     // Validate digital_file_path ownership — must start with vendor's own user id
     if (digital_file_path && !digital_file_path.startsWith(`${user.id}/`)) {
       return NextResponse.json({ error: "Invalid digital file path" }, { status: 400 });
