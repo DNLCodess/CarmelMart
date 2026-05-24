@@ -19,7 +19,11 @@ export async function GET(request, { params }) {
     const admin = createAdminClient();
     const { data: product, error } = await admin
       .from("products")
-      .select("id, name, slug, description, price, sale_price, stock, images, status, category_id, categories(id, name, slug)")
+      .select(`id, name, slug, description, price, sale_price, stock, images, status, condition, attributes,
+        category_id, categories(id, name, slug, template),
+        media_author, media_isbn, media_publisher, media_publish_date, media_edition,
+        media_pages, media_language, media_format, media_genre,
+        is_digital, digital_price, digital_file_path, digital_file_size`)
       .eq("id", id)
       .eq("vendor_id", user.id)
       .single();
@@ -40,21 +44,42 @@ export async function PATCH(request, { params }) {
     const admin = createAdminClient();
 
 
+    const update = {
+      name:        body.name,
+      description: body.description,
+      price:       body.price,
+      sale_price:  body.sale_price ?? null,
+      stock:       body.stock,
+      category_id: body.category_id,
+      status:      body.status,
+      images:      body.images ?? [],
+      condition:   ["new","used","refurbished"].includes(body.condition) ? body.condition : "new",
+      attributes:  body.attributes && typeof body.attributes === "object" ? body.attributes : {},
+      updated_at:  new Date().toISOString(),
+    };
+
+    // Books & Media fields — only written when the caller sends them
+    if (body.is_media_category) {
+      Object.assign(update, {
+        media_author:       body.media_author ?? null,
+        media_isbn:         body.media_isbn ?? null,
+        media_publisher:    body.media_publisher ?? null,
+        media_publish_date: body.media_publish_date ?? null,
+        media_edition:      body.media_edition ?? null,
+        media_pages:        body.media_pages ?? null,
+        media_language:     body.media_language ?? "English",
+        media_format:       body.media_format ?? null,
+        media_genre:        body.media_genre ?? null,
+        is_digital:         body.is_digital ?? false,
+        digital_price:      body.is_digital && body.digital_price ? Number(body.digital_price) : null,
+        digital_file_path:  body.is_digital ? (body.digital_file_path ?? null) : null,
+        digital_file_size:  body.is_digital ? (body.digital_file_size ?? null) : null,
+      });
+    }
+
     const { error } = await admin
       .from("products")
-      .update({
-        name:        body.name,
-        description: body.description,
-        price:       body.price,
-        sale_price:  body.sale_price ?? null,
-        stock:       body.stock,
-        category_id: body.category_id,
-        status:      body.status,
-        images:      body.images ?? [],
-        condition:   ["new","used","refurbished"].includes(body.condition) ? body.condition : "new",
-        attributes:  body.attributes && typeof body.attributes === "object" ? body.attributes : {},
-        updated_at:  new Date().toISOString(),
-      })
+      .update(update)
       .eq("id", id)
       .eq("vendor_id", user.id); // vendor can only edit own products
     if (error) throw error;

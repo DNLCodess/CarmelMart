@@ -62,3 +62,4 @@ docs/vendor-manual.md
 .env.production
 .env.development
 tdl2.md
+.mcp.json

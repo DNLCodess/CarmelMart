@@ -90,6 +90,19 @@ export async function GET(request) {
       }
     }
 
+    // ── Resolve all descendant category IDs (parent + its children) ───────────
+    // When a parent category is requested, include products from all sub-categories.
+    let categoryIdFilter = resolvedCategoryId ? [resolvedCategoryId] : null;
+    if (resolvedCategoryId) {
+      const { data: children } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("parent_id", resolvedCategoryId);
+      if (children?.length) {
+        categoryIdFilter = [resolvedCategoryId, ...children.map((c) => c.id)];
+      }
+    }
+
     // ── Products query — no nested vendor join, simpler and reliable ──────────
     let query = supabase
       .from("products")
@@ -101,7 +114,7 @@ export async function GET(request) {
       `, { count: "exact" })
       .eq("status", "active");
 
-    if (resolvedCategoryId) query = query.eq("category_id", resolvedCategoryId);
+    if (categoryIdFilter) query = query.in("category_id", categoryIdFilter);
     // Search name AND description so partial-word matches in specs/description surface too
     if (search)             query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
     if (minPrice !== null)  query = query.gte("price", minPrice);

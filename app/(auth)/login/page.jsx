@@ -267,7 +267,7 @@ function LoginContent() {
         const role = result.user?.role;
         if      (role === "admin")           router.push("/admin/dashboard");
         else if (role === "vendor")          router.push("/vendor/dashboard");
-        else if (role === "rider")           router.push("/rider/dashboard");
+        else if (role === "rider")           router.push("/rider/orders");
         else if (role === "logistics_admin") router.push("/logistics/dashboard");
         else                                 router.push("/");
       }

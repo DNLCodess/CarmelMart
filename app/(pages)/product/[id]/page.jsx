@@ -360,6 +360,23 @@ export default function ProductDetailPage() {
   const isWishlisted =
     wishlist.includes(id) || wishlist.some?.((w) => w === id || w?.id === id);
 
+  // Format selection: "digital" | "physical"
+  // - digital-only product (is_digital=true, stock=0) → always digital
+  // - physical-only product → always physical
+  // - dual-format product (is_digital=true, stock>0) → customer picks; default digital
+  const hasDigital  = product?.isDigital && !!product?.digitalPrice;
+  const hasPhysical = (product?.stock ?? 0) > 0;
+  const isDualFormat = hasDigital && hasPhysical;
+
+  const [deliveryFormat, setDeliveryFormat] = useState(
+    hasDigital ? "digital" : "physical"
+  );
+
+  const physicalPrice = product?.salePrice ?? product?.price ?? 0;
+  const price = deliveryFormat === "digital" && hasDigital
+    ? (product.digitalPrice ?? physicalPrice)
+    : physicalPrice;
+
   const handleAddToCart = useCallback(() => {
     if (!product) return;
     addItem({
@@ -412,23 +429,6 @@ export default function ProductDetailPage() {
   const images = product?.images?.length
     ? product.images
     : ["/placeholder-product.jpg"];
-
-  // Format selection: "digital" | "physical"
-  // - digital-only product (is_digital=true, stock=0) → always digital
-  // - physical-only product → always physical
-  // - dual-format product (is_digital=true, stock>0) → customer picks; default digital
-  const hasDigital  = product?.isDigital && !!product?.digitalPrice;
-  const hasPhysical = (product?.stock ?? 0) > 0;
-  const isDualFormat = hasDigital && hasPhysical;
-
-  const [deliveryFormat, setDeliveryFormat] = useState(
-    hasDigital ? "digital" : "physical"
-  );
-
-  const physicalPrice = product?.salePrice ?? product?.price ?? 0;
-  const price = deliveryFormat === "digital" && hasDigital
-    ? (product.digitalPrice ?? physicalPrice)
-    : physicalPrice;
 
   const discount = deliveryFormat === "physical" && product?.salePrice
     ? Math.round(((product.price - product.salePrice) / product.price) * 100)

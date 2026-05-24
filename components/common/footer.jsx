@@ -73,26 +73,26 @@ export default function Footer() {
     <footer className="bg-[#111111] text-gray-400 border-t-2 border-primary">
 
       {/* ══════════════════════ MAIN FOOTER BODY ══════════════════════════════ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 md:py-10">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-0 md:gap-8 lg:gap-12">
 
-          {/* ── Brand column (always visible, full on mobile) ── */}
-          <div className="md:col-span-2 pb-6 md:pb-0 border-b border-white/10 md:border-none">
-            <Link href="/" className="inline-block mb-4">
+          {/* ── Brand column ── */}
+          <div className="md:col-span-2 pb-4 md:pb-0 border-b border-white/10 md:border-none">
+            <Link href="/" className="inline-block mb-3">
               <Image
                 src="/logo-white.png"
                 alt="CarmelMart"
-                width={160}
-                height={50}
+                width={140}
+                height={44}
                 className="object-contain"
               />
             </Link>
-            <p className="text-sm text-white/75 leading-relaxed mb-4 max-w-xs">
+            <p className="hidden sm:block text-sm text-white/75 leading-relaxed mb-4 max-w-xs">
               Nigeria&apos;s trusted multi-vendor marketplace. Shop smart, live better.
             </p>
 
             {/* Contact */}
-            <div className="flex flex-col gap-2 text-sm text-white/80 mb-5">
+            <div className="flex flex-col gap-1.5 sm:gap-2 text-sm text-white/80 mb-4">
               <a href="tel:+2348076942904" className="flex items-center gap-2 hover:text-accent transition-colors">
                 <Phone className="w-4 h-4 shrink-0" />
                 +234 807 694 2904
@@ -108,7 +108,7 @@ export default function Footer() {
             </div>
 
             {/* Social */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {socialLinks.map((social, i) => (
                 <motion.a
                   key={i}
@@ -209,28 +209,28 @@ export default function Footer() {
 
       {/* ══════════════════════ BOTTOM BAR ════════════════════════════════════ */}
       <div className="border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/60">
 
           {/* Payment methods */}
-          <div className="flex items-center gap-2.5 flex-wrap justify-center md:justify-start">
-            <span className="text-white/50 shrink-0">Secure payments:</span>
+          <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+            <span className="text-white/50 shrink-0 text-[11px]">Secure payments:</span>
             <VisaIcon />
             <MastercardIcon />
             <VerveIcon />
             <Image
               src="https://flutterwave.com/images/logo/full.svg"
               alt="Flutterwave"
-              width={60}
-              height={18}
+              width={56}
+              height={16}
               className="opacity-60"
             />
           </div>
 
           {/* Legal links */}
-          <div className="flex items-center flex-wrap justify-center gap-4">
-            <Link href="/help#privacy" className="hover:text-accent transition-colors">Privacy Policy</Link>
-            <Link href="/help#terms" className="hover:text-accent transition-colors">Terms of Use</Link>
-            <Link href="/help#cookies" className="hover:text-accent transition-colors">Cookie Policy</Link>
+          <div className="flex items-center flex-wrap justify-center gap-3">
+            <Link href="/help#privacy" className="hover:text-accent transition-colors">Privacy</Link>
+            <Link href="/help#terms" className="hover:text-accent transition-colors">Terms</Link>
+            <Link href="/help#cookies" className="hover:text-accent transition-colors">Cookies</Link>
             <Link href="/sitemap.xml" className="hover:text-accent transition-colors">Sitemap</Link>
           </div>
 

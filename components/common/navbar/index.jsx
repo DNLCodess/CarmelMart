@@ -41,6 +41,9 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
   const [promoVisible, setPromoVisible] = useState(true);
+
+  // Only show the promo strip and category bar on shopping-focused pages.
+  const isShoppingPage = /^\/$|^\/shop(\/|$)|^\/product\/|^\/categories\//.test(pathname);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -340,9 +343,9 @@ export default function Navbar() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Promo strip */}
+      {/* Promo strip — shopping pages only */}
       <AnimatePresence>
-        {promoVisible && (
+        {promoVisible && isShoppingPage && (
           <PromoStrip
             promoIndex={promoIndex}
             onDismiss={() => setPromoVisible(false)}
@@ -553,8 +556,8 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile full-width search row (xs only) */}
-        <div className="sm:hidden px-3 pb-3">
+        {/* Mobile full-width search row — shopping pages only */}
+        <div className={`sm:hidden px-3 pb-3 ${!isShoppingPage ? "hidden" : ""}`}>
           <form onSubmit={handleSearchSubmit} className="relative">
             <div className="flex items-stretch h-11 rounded-xl overflow-hidden border-2 border-gray-200 focus-within:border-accent transition-colors">
               <input
@@ -590,13 +593,15 @@ export default function Navbar() {
           </form>
         </div>
 
-        {/* Desktop category bar */}
-        <CategoryBar
-          categories={parentCategories}
-          subsByParent={subsByParent}
-          activeCategory={activeCategory}
-          setActiveCategory={setActiveCategory}
-        />
+        {/* Category bar — shopping pages only */}
+        {isShoppingPage && (
+          <CategoryBar
+            categories={parentCategories}
+            subsByParent={subsByParent}
+            activeCategory={activeCategory}
+            setActiveCategory={setActiveCategory}
+          />
+        )}
       </motion.header>
 
       {/* Mobile drawer */}

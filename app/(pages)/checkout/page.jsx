@@ -20,6 +20,7 @@ import {
   X,
   Mail,
   UserCircle,
+  Download,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,10 +46,10 @@ const STEPS_PHYSICAL = ["Address", "Delivery", "Payment", "Review"];
 const STEPS_DIGITAL  = ["Contact",  "Payment",  "Review"];
 
 // ─── Step indicator ────────────────────────────────────────────────────────────
-function StepBar({ current }) {
+function StepBar({ steps, current }) {
   return (
     <div className="flex items-center justify-center gap-0 mb-10">
-      {STEPS.map((label, i) => (
+      {steps.map((label, i) => (
         <div key={label} className="flex items-center">
           <div className="flex flex-col items-center">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
@@ -62,7 +63,7 @@ function StepBar({ current }) {
               {label}
             </span>
           </div>
-          {i < STEPS.length - 1 && (
+          {i < steps.length - 1 && (
             <div className={`h-0.5 w-12 sm:w-20 mb-4 mx-1 transition-colors ${i < current ? "bg-green-500" : "bg-gray-200"}`} />
           )}
         </div>
@@ -376,7 +377,7 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        <StepBar current={step} />
+        <StepBar steps={STEPS} current={step} />
 
         <div className="grid lg:grid-cols-5 gap-8">
           {/* ── Main content ──────────────────────────────────────────── */}
