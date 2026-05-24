@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const admin = createAdminClient();
-    const { data, error } = await admin
+    const supabase = await createClient();
+    const { data, error } = await supabase
       .from("hero_banners")
       .select("id, title, subtitle, description, cta_label, cta_href, image_url, badge_text, badge_color, sort_order")
       .eq("active", true)
@@ -12,7 +12,10 @@ export async function GET() {
       .limit(5);
 
     if (error) throw error;
-    return NextResponse.json({ banners: data ?? [] });
+    return NextResponse.json(
+      { banners: data ?? [] },
+      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } },
+    );
   } catch {
     // Return empty so hero falls back to static slides
     return NextResponse.json({ banners: [] });

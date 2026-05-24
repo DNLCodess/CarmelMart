@@ -1,22 +1,17 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
-    const { data: categories, error } = await supabase
-      .from("categories")
-      .select("id, name, slug, image, description, template, parent_id")
-      .order("name");
+    // Parallel: fetch categories + count of approved+active products per category
+    const [{ data: categories, error }, { data: counts }] = await Promise.all([
+      supabase.from("categories").select("id, name, slug, image, description, template, parent_id").order("name"),
+      supabase.from("products").select("category_id").eq("status", "active").eq("moderation_status", "approved"),
+    ]);
 
     if (error) throw error;
-
-    // Get product count per category
-    const { data: counts } = await supabase
-      .from("products")
-      .select("category_id")
-      .eq("status", "active");
 
     const countMap = {};
     (counts || []).forEach((p) => {
@@ -28,7 +23,10 @@ export async function GET() {
       productCount: countMap[c.id] || 0,
     }));
 
-    return NextResponse.json({ success: true, categories: result });
+    return NextResponse.json(
+      { success: true, categories: result },
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
+    );
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

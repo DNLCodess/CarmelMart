@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("product_reviews")
@@ -36,7 +36,10 @@ export async function GET() {
       createdAt: r.created_at,
     }));
 
-    return NextResponse.json({ reviews });
+    return NextResponse.json(
+      { reviews },
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
+    );
   } catch (error) {
     return NextResponse.json({ reviews: [] }, { status: 200 });
   }

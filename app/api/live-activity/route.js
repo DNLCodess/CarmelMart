@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 30; // refresh every 30 s
 
@@ -15,10 +15,10 @@ function toActivityLabel(order) {
 
 export async function GET() {
   try {
-    const admin = createAdminClient();
+    const supabase = await createClient();
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: orders } = await admin
+    const { data: orders } = await supabase
       .from("orders")
       .select(`
         created_at,
@@ -35,7 +35,10 @@ export async function GET() {
 
     const activities = (orders ?? []).map(toActivityLabel);
 
-    return NextResponse.json({ activities });
+    return NextResponse.json(
+      { activities },
+      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } },
+    );
   } catch (error) {
     return NextResponse.json({ activities: [] }, { status: 200 });
   }

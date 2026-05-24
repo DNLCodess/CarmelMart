@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
     // Step 1: Fetch verified vendors (no product join — products.vendor_id → users.id, not vendors.id)
     const { data: vendorRows, error } = await supabase
@@ -24,7 +24,8 @@ export async function GET() {
       .from("products")
       .select("vendor_id, images")
       .in("vendor_id", vendorIds)
-      .eq("status", "active");
+      .eq("status", "active")
+      .eq("moderation_status", "approved");
 
     // Group by vendor_id
     const productsByVendor = {};
@@ -62,7 +63,10 @@ export async function GET() {
       .sort((a, b) => (TIER_RANK[a.tier] ?? 2) - (TIER_RANK[b.tier] ?? 2))
       .slice(0, 8);
 
-    return NextResponse.json({ success: true, vendors });
+    return NextResponse.json(
+      { success: true, vendors },
+      { headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300" } },
+    );
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

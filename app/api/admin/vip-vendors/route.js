@@ -30,25 +30,14 @@ export async function GET() {
     let userMap = {}, subMap = {}, noteMap = {};
 
     if (ids.length > 0) {
-      // User contact info
-      const { data: users } = await admin.from("users").select("id, email, phone").in("id", ids);
-      userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
-
-      // Active subscription (to get expiry + billing cycle)
-      const { data: subs } = await admin
-        .from("vendor_subscriptions")
-        .select("vendor_id, billing_cycle, expires_at, started_at")
-        .eq("status", "active")
-        .eq("tier", "vip")
-        .in("vendor_id", ids);
-      subMap = Object.fromEntries((subs ?? []).map((s) => [s.vendor_id, s]));
-
-      // Account manager notes from platform_settings (keyed per vendor)
       const noteKeys = ids.map((id) => `vip_note_${id}`);
-      const { data: notes } = await admin
-        .from("platform_settings")
-        .select("key, value")
-        .in("key", noteKeys);
+      const [{ data: users }, { data: subs }, { data: notes }] = await Promise.all([
+        admin.from("users").select("id, email, phone").in("id", ids),
+        admin.from("vendor_subscriptions").select("vendor_id, billing_cycle, expires_at, started_at").eq("status", "active").eq("tier", "vip").in("vendor_id", ids),
+        admin.from("platform_settings").select("key, value").in("key", noteKeys),
+      ]);
+      userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
+      subMap  = Object.fromEntries((subs  ?? []).map((s) => [s.vendor_id, s]));
       noteMap = Object.fromEntries((notes ?? []).map((n) => [n.key.replace("vip_note_", ""), n.value]));
     }
 

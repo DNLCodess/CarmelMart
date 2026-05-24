@@ -17,12 +17,30 @@ export async function GET() {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysAgo  = new Date(Date.now() -  7 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Revenue (30d) — sum of order_items totals where vendor_id = user.id
-    const { data: revenueData } = await admin
-      .from("order_items")
-      .select("total, created_at")
-      .eq("vendor_id", user.id)
-      .gte("created_at", thirtyDaysAgo);
+    // ── Parallel fetch — all 10 queries are independent ──────────────────────
+    const [
+      { data: revenueData },
+      { count: ordersCount },
+      { data: vendorPendingData },
+      { count: productsCount },
+      { data: customerData },
+      { data: recentOrdersRaw },
+      { data: topProdData },
+      { data: walletData },
+      { data: lowStockData },
+      { count: pendingModerationCount },
+    ] = await Promise.all([
+      admin.from("order_items").select("total, created_at").eq("vendor_id", user.id).gte("created_at", thirtyDaysAgo),
+      admin.from("order_items").select("*", { count: "exact", head: true }).eq("vendor_id", user.id),
+      admin.from("order_items").select("order_id, orders!inner(id, status)").eq("vendor_id", user.id).eq("orders.status", "pending"),
+      admin.from("products").select("*", { count: "exact", head: true }).eq("vendor_id", user.id).eq("status", "active"),
+      admin.from("order_items").select("orders!inner(customer_id)").eq("vendor_id", user.id),
+      admin.from("orders").select("id, status, total, created_at, users!customer_id ( user_metadata ), order_items!inner ( vendor_id )").eq("order_items.vendor_id", user.id).order("created_at", { ascending: false }).limit(5),
+      admin.from("products").select("id, name, images, sold_count, price").eq("vendor_id", user.id).order("sold_count", { ascending: false }).limit(5),
+      admin.from("users").select("wallet_balance").eq("id", user.id).single(),
+      admin.from("products").select("id, name, stock").eq("vendor_id", user.id).eq("status", "active").lte("stock", 5).order("stock", { ascending: true }).limit(5),
+      admin.from("products").select("*", { count: "exact", head: true }).eq("vendor_id", user.id).eq("moderation_status", "pending"),
+    ]);
 
     const revenue = (revenueData || []).reduce((sum, r) => sum + (r.total || 0), 0);
 
@@ -41,46 +59,8 @@ export async function GET() {
     }
     const revenueChart = Object.values(chartMap);
 
-    // Total orders
-    const { count: ordersCount } = await admin
-      .from("order_items")
-      .select("*", { count: "exact", head: true })
-      .eq("vendor_id", user.id);
-
-    // Pending orders for THIS vendor
-    const { data: vendorPendingData } = await admin
-      .from("order_items")
-      .select("order_id, orders!inner(id, status)")
-      .eq("vendor_id", user.id)
-      .eq("orders.status", "pending");
     const pendingCount = new Set((vendorPendingData || []).map((r) => r.order_id)).size;
-
-    // Products count
-    const { count: productsCount } = await admin
-      .from("products")
-      .select("*", { count: "exact", head: true })
-      .eq("vendor_id", user.id)
-      .eq("status", "active");
-
-    // Unique customers
-    const { data: customerData } = await admin
-      .from("order_items")
-      .select("orders!inner(customer_id)")
-      .eq("vendor_id", user.id);
-
     const uniqueCustomers = new Set((customerData || []).map((r) => r.orders?.customer_id)).size;
-
-    // Recent 5 orders
-    const { data: recentOrdersRaw } = await admin
-      .from("orders")
-      .select(`
-        id, status, total, created_at,
-        users!customer_id ( user_metadata ),
-        order_items!inner ( vendor_id )
-      `)
-      .eq("order_items.vendor_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
 
     const recentOrders = (recentOrdersRaw || []).map((o) => ({
       id:       o.id.slice(0, 13).toUpperCase(),
@@ -90,44 +70,12 @@ export async function GET() {
       date:     new Date(o.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short" }),
     }));
 
-    // Top products
-    const { data: topProdData } = await admin
-      .from("products")
-      .select("id, name, images, sold_count, price")
-      .eq("vendor_id", user.id)
-      .order("sold_count", { ascending: false })
-      .limit(5);
-
     const topProducts = (topProdData || []).map((p) => ({
       name:    p.name,
       image:   Array.isArray(p.images) ? p.images[0] : null,
       sold:    p.sold_count,
       revenue: p.sold_count * p.price,
     }));
-
-    // Wallet balance
-    const { data: walletData } = await admin
-      .from("users")
-      .select("wallet_balance")
-      .eq("id", user.id)
-      .single();
-
-    // To-Do: low stock products (stock ≤ 5)
-    const { data: lowStockData } = await admin
-      .from("products")
-      .select("id, name, stock")
-      .eq("vendor_id", user.id)
-      .eq("status", "active")
-      .lte("stock", 5)
-      .order("stock", { ascending: true })
-      .limit(5);
-
-    // To-Do: products pending moderation review
-    const { count: pendingModerationCount } = await admin
-      .from("products")
-      .select("*", { count: "exact", head: true })
-      .eq("vendor_id", user.id)
-      .eq("moderation_status", "pending");
 
     const todos = [];
     if (pendingCount > 0) {

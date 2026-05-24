@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 function sanitizeSearchTerm(value) {
   if (!value) return null;
@@ -52,46 +52,37 @@ export async function GET(request) {
     const perPage    = Math.min(48, Math.max(1, Number(searchParams.get("per_page") || 12)));
     const offset     = (page - 1) * perPage;
 
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
-    // ── Fetch suspended/rejected vendor IDs to always exclude ────────────────
-    const { data: excludedVendors } = await supabase
-      .from("vendors")
-      .select("id")
-      .in("verification_status", ["suspended", "rejected"]);
-    const excludedVendorIds = (excludedVendors ?? []).map((v) => v.id);
+    // ── Parallel: excluded vendors + optional verified vendors + optional category slug ──
+    const [excludedRes, verifiedRes, catSlugRes] = await Promise.all([
+      supabase.from("vendors").select("id").in("verification_status", ["suspended", "rejected"]),
+      verifiedOnly
+        ? supabase.from("vendors").select("id").eq("verification_status", "verified")
+        : Promise.resolve({ data: null }),
+      !categoryId && categorySlug
+        ? supabase.from("categories").select("id").eq("slug", categorySlug).single()
+        : Promise.resolve({ data: null }),
+    ]);
+    const excludedVendorIds = (excludedRes.data ?? []).map((v) => v.id);
 
-    // ── Resolve verified vendor IDs (if filter requested) ────────────────────
     let verifiedVendorIds = null;
     if (verifiedOnly) {
-      const { data: vv } = await supabase
-        .from("vendors")
-        .select("id")
-        .eq("verification_status", "verified");
-      verifiedVendorIds = (vv ?? []).map((v) => v.id);
-      // If no verified vendors exist yet, return empty early
+      verifiedVendorIds = (verifiedRes.data ?? []).map((v) => v.id);
       if (verifiedVendorIds.length === 0) {
         return NextResponse.json({ success: true, products: [], pagination: { total: 0, page, perPage, pages: 0 } });
       }
     }
 
-    // ── Resolve category slug → id ────────────────────────────────────────────
     let resolvedCategoryId = categoryId;
-    if (!resolvedCategoryId && categorySlug) {
-      const { data: cat } = await supabase
-        .from("categories")
-        .select("id")
-        .eq("slug", categorySlug)
-        .single();
-      resolvedCategoryId = cat?.id ?? null;
-      // If no category found for the given slug, return empty
+    if (!categoryId && categorySlug) {
+      resolvedCategoryId = catSlugRes.data?.id ?? null;
       if (!resolvedCategoryId) {
         return NextResponse.json({ success: true, products: [], pagination: { total: 0, page, perPage, pages: 0 } });
       }
     }
 
     // ── Resolve all descendant category IDs (parent + its children) ───────────
-    // When a parent category is requested, include products from all sub-categories.
     let categoryIdFilter = resolvedCategoryId ? [resolvedCategoryId] : null;
     if (resolvedCategoryId) {
       const { data: children } = await supabase
@@ -112,11 +103,12 @@ export async function GET(request) {
         condition, attributes, location, badge, status, created_at,
         categories ( id, name, slug )
       `, { count: "exact" })
-      .eq("status", "active");
+      .eq("status", "active")
+      .eq("moderation_status", "approved");
 
     if (categoryIdFilter) query = query.in("category_id", categoryIdFilter);
     // Search name AND description so partial-word matches in specs/description surface too
-    if (search)             query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+    if (search)             query = query.ilike("name", `%${search}%`);
     if (minPrice !== null)  query = query.gte("price", minPrice);
     if (maxPrice !== null)  query = query.lte("price", maxPrice);
     if (minRating !== null) query = query.gte("avg_rating", minRating);
@@ -207,16 +199,19 @@ export async function GET(request) {
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      products,
-      pagination: {
-        total:   count ?? 0,
-        page,
-        perPage,
-        pages:   Math.ceil((count ?? 0) / perPage),
+    return NextResponse.json(
+      {
+        success: true,
+        products,
+        pagination: {
+          total:   count ?? 0,
+          page,
+          perPage,
+          pages:   Math.ceil((count ?? 0) / perPage),
+        },
       },
-    });
+      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } },
+    );
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
@@ -8,31 +7,30 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const admin = createAdminClient();
-
-    // Fetch last 5 orders
-    const { data: orders } = await admin
-      .from("orders")
-      .select("id, status, total, created_at")
-      .eq("customer_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    // Fetch last 5 reviews
-    const { data: reviews } = await admin
-      .from("product_reviews")
-      .select("id, rating, created_at, products!product_id(name)")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    // Fetch last 5 referrals (as referrer)
-    const { data: referrals } = await admin
-      .from("referrals")
-      .select("id, status, created_at, referred:users!referred_id(email, first_name)")
-      .eq("referrer_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
+    const [
+      { data: orders },
+      { data: reviews },
+      { data: referrals },
+    ] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("id, status, total, created_at")
+        .eq("customer_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("product_reviews")
+        .select("id, rating, created_at, products!product_id(name)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("referrals")
+        .select("id, status, created_at, referred:users!referred_id(email, first_name)")
+        .eq("referrer_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
 
     // Merge and sort all events by created_at desc
     const events = [

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 // GET /api/products/[id]/reviews
 export async function GET(request, { params }) {
@@ -9,9 +9,9 @@ export async function GET(request, { params }) {
     const limit  = Math.min(parseInt(searchParams.get("limit")  ?? "20", 10), 50);
     const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
-    const admin = createAdminClient();
+    const supabase = await createClient();
 
-    const { data: reviews, error, count } = await admin
+    const { data: reviews, error, count } = await supabase
       .from("product_reviews")
       .select(`
         id, rating, comment, images, helpful, created_at,

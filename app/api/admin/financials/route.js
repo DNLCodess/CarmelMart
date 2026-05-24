@@ -21,10 +21,21 @@ export async function GET(request) {
       ? new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    // Total GMV (all delivered/confirmed orders in range)
-    let orderQuery = admin.from("orders").select("total, status, created_at");
-    if (since) orderQuery = orderQuery.gte("created_at", since);
-    const { data: ordersData } = await orderQuery;
+    // ── Parallel: all 4 independent data fetches ─────────────────────────────
+    let orderBase = admin.from("orders").select("total, status, created_at");
+    let payBase   = admin.from("payments").select("amount, status, type, created_at");
+    let txBase    = admin.from("wallet_transactions")
+      .select("id, type, amount, description, reference, created_at, users!user_id ( email, role )")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (since) { orderBase = orderBase.gte("created_at", since); payBase = payBase.gte("created_at", since); txBase = txBase.gte("created_at", since); }
+
+    const [{ data: ordersData }, { data: paymentsData }, { data: walletData }, { data: txData }] = await Promise.all([
+      orderBase,
+      payBase,
+      admin.from("users").select("wallet_balance").gt("wallet_balance", 0),
+      txBase,
+    ]);
 
     const gmv = (ordersData || [])
       .filter((o) => !["cancelled", "refunded", "pending"].includes(o.status))
@@ -34,37 +45,14 @@ export async function GET(request) {
       .filter((o) => o.status === "refunded")
       .reduce((s, o) => s + (o.total ?? 0), 0);
 
-    // Payment gateway receipts
-    let payQuery = admin.from("payments").select("amount, status, type, created_at");
-    if (since) payQuery = payQuery.gte("created_at", since);
-    const { data: paymentsData } = await payQuery;
-
     const gatewayReceipts = (paymentsData || [])
       .filter((p) => p.status === "success" || p.status === "completed")
       .reduce((s, p) => s + Number(p.amount ?? 0), 0);
 
-    // Platform fee: 5% of GMV (configurable in future via platform_settings)
     const PLATFORM_FEE_RATE = 0.05;
     const platformFees = Math.round(gmv * PLATFORM_FEE_RATE);
 
-    // Total wallet balances across all users
-    const { data: walletData } = await admin
-      .from("users")
-      .select("wallet_balance")
-      .gt("wallet_balance", 0);
     const totalWalletBalances = (walletData || []).reduce((s, u) => s + (u.wallet_balance ?? 0), 0);
-
-    // Wallet transaction audit log
-    let txQuery = admin
-      .from("wallet_transactions")
-      .select(`
-        id, type, amount, description, reference, created_at,
-        users!user_id ( email, role )
-      `)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (since) txQuery = txQuery.gte("created_at", since);
-    const { data: txData } = await txQuery;
 
     const walletCredits = (txData || []).filter((t) => t.type === "credit").reduce((s, t) => s + t.amount, 0);
     const walletDebits  = (txData || []).filter((t) => t.type === "debit").reduce((s, t) => s + t.amount, 0);

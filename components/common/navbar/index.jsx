@@ -37,6 +37,8 @@ import AccountDropdown from "./AccountDropdown";
 import MobileDrawer from "./MobileDrawer";
 
 export default function Navbar() {
+  const pathname = usePathname();
+
   // ── UI state ──────────────────────────────────────────────────────────────
   const [isScrolled, setIsScrolled] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
@@ -61,7 +63,6 @@ export default function Navbar() {
 
   // ── Stores / auth ─────────────────────────────────────────────────────────
   const router = useRouter();
-  const pathname = usePathname();
   const queryClient = useQueryClient();
 
   const {

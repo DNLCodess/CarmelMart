@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("products")
       .select(`*, categories ( id, name, slug, template )`)
       .eq("id", id)
       .eq("status", "active")
+      .eq("moderation_status", "approved")
       .single();
 
     if (error || !data) {

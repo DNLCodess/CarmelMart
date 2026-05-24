@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 // Revalidate every 10 minutes — deals don't change second-by-second
 export const revalidate = 600;
@@ -12,7 +12,7 @@ export const revalidate = 600;
  */
 export async function GET() {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
     // Exclude products from suspended or rejected vendors
     const { data: excludedVendors } = await supabase
@@ -30,6 +30,7 @@ export async function GET() {
         categories ( id, name, slug )
       `)
       .eq("status", "active")
+      .eq("moderation_status", "approved")
       .not("sale_price", "is", null)
       .gt("sale_price", 0)
       .limit(40); // fetch more, sort by discount in JS, slice to 8
@@ -66,7 +67,10 @@ export async function GET() {
       .sort((a, b) => b.discount - a.discount)
       .slice(0, 8);
 
-    return NextResponse.json({ success: true, products });
+    return NextResponse.json(
+      { success: true, products },
+      { headers: { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1800" } },
+    );
   } catch (error) {
     return NextResponse.json({ success: false, products: [], error: error.message });
   }
