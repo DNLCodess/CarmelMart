@@ -459,9 +459,8 @@ export default function EditProductPage() {
                 {...register("status")}
                 className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
               >
-                <option value="active">Active — visible in store</option>
+                <option value="inactive">Inactive — awaiting admin review</option>
                 <option value="draft">Draft — hidden from store</option>
-                <option value="inactive">Inactive — out of stock</option>
               </select>
             </div>
           </div>

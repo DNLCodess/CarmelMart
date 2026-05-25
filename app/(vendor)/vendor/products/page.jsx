@@ -12,7 +12,7 @@ async function fetchVendorProducts() {
   return r.json();
 }
 
-function ConfirmDialog({ open, title, message, onConfirm, onCancel }) {
+function ConfirmDialog({ open, title, message, onConfirm, onCancel, confirming }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -20,11 +20,11 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel }) {
         <h3 className="font-bold text-gray-900 dark:text-gray-100 text-lg mb-2">{title}</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">{message}</p>
         <div className="flex items-center justify-end gap-3">
-          <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
+          <button onClick={onCancel} disabled={confirming} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50">
             Cancel
           </button>
-          <button onClick={onConfirm} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors">
-            Delete
+          <button onClick={onConfirm} disabled={confirming} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-xl transition-colors">
+            {confirming ? "Deleting…" : "Delete"}
           </button>
         </div>
       </div>
@@ -50,20 +50,23 @@ export default function VendorProductsPage() {
   const products = data?.products ?? [];
 
   const { mutate: bulkStatus, isPending: bulking } = useMutation({
-    mutationFn: ({ ids, status }) =>
-      fetch("/api/vendor/products", {
+    mutationFn: async ({ ids, status }) => {
+      const r = await fetch("/api/vendor/products", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: [...ids], status }),
-      }).then((r) => r.json()),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Bulk update failed");
+      return d;
+    },
     onSuccess: (d) => {
-      if (d.error) { toast.error(d.error); return; }
       toast.success(`${d.updated} product${d.updated !== 1 ? "s" : ""} updated`);
       setSelected(new Set());
       setBulkMenuOpen(false);
       qc.invalidateQueries({ queryKey: ["vendor-products"] });
     },
-    onError: () => toast.error("Bulk update failed"),
+    onError: (e) => toast.error(e.message),
   });
 
   const { mutate: deleteProduct, isPending: deleting } = useMutation({
@@ -315,6 +318,7 @@ export default function VendorProductsPage() {
         message={`"${deleteTarget?.name}" will be permanently removed from your store. This cannot be undone.`}
         onConfirm={() => deleteProduct(deleteTarget.id)}
         onCancel={() => setDeleteTarget(null)}
+        confirming={deleting}
       />
     </div>
   );

@@ -7,12 +7,16 @@ import toast from "react-hot-toast";
 
 async function fetchOrders(params) {
   const r = await fetch(`/api/admin/orders?${params}`);
-  return r.json();
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error ?? "Failed to load orders");
+  return d;
 }
 
 async function fetchActiveRiders() {
   const r = await fetch("/api/admin/riders?active=true");
-  return r.json();
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error ?? "Failed to load riders");
+  return d;
 }
 
 const STATUS_CFG = {
@@ -145,7 +149,7 @@ export default function AdminOrdersPage() {
   const params = new URLSearchParams({ page });
   if (statusFilter) params.set("status", statusFilter);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error: ordersError } = useQuery({
     queryKey: ["admin-orders", statusFilter, page],
     queryFn: () => fetchOrders(params.toString()),
     staleTime: 30_000,
@@ -250,6 +254,11 @@ export default function AdminOrdersPage() {
           <div className="p-12 text-center">
             <RefreshCw className="w-6 h-6 text-gray-300 dark:text-gray-600 animate-spin mx-auto mb-2" />
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading orders…</p>
+          </div>
+        ) : isError ? (
+          <div className="p-14 text-center">
+            <p className="font-semibold text-red-500 dark:text-red-400 mb-1">Failed to load orders</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">{ordersError?.message}</p>
           </div>
         ) : orders.length === 0 ? (
           <div className="p-14 text-center">

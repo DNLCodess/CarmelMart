@@ -265,11 +265,10 @@ function LoginContent() {
         router.push(from);
       } else {
         const role = result.user?.role;
-        if      (role === "admin")           router.push("/admin/dashboard");
-        else if (role === "vendor")          router.push("/vendor/dashboard");
-        else if (role === "rider")           router.push("/rider/orders");
-        else if (role === "logistics_admin") router.push("/logistics/dashboard");
-        else                                 router.push("/");
+        if      (role === "admin")  router.push("/admin/dashboard");
+        else if (role === "vendor") router.push("/vendor/dashboard");
+        else if (role === "rider")  router.push("/rider/orders");
+        else                        router.push("/");
       }
     } catch (err) {
       toast.error(err.message || "Login failed. Please try again.");

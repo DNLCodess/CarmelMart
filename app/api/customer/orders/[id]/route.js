@@ -68,6 +68,7 @@ export async function GET(request, { params }) {
         payment_method: order.payment_method,
         payment_status: order.payment_status,
         payment_ref:    order.payment_ref,
+        notes:          order.notes ?? null,
         date:           order.created_at,
         address:        addr,
         delivery_method: addr.delivery_method ?? "standard",

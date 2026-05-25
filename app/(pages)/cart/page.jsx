@@ -111,7 +111,8 @@ export default function CartPage() {
                       <div className="flex items-center border-2 border-gray-200 rounded-full overflow-hidden">
                         <button
                           onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                          className="px-3 py-1.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="px-3 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                          aria-label="Decrease quantity"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -120,7 +121,8 @@ export default function CartPage() {
                         </span>
                         <button
                           onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                          className="px-3 py-1.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="px-3 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                          aria-label="Increase quantity"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -132,7 +134,7 @@ export default function CartPage() {
                         </span>
                         <button
                           onClick={() => handleRemove(item)}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                           aria-label="Remove item"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -159,7 +161,10 @@ export default function CartPage() {
                   placeholder="Enter code"
                   className="flex-1 px-4 py-2.5 rounded-full border border-gray-200 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none"
                 />
-                <button className="px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-full hover:bg-gray-800 transition-colors">
+                <button
+                  onClick={() => toast("Apply promo codes at checkout for the most accurate total.")}
+                  className="px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-full hover:bg-gray-800 transition-colors"
+                >
                   Apply
                 </button>
               </div>

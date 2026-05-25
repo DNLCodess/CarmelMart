@@ -197,13 +197,18 @@ export default function VipVendorsPage() {
   });
 
   const saveNote = useMutation({
-    mutationFn: ({ vendor_id, note }) =>
-      fetch("/api/admin/vip-vendors", {
+    mutationFn: async ({ vendor_id, note }) => {
+      const r = await fetch("/api/admin/vip-vendors", {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ vendor_id, note }),
-      }).then((r) => r.json()),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to save note");
+      return d;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-vip-vendors"] }),
+    onError: (e) => toast.error(e.message),
   });
 
   const vendors = data?.vendors ?? [];

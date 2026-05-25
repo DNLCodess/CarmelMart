@@ -7,10 +7,9 @@ export default async function DashboardRedirectPage() {
   if (!user) redirect("/login");
 
   switch (user.role) {
-    case "admin":           redirect("/admin/dashboard");
-    case "vendor":          redirect("/vendor/dashboard");
-    case "logistics_admin": redirect("/logistics/dashboard");
-    case "rider":           redirect("/rider/dashboard");
-    default:                redirect("/");
+    case "admin":  redirect("/admin/dashboard");
+    case "vendor": redirect("/vendor/dashboard");
+    case "rider":  redirect("/rider/orders");
+    default:       redirect("/");
   }
 }

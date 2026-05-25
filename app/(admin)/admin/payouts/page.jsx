@@ -97,19 +97,22 @@ export default function AdminPayoutsPage() {
   const payouts = data?.payouts ?? [];
 
   const approveMutation = useMutation({
-    mutationFn: (payoutId) =>
-      fetch("/api/admin/payouts", {
+    mutationFn: async (payoutId) => {
+      const r = await fetch("/api/admin/payouts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payoutId }),
-      }).then((r) => r.json()),
-    onSuccess: (d) => {
-      if (d.error) { toast.error(d.error); return; }
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Transfer failed");
+      return d;
+    },
+    onSuccess: () => {
       toast.success("Transfer initiated successfully");
       setConfirm(null);
       qc.invalidateQueries({ queryKey: ["admin-payouts"] });
     },
-    onError: () => toast.error("Transfer failed"),
+    onError: (e) => toast.error(e.message),
   });
 
   return (

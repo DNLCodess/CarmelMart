@@ -189,16 +189,19 @@ export default function PODBlacklistPage() {
   const warned      = users.filter((u) => !u.blacklisted);
 
   const mutate = useMutation({
-    mutationFn: (body) =>
-      fetch("/api/admin/pod-blacklist", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()),
-    onSuccess: (d, vars) => {
-      if (d.error) { toast.error(d.error); return; }
+    mutationFn: async (body) => {
+      const r = await fetch("/api/admin/pod-blacklist", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Action failed");
+      return d;
+    },
+    onSuccess: (_, vars) => {
       const labels = { record_refusal: "Refusal recorded", blacklist: "User blacklisted", unblacklist: "User removed from blacklist" };
       toast.success(labels[vars.action] ?? "Done");
       setShowModal(false);
       qc.invalidateQueries({ queryKey: ["admin-pod-blacklist"] });
     },
-    onError: () => toast.error("Action failed"),
+    onError: (e) => toast.error(e.message),
   });
 
   const UserRow = ({ u }) => (

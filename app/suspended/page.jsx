@@ -13,7 +13,7 @@ export default function SuspendedPage() {
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-3">Account Suspended</h1>
         <p className="text-gray-500 mb-8 leading-relaxed">
-          Your logistics account has been suspended. Please contact the CarmelMart admin team for assistance.
+          Your account has been suspended. Please contact the CarmelMart admin team for assistance.
         </p>
         <form action={logoutAction}>
           <button

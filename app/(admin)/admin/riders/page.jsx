@@ -105,7 +105,7 @@ function CreateRiderModal({ onClose, onCreated }) {
           </Field>
 
           <Field label="Phone Number">
-            <input value={form.phone} onChange={set("phone")} placeholder="08012345678" className={inputCls()} />
+            <input type="tel" value={form.phone} onChange={set("phone")} placeholder="08012345678" className={inputCls()} />
           </Field>
 
           <Field label="Password *" error={errors.password}>
@@ -294,7 +294,7 @@ export default function RidersPage() {
   const [deactivateTarget,  setDeactivateTarget]  = useState(null);
   const [loadingId,         setLoadingId]         = useState(null);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error: ridersError, refetch } = useQuery({
     queryKey: ["admin-riders"],
     queryFn:  fetchRiders,
     staleTime: 30_000,
@@ -373,7 +373,7 @@ export default function RidersPage() {
         <Bike className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
         <p className="text-sm text-blue-800 dark:text-blue-300">
           Riders log into the <strong>/rider/orders</strong> portal to view their assigned deliveries and update status.
-          Logistics staff assign orders to active riders from the <strong>/logistics</strong> portal.
+          Assign riders to orders from the <strong>Orders</strong> section in this admin panel.
         </p>
       </div>
 
@@ -381,6 +381,14 @@ export default function RidersPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 text-gray-300 dark:text-gray-600 animate-spin" />
+        </div>
+      ) : isError ? (
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-red-100 dark:border-red-900/30">
+          <p className="font-semibold text-red-500 dark:text-red-400 mb-1">Failed to load riders</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">{ridersError?.message}</p>
+          <button onClick={() => refetch()} className="px-4 py-2 text-sm font-semibold border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+            Retry
+          </button>
         </div>
       ) : riders.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">

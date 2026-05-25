@@ -44,6 +44,12 @@ export async function PATCH(request, { params }) {
     const admin = createAdminClient();
 
 
+    // Vendors may only move products to draft/inactive — "active" requires admin approval.
+    const VENDOR_ALLOWED_STATUSES = ["draft", "inactive"];
+    if (body.status !== undefined && !VENDOR_ALLOWED_STATUSES.includes(body.status)) {
+      return NextResponse.json({ error: "Vendors cannot set product status to 'active'. Submit for admin review." }, { status: 403 });
+    }
+
     const update = {
       name:        body.name,
       description: body.description,
@@ -51,12 +57,12 @@ export async function PATCH(request, { params }) {
       sale_price:  body.sale_price ?? null,
       stock:       body.stock,
       category_id: body.category_id,
-      status:      body.status,
       images:      body.images ?? [],
       condition:   ["new","used","refurbished"].includes(body.condition) ? body.condition : "new",
       attributes:  body.attributes && typeof body.attributes === "object" ? body.attributes : {},
       updated_at:  new Date().toISOString(),
     };
+    if (body.status !== undefined) update.status = body.status;
 
     // Books & Media fields — only written when the caller sends them
     if (body.is_media_category) {

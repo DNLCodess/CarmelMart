@@ -57,19 +57,22 @@ export default function AdminSettingsPage() {
   };
 
   const saveMutation = useMutation({
-    mutationFn: (updates) =>
-      fetch("/api/admin/settings", {
+    mutationFn: async (updates) => {
+      const r = await fetch("/api/admin/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
-      }).then((r) => r.json()),
-    onSuccess: (d) => {
-      if (d.error) { toast.error(d.error); return; }
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to save settings");
+      return d;
+    },
+    onSuccess: () => {
       toast.success("Settings saved");
       setDirty(false);
       qc.invalidateQueries({ queryKey: ["admin-settings"] });
     },
-    onError: () => toast.error("Failed to save settings"),
+    onError: (e) => toast.error(e.message),
   });
 
   const handleSave = () => {

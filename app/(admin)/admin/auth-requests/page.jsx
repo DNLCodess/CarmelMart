@@ -31,9 +31,8 @@ const OP_LABELS = {
 // ── Review modal ──────────────────────────────────────────────────────────────
 
 function ReviewModal({ req, onClose, onDecide, saving }) {
-  const [action, setAction]  = useState("approve");
-  const [note,   setNote]    = useState("");
-  const [expanded, setExpanded] = useState(true);
+  const [action, setAction] = useState("approve");
+  const [note,   setNote]   = useState("");
   const opData = req.operation_data ?? {};
 
   const isRefund = req.operation_type === "refund";
@@ -109,7 +108,7 @@ function ReviewModal({ req, onClose, onDecide, saving }) {
             <div className="flex items-start gap-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3">
               <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
               <p className="text-xs text-red-700 dark:text-red-400">
-                The logistics admin will be notified of the rejection. No action will be executed.
+                The requester will be notified of the rejection. No action will be executed.
               </p>
             </div>
           )}
@@ -239,8 +238,8 @@ function RequestRow({ req, onReview }) {
               {req.operation_type === "other" && opData.description && (
                 <Row label="Description" value={opData.description} />
               )}
-              {req.review_note && (
-                <Row label="Review note" value={req.review_note} />
+              {req.notes && (
+                <Row label="Review note" value={req.notes} />
               )}
               {req.executed_at && (
                 <Row
@@ -317,7 +316,7 @@ export default function AdminAuthRequestsPage() {
         <div>
           <h2 className="font-bold text-gray-900 dark:text-gray-100 text-xl">Authorization Requests</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Sensitive operations submitted by logistics admins for your approval.
+            Sensitive operations submitted by admins for your approval.
           </p>
         </div>
         <div className="flex items-center gap-3">

@@ -35,7 +35,7 @@ export async function GET() {
     let userInfoMap = {};
     if (customerIds.length > 0) {
       const { data: users } = await admin
-        .from("users").select("id, email, phone").in("id", customerIds);
+        .from("users").select("id, first_name, last_name, email, phone").in("id", customerIds);
       userInfoMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
     }
 
@@ -53,7 +53,7 @@ export async function GET() {
         const u = userInfoMap[cId] ?? {};
         customerMap[cId] = {
           id:          cId,
-          name:        u.email ?? "Customer",
+          name:        [u.first_name, u.last_name].filter(Boolean).join(" ") || u.email || "Customer",
           email:       u.email ?? null,
           phone:       u.phone ?? null,
           totalOrders: new Set(),

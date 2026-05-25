@@ -71,6 +71,7 @@ export default function AdminDashboardPage() {
   const topCategories       = data?.top_categories       ?? [];
   const recentActivity      = data?.recent_activity      ?? [];
   const ordersByState       = data?.orders_by_state      ?? [];
+  const orderStatus         = data?.order_status         ?? ORDER_PIE_FALLBACK;
 
   return (
     <div className="space-y-6">
@@ -141,21 +142,21 @@ export default function AdminDashboardPage() {
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={ORDER_PIE_FALLBACK} cx="50%" cy="50%" innerRadius={48} outerRadius={70} paddingAngle={3} dataKey="value">
-                  {ORDER_PIE_FALLBACK.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                <Pie data={orderStatus} cx="50%" cy="50%" innerRadius={48} outerRadius={70} paddingAngle={3} dataKey="value">
+                  {orderStatus.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                 </Pie>
-                <Tooltip formatter={(v, n) => [`${v}%`, n]} contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                <Tooltip formatter={(v, n) => [v.toLocaleString(), n]} contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
           <div className="space-y-2 mt-2">
-            {ORDER_PIE_FALLBACK.map((item) => (
+            {orderStatus.map((item) => (
               <div key={item.name} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                   <span className="text-xs text-gray-600 dark:text-gray-400">{item.name}</span>
                 </div>
-                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{item.value}%</span>
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{item.value.toLocaleString()}</span>
               </div>
             ))}
           </div>

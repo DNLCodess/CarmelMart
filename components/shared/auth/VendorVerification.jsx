@@ -78,15 +78,13 @@ export default function VendorVerification({
       const { error: vendorError } = await supabase
         .from("vendors")
         .update({
-          business_name: data.businessName,
-          address: data.address,
-          phone: data.phone,
-          bank_details: {
-            account_number: data.accountNumber,
-            bank_name: data.bankName,
-            account_name: data.accountName,
-          },
-          updated_at: new Date().toISOString(),
+          business_name:        data.businessName,
+          address:              data.address,
+          phone:                data.phone,
+          bank_account_number:  data.accountNumber,
+          bank_name:            data.bankName,
+          bank_code:            data.bankCode,
+          updated_at:           new Date().toISOString(),
         })
         .eq("id", userId);
 
@@ -405,8 +403,9 @@ export default function VendorVerification({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <Input
                         label="Account Number"
-                        placeholder="10-digit account"
+                        placeholder="10-digit NUBAN"
                         maxLength={10}
+                        inputMode="numeric"
                         {...register("accountNumber", {
                           required: "Account number is required",
                           pattern: { value: /^\d{10}$/, message: "Must be 10 digits" },
@@ -414,17 +413,22 @@ export default function VendorVerification({
                         error={errors.accountNumber?.message}
                       />
                       <Input
-                        label="Bank Name"
-                        placeholder="Your bank"
-                        {...register("bankName", { required: "Bank name is required" })}
-                        error={errors.bankName?.message}
+                        label="Bank Code"
+                        placeholder="e.g. 011 (First Bank)"
+                        maxLength={6}
+                        inputMode="numeric"
+                        {...register("bankCode", {
+                          required: "Bank code is required",
+                          pattern: { value: /^\d{3,6}$/, message: "3–6 digit code" },
+                        })}
+                        error={errors.bankCode?.message}
                       />
                     </div>
                     <Input
-                      label="Account Name"
-                      placeholder="As it appears on your account"
-                      {...register("accountName", { required: "Account name is required" })}
-                      error={errors.accountName?.message}
+                      label="Bank Name"
+                      placeholder="e.g. First Bank, GTBank"
+                      {...register("bankName", { required: "Bank name is required" })}
+                      error={errors.bankName?.message}
                     />
                   </div>
                 </div>

@@ -23,8 +23,8 @@ export default function RiderShell({ children }) {
   const { dark, toggle, mounted } = useDashboardTheme("cm-rider-theme");
   const { canInstall, isStandalone, triggerInstall, isIOS } = usePWAInstall() ?? {};
 
-  const displayName = user?.user_metadata?.first_name
-    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name ?? ""}`.trim()
+  const displayName = user?.first_name
+    ? `${user.first_name} ${user.last_name ?? ""}`.trim()
     : user?.email ?? "Rider";
   const initials = displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
@@ -102,7 +102,7 @@ export default function RiderShell({ children }) {
             <button
               onClick={handleSignOut}
               title="Sign out"
-              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -116,7 +116,7 @@ export default function RiderShell({ children }) {
         <header className="sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl transition-colors lg:hidden"
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl transition-colors lg:hidden"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -133,7 +133,7 @@ export default function RiderShell({ children }) {
 
           <div className="flex items-center gap-1">
             {/* Install nudge — only shown when app is not yet installed */}
-            {canInstall && !isStandalone && (
+            {canInstall && !isStandalone && !isIOS && (
               <button
                 onClick={() => triggerInstall?.()}
                 title="Install app for faster access"
@@ -142,6 +142,16 @@ export default function RiderShell({ children }) {
                 <Download className="w-3.5 h-3.5" />
                 Install
               </button>
+            )}
+            {/* iOS: browser install prompt unavailable — show manual hint instead */}
+            {isIOS && !isStandalone && (
+              <span
+                title="Tap Share → Add to Home Screen to install"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-xl cursor-default select-none"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Share → Add to Home
+              </span>
             )}
             <button
               onClick={toggle}
@@ -158,7 +168,7 @@ export default function RiderShell({ children }) {
             </Link>
             <button
               onClick={handleSignOut}
-              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors lg:hidden"
+              className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors lg:hidden"
               title="Sign out"
             >
               <LogOut className="w-4 h-4" />

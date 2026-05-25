@@ -5,9 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package, MapPin, Phone, User, Check, Loader2,
-  X, RefreshCw, Bike, AlertTriangle,
+  X, RefreshCw, Bike, AlertTriangle, AlertCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import toast from "react-hot-toast";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -28,8 +29,9 @@ const STATUS_NEXT = {
   shipped:    "delivered",
 };
 
-// Rider-facing labels for each transition
+// Rider-facing labels for the action button — keyed by CURRENT order status
 const ACTION_LABEL = {
+  pending:    "Accept Order",
   confirmed:  "Confirm Pickup",
   processing: "Out for Delivery",
   shipped:    "Mark Delivered",
@@ -108,7 +110,7 @@ function OrderSheet({ order, onClose, onStatusUpdate, updating }) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+            className="p-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -192,7 +194,7 @@ function OrderSheet({ order, onClose, onStatusUpdate, updating }) {
               ) : (
                 <>
                   <Check className="w-5 h-5" />
-                  {ACTION_LABEL[nextStatus] ?? `Mark as ${nextStatus}`}
+                  {ACTION_LABEL[order.status] ?? `Mark as ${nextStatus}`}
                 </>
               )}
             </button>
@@ -245,7 +247,7 @@ function TaskCard({ order, onOpen, onStatusUpdate, updating }) {
             <a
               href={`tel:${order.customer.phone}`}
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 active:bg-emerald-100"
+              className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-3 py-2 rounded-xl text-xs font-bold shrink-0 active:bg-emerald-100"
             >
               <Phone className="w-3.5 h-3.5" />
               Call
@@ -294,7 +296,7 @@ function TaskCard({ order, onOpen, onStatusUpdate, updating }) {
           ) : (
             <>
               <Check className="w-4 h-4" />
-              {ACTION_LABEL[nextStatus] ?? nextStatus}
+              {ACTION_LABEL[order.status] ?? nextStatus}
             </>
           )}
         </button>
@@ -312,17 +314,16 @@ function TaskCard({ order, onOpen, onStatusUpdate, updating }) {
 
 export default function RiderOrdersPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   // Default to Active tab — that's what riders care about most
   const [tab,       setTab]       = useState("active");
   const [openOrder, setOpenOrder] = useState(null);
   const [updating,  setUpdating]  = useState(null);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["rider-orders", tab],
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+    queryKey: ["rider-orders"],
     queryFn:  async () => {
-      const params = new URLSearchParams();
-      if (tab === "delivered") params.set("status", "delivered");
-      const r = await fetch(`/api/rider/orders?${params}`);
+      const r = await fetch("/api/rider/orders");
       if (!r.ok) throw new Error("Failed to fetch orders");
       return r.json();
     },
@@ -330,22 +331,25 @@ export default function RiderOrdersPage() {
     retry:     false,
   });
 
-  // Realtime: re-fetch when any order changes
+  // Realtime: re-fetch only when THIS rider's orders change
   useEffect(() => {
+    if (!user?.id) return;
     const supabase = createClient();
     const channel  = supabase
       .channel("rider-orders-feed")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, () => {
-        qc.invalidateQueries({ queryKey: ["rider-orders"] });
-      })
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `rider_id=eq.${user.id}` },
+        () => { qc.invalidateQueries({ queryKey: ["rider-orders"] }); }
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [qc]);
+  }, [qc, user?.id]);
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     setUpdating(orderId);
     try {
-      const r = await fetch(`/api/logistics/orders/${orderId}/status`, {
+      const r = await fetch(`/api/rider/orders/${orderId}/status`, {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ status: newStatus }),
@@ -381,6 +385,8 @@ export default function RiderOrdersPage() {
 
   if (tab === "active") {
     orders = orders.filter((o) => ACTIVE_STATUSES.includes(o.status));
+  } else if (tab === "delivered") {
+    orders = orders.filter((o) => o.status === "delivered");
   }
 
   // Sort by urgency so "Out for Delivery" always rises to the top
@@ -446,14 +452,32 @@ export default function RiderOrdersPage() {
           <Loader2 className="w-8 h-8 text-gray-300 dark:text-gray-600 animate-spin" />
           <p className="text-sm text-gray-400 dark:text-gray-500">Loading deliveries…</p>
         </div>
+      ) : isError ? (
+        <div className="flex flex-col items-center justify-center py-24 gap-3 bg-white dark:bg-gray-800 rounded-3xl border border-red-100 dark:border-red-900/30">
+          <AlertCircle className="w-10 h-10 text-red-400 dark:text-red-500" />
+          <p className="font-bold text-gray-700 dark:text-gray-300">Failed to load deliveries</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Check your connection and try again.</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-1 flex items-center gap-2 px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" /> Retry
+          </button>
+        </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-24 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700">
           <Bike className="w-14 h-14 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
           <p className="font-bold text-gray-500 dark:text-gray-400">
-            {tab === "active" ? "No active deliveries" : "No deliveries yet"}
+            {tab === "active"
+              ? "No active deliveries"
+              : tab === "delivered"
+              ? "No completed deliveries yet"
+              : "No deliveries yet"}
           </p>
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-            Orders assigned to you will appear here.
+            {tab === "delivered"
+              ? "Completed deliveries will appear here."
+              : "Orders assigned to you will appear here."}
           </p>
         </div>
       ) : (

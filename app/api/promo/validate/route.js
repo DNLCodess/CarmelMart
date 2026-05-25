@@ -41,7 +41,7 @@ export async function POST(request) {
       .eq("promo_id", promo.id)
       .eq("user_id", user.id);
 
-    if (count > 0)
+    if ((count ?? 0) > 0)
       return NextResponse.json({ error: "You have already used this promo code", valid: false }, { status: 400 });
 
     // Calculate discount

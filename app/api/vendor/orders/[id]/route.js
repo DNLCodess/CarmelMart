@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderStatusUpdate } from "@/lib/email";
+import { getCommissionRate } from "@/lib/subscription";
 
 // GET /api/vendor/orders/[id] — full order detail for vendor
 export async function GET(request, { params }) {
@@ -40,10 +41,11 @@ export async function GET(request, { params }) {
 
     // Fetch customer info from public.users
     const { data: customerUser } = order.customer_id
-      ? await admin.from("users").select("email, phone").eq("id", order.customer_id).single()
+      ? await admin.from("users").select("first_name, last_name, email, phone").eq("id", order.customer_id).single()
       : { data: null };
 
     const addr = order.delivery_address ?? {};
+    const customerName = [customerUser?.first_name, customerUser?.last_name].filter(Boolean).join(" ") || customerUser?.email || "Customer";
 
     return NextResponse.json({
       order: {
@@ -53,7 +55,7 @@ export async function GET(request, { params }) {
         amount:   order.total,
         payment_method: order.payment_method ?? null,
         date:     new Date(order.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
-        customer: customerUser?.email ?? "Customer",
+        customer: customerName,
         phone:    customerUser?.phone ?? addr.phone ?? null,
         delivery_address: addr,
         order_items: items.map((it) => ({
@@ -108,8 +110,8 @@ export async function PATCH(request, { params }) {
 
     if (!item) return NextResponse.json({ error: "Order not found or access denied" }, { status: 404 });
 
-    const updatePayload = { status };
-    if (tracking_number) updatePayload.tracking_number = tracking_number;
+    const updatePayload = { status, updated_at: new Date().toISOString() };
+    if (tracking_number != null) updatePayload.tracking_number = tracking_number;
 
     const { error } = await admin
       .from("orders")
@@ -117,6 +119,64 @@ export async function PATCH(request, { params }) {
       .eq("id", id);
 
     if (error) throw error;
+
+    // Credit vendor wallets on delivery (self-fulfilled orders — no rider)
+    if (status === "delivered") {
+      try {
+        const { data: fullOrder } = await admin
+          .from("orders")
+          .select("payment_status")
+          .eq("id", id)
+          .single();
+
+        if (fullOrder?.payment_status === "paid") {
+          const { data: allItems } = await admin
+            .from("order_items")
+            .select("vendor_id, total")
+            .eq("order_id", id);
+
+          if (allItems?.length) {
+            const vendorTotals = {};
+            for (const it of allItems) {
+              vendorTotals[it.vendor_id] = (vendorTotals[it.vendor_id] ?? 0) + it.total;
+            }
+            const vendorIds = Object.keys(vendorTotals);
+            const [{ data: vendorRows }, { data: rateOverrides }] = await Promise.all([
+              admin.from("vendors").select("id, subscription_tier").in("id", vendorIds),
+              admin.from("commission_rates").select("target_id, rate").eq("type", "vendor").in("target_id", vendorIds),
+            ]);
+            const tierMap     = Object.fromEntries((vendorRows     ?? []).map((v) => [v.id, v.subscription_tier ?? "free"]));
+            const overrideMap = Object.fromEntries((rateOverrides  ?? []).map((r) => [r.target_id, Number(r.rate)]));
+            const now      = new Date().toISOString();
+            const shortId  = `#CM-${id.slice(0, 8).toUpperCase()}`;
+
+            for (const [vendorId, grossTotal] of Object.entries(vendorTotals)) {
+              const tier           = tierMap[vendorId] ?? "free";
+              const commissionRate = overrideMap[vendorId] ?? getCommissionRate(tier);
+              const vendorEarning  = Math.round(grossTotal * (1 - commissionRate / 100));
+              if (vendorEarning <= 0) continue;
+
+              const { error: walletErr } = await admin.rpc("increment_wallet", {
+                p_user_id: vendorId,
+                p_amount:  vendorEarning,
+              });
+              if (walletErr) throw walletErr;
+
+              await admin.from("wallet_transactions").insert({
+                user_id:     vendorId,
+                type:        "credit",
+                amount:      vendorEarning,
+                description: `Order ${shortId} delivered (vendor fulfilled) — after ${commissionRate}% commission`,
+                reference:   id,
+                created_at:  now,
+              });
+            }
+          }
+        }
+      } catch (commErr) {
+        console.error("[vendor/orders/patch] commission crediting failed:", commErr.message);
+      }
+    }
 
     // Notify customer of status change
     const { data: orderRow } = await admin

@@ -1,6 +1,6 @@
 // CarmelMart Service Worker
 // Bump VERSION when you need to flush all caches on next deploy.
-const VERSION     = "v3";
+const VERSION     = "v4";
 const SHELL_CACHE = `cm-shell-${VERSION}`;
 const API_CACHE   = `cm-api-${VERSION}`;
 const IMG_CACHE   = `cm-img-${VERSION}`;
@@ -56,12 +56,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ── Rider + logistics API: network-first, serve stale if offline ─────────
+  // ── Rider API: network-first, serve stale if offline ────────────────────
   // Riders need to see their last-known orders when signal drops.
-  if (
-    url.pathname.startsWith("/api/rider/") ||
-    url.pathname.startsWith("/api/logistics/orders/")
-  ) {
+  if (url.pathname.startsWith("/api/rider/")) {
     event.respondWith(networkFirst(request, API_CACHE));
     return;
   }

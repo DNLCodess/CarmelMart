@@ -182,7 +182,8 @@ export async function POST(request) {
       .from("products")
       .select("id, name, price, sale_price, stock, vendor_id, is_digital, digital_price")
       .in("id", productIds)
-      .eq("status", "active");
+      .eq("status", "active")
+      .eq("moderation_status", "approved");
 
     if (prodErr) throw prodErr;
 
@@ -244,7 +245,10 @@ export async function POST(request) {
       if (!verification.ok) return jsonError(verification.error, 400);
 
       verifiedTransaction = verification.data;
-      paymentStatus = isPod ? "deposit_paid" : "paid";
+      // "deposit_paid" is not a valid payment_status value per DB constraint.
+      // POD deposit paid is tracked via pod_deposit column; status stays "pending"
+      // until full delivery payment is confirmed.
+      paymentStatus = isPod ? "pending" : "paid";
       orderStatus = isPod ? "pending" : "confirmed";
     } else if (!isPod) {
       return jsonError("Online payment is required for this order.");
@@ -268,19 +272,6 @@ export async function POST(request) {
     });
 
     if (createErr) throw createErr;
-
-    // Set delivery_format on any digital items (default in DB is 'physical')
-    const digitalProductIds = orderItems
-      .filter((i) => i.delivery_format === "digital")
-      .map((i) => i.product_id);
-
-    if (digitalProductIds.length > 0) {
-      await admin
-        .from("order_items")
-        .update({ delivery_format: "digital" })
-        .eq("order_id", orderId)
-        .in("product_id", digitalProductIds);
-    }
 
     sendOrderConfirmation({
       to: user.email,

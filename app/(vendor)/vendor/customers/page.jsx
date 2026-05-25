@@ -26,8 +26,8 @@ export default function VendorCustomersPage() {
 
   const customers = search.trim()
     ? allCustomers.filter((c) =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.email.toLowerCase().includes(search.toLowerCase())
+        (c.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (c.email ?? "").toLowerCase().includes(search.toLowerCase())
       )
     : allCustomers;
 

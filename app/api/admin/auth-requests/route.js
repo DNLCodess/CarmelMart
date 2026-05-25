@@ -87,7 +87,8 @@ export async function PATCH(request) {
         .update({
           status:      "rejected",
           reviewed_by: user.id,
-          review_note: review_note?.trim() ?? null,
+          notes:       review_note?.trim() ?? null,
+          reviewed_at: now,
           updated_at:  now,
         })
         .eq("id", id);
@@ -127,17 +128,12 @@ export async function PATCH(request) {
         );
       }
 
-      // Credit wallet
-      const { data: currentUser } = await admin
-        .from("users")
-        .select("wallet_balance")
-        .eq("id", customer_id)
-        .single();
-
-      await admin
-        .from("users")
-        .update({ wallet_balance: (currentUser?.wallet_balance ?? 0) + Number(amount) })
-        .eq("id", customer_id);
+      // Credit wallet — atomic RPC to prevent race conditions
+      const { error: walletErr } = await admin.rpc("increment_wallet", {
+        p_user_id: customer_id,
+        p_amount:  Number(amount),
+      });
+      if (walletErr) throw walletErr;
 
       const reference = `CM-REF-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 7).toUpperCase()}`;
 
@@ -160,7 +156,8 @@ export async function PATCH(request) {
       .update({
         status:      "approved",
         reviewed_by: user.id,
-        review_note: review_note?.trim() ?? null,
+        notes:       review_note?.trim() ?? null,
+        reviewed_at: now,
         executed_at: now,
         updated_at:  now,
       })

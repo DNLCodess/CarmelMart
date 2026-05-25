@@ -22,6 +22,7 @@ import {
   Tag,
   AlertTriangle,
   Truck,
+  Bike,
   BarChart2,
   Ticket,
   Wallet,
@@ -45,7 +46,7 @@ const NAV_ITEMS = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
   { href: "/admin/delivery-zones", label: "Delivery", icon: Truck },
-  { href: "/admin/riders", label: "Riders", icon: Truck },
+  { href: "/admin/riders", label: "Riders", icon: Bike },
   { href: "/admin/auth-requests", label: "Auth Requests", icon: ShieldCheck },
   { href: "/admin/financials", label: "Financials", icon: BarChart2 },
   { href: "/admin/promo-codes", label: "Promo Codes", icon: Ticket },
@@ -69,8 +70,8 @@ export default function AdminShell({ children }) {
   const { user } = useAuth();
   const { dark, toggle, mounted } = useDashboardTheme("cm-admin-theme");
 
-  const displayName = user?.user_metadata?.first_name
-    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name ?? ""}`.trim()
+  const displayName = user?.first_name
+    ? `${user.first_name} ${user.last_name ?? ""}`.trim()
     : (user?.email ?? "Admin");
   const initials = displayName
     .split(" ")

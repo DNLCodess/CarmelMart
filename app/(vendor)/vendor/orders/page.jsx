@@ -76,7 +76,7 @@ export default function VendorOrdersPage() {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (q) {
         const idMatch   = String(o.id).toLowerCase().includes(q);
-        const nameMatch = (o.customer_name ?? "").toLowerCase().includes(q);
+        const nameMatch = (o.customer ?? "").toLowerCase().includes(q);
         return idMatch || nameMatch;
       }
       return true;

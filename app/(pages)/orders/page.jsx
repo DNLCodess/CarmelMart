@@ -54,7 +54,7 @@ export default function OrdersPage() {
         <div className="text-center px-4">
           <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Sign in to view orders</h2>
-          <Link href="/login?next=/orders" className="text-primary font-semibold hover:underline">Sign In</Link>
+          <Link href="/login?from=/orders" className="text-primary font-semibold hover:underline">Sign In</Link>
         </div>
       </div>
     );
@@ -119,7 +119,7 @@ export default function OrdersPage() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                className={`shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-colors ${
                   activeTab === tab
                     ? "bg-primary text-white"
                     : "bg-white border border-gray-200 text-gray-600 hover:border-primary hover:text-primary"

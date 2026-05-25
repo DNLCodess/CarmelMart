@@ -90,7 +90,7 @@ export async function DELETE(request, { params }) {
       .select("id", { count: "exact", head: true })
       .eq("rider_id", id);
 
-    if (count > 0) {
+    if ((count ?? 0) > 0) {
       await admin
         .from("users")
         .update({ status: "banned", updated_at: new Date().toISOString() })

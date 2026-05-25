@@ -62,7 +62,7 @@ function Skeleton() {
 function StarPicker({ value, onChange }) {
   const [hovered, setHovered] = useState(0);
   return (
-    <div className="flex gap-1.5">
+    <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
@@ -70,7 +70,7 @@ function StarPicker({ value, onChange }) {
           onClick={() => onChange(star)}
           onMouseEnter={() => setHovered(star)}
           onMouseLeave={() => setHovered(0)}
-          className="transition-transform hover:scale-110"
+          className="p-1.5 transition-transform hover:scale-110 min-w-11 min-h-11 flex items-center justify-center"
         >
           <Star
             className={`w-8 h-8 transition-colors ${
@@ -292,7 +292,7 @@ export default function OrderDetailPage() {
     onSuccess: () => {
       toast.success("Receipt confirmed! Thank you.");
       qc.invalidateQueries({ queryKey: ["customer-order", id] });
-      qc.invalidateQueries({ queryKey: ["customer-orders"] });
+      qc.invalidateQueries({ queryKey: ["my-orders"] });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -309,10 +309,15 @@ export default function OrderDetailPage() {
       if (!r.ok) throw new Error(d.error || "Could not cancel order");
       return d;
     },
-    onSuccess: () => {
-      toast.success("Order cancelled.");
+    onSuccess: (d) => {
+      const refund = d?.refund_amount ?? 0;
+      if (refund > 0) {
+        toast.success(`Order cancelled. ₦${refund.toLocaleString()} has been credited to your wallet.`, { duration: 6000 });
+      } else {
+        toast.success("Order cancelled.");
+      }
       qc.invalidateQueries({ queryKey: ["customer-order", id] });
-      qc.invalidateQueries({ queryKey: ["customer-orders"] });
+      qc.invalidateQueries({ queryKey: ["my-orders"] });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -346,7 +351,7 @@ export default function OrderDetailPage() {
   const addr        = order?.address ?? {};
 
   const canCancel    = ["pending", "confirmed", "processing"].includes(order?.status);
-  const canConfirm   = ["pending", "confirmed", "processing", "shipped"].includes(order?.status);
+  const canConfirm   = order?.status === "shipped";
   const isDelivered  = order?.status === "delivered";
   const isCancelled  = order?.status === "cancelled";
   const isAllDigital = (order?.items ?? []).length > 0 && (order?.items ?? []).every((i) => i.delivery_format === "digital");
@@ -362,7 +367,7 @@ export default function OrderDetailPage() {
 
         {/* Back + header */}
         <div className="flex items-center gap-4 mb-8">
-          <Link href="/orders" className="p-2 rounded-full border border-gray-200 text-gray-600 hover:border-primary hover:text-primary transition-colors">
+          <Link href="/orders" className="p-3 rounded-full border border-gray-200 text-gray-600 hover:border-primary hover:text-primary transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div className="flex-1 min-w-0">
@@ -372,7 +377,7 @@ export default function OrderDetailPage() {
               <>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl font-bold text-gray-900">{order?.shortId}</h1>
-                  <button onClick={copyOrderId} className="p-1.5 text-gray-400 hover:text-primary transition-colors">
+                  <button onClick={copyOrderId} className="p-3 text-gray-400 hover:text-primary transition-colors">
                     <Copy className="w-4 h-4" />
                   </button>
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>
@@ -470,7 +475,16 @@ export default function OrderDetailPage() {
                   {canCancel && (
                     <button
                       onClick={() => {
-                        if (!confirm("Are you sure you want to cancel this order?")) return;
+                        const refund =
+                          order?.payment_status === "paid"
+                            ? order.total
+                            : order?.payment_method === "pod"
+                            ? (order.pod_deposit ?? 0) + (order?.address?.delivery_fee ?? 0)
+                            : 0;
+                        const msg = refund > 0
+                          ? `Cancel this order? ₦${refund.toLocaleString()} will be refunded to your wallet.`
+                          : "Are you sure you want to cancel this order?";
+                        if (!confirm(msg)) return;
                         cancelOrder();
                       }}
                       disabled={cancelling}

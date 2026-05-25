@@ -20,6 +20,9 @@ export async function POST(request) {
       .eq("id", user.id)
       .single();
     if (!vendor) return NextResponse.json({ error: "Vendor account not found" }, { status: 403 });
+    if (vendor.verification_status !== "verified") {
+      return NextResponse.json({ error: "Vendor account not verified" }, { status: 403 });
+    }
 
     // Parse multipart form
     const form = await request.formData();

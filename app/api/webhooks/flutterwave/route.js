@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeExpiryDate } from "@/lib/subscription";
+import { timingSafeEqual } from "crypto";
 
 // ── Signature verification ────────────────────────────────────────────────────
 
@@ -23,7 +24,13 @@ function verifySignature(signature) {
     console.error("[flw-webhook] FLUTTERWAVE_WEBHOOK_HASH env var not set — rejecting all webhooks");
     return false;
   }
-  return signature === secret;
+  if (!signature) return false;
+  try {
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(secret));
+  } catch {
+    // Buffers differ in length — timingSafeEqual throws; treat as invalid
+    return false;
+  }
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -192,12 +199,15 @@ async function completeVendorRegistration({ payment, flwTransactionId, tx_ref, a
       .eq("reference", tx_ref)
       .eq("status", "pending"); // idempotency guard
 
-    // Complete vendor registration — mark payment_verified and set status active
+    // Complete vendor registration — same state transitions the server action applies.
+    // This fires when the browser crashes after payment so the vendor still ends up
+    // in the admin review queue (verification_status: "pending").
     const { error: vendorErr } = await admin
       .from("vendors")
       .update({
-        payment_verified: true,
-        updated_at:       new Date().toISOString(),
+        payment_verified:    true,
+        verification_status: "pending",
+        updated_at:          new Date().toISOString(),
       })
       .eq("id", payment.user_id);
 
@@ -205,6 +215,12 @@ async function completeVendorRegistration({ payment, flwTransactionId, tx_ref, a
       console.error(`[flw-webhook] vendor update error for tx_ref=${tx_ref}:`, vendorErr);
       return;
     }
+
+    // Mark user as verified (same as server action)
+    await admin
+      .from("users")
+      .update({ verified: true, updated_at: new Date().toISOString() })
+      .eq("id", payment.user_id);
 
     // Process referral bonus if there is a pending referral for this user
     try {

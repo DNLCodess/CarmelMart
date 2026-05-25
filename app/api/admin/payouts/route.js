@@ -91,17 +91,24 @@ export async function POST(request) {
     const { payoutId } = await request.json();
     if (!payoutId) return NextResponse.json({ error: "payoutId required" }, { status: 400 });
 
-    // Fetch payout + vendor bank details
+    // Fetch payout row (vendor_payouts.vendor_id FKs to users, not vendors — separate query needed)
     const { data: payout, error: fetchErr } = await ctx.admin
       .from("vendor_payouts")
-      .select("id, vendor_id, amount, status, reference, vendors!vendor_id(bank_account_number, bank_code, business_name)")
+      .select("id, vendor_id, amount, status, reference")
       .eq("id", payoutId)
       .single();
 
     if (fetchErr || !payout) return NextResponse.json({ error: "Payout not found" }, { status: 404 });
     if (payout.status !== "pending") return NextResponse.json({ error: "Payout already processed" }, { status: 400 });
 
-    const { bank_account_number, bank_code, business_name } = payout.vendors ?? {};
+    // Fetch vendor bank details separately (vendors.id === vendor_payouts.vendor_id)
+    const { data: vendorRow } = await ctx.admin
+      .from("vendors")
+      .select("bank_account_number, bank_code, business_name")
+      .eq("id", payout.vendor_id)
+      .single();
+
+    const { bank_account_number, bank_code, business_name } = vendorRow ?? {};
     if (!bank_account_number || !bank_code)
       return NextResponse.json({ error: "Vendor has no bank details on file" }, { status: 400 });
 

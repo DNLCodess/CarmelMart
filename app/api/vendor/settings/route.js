@@ -2,11 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-async function getVendorId(admin, userId) {
-  const { data } = await admin.from("vendors").select("id").eq("id", userId).single();
-  return data?.id ?? null;
-}
-
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -19,7 +14,8 @@ export async function GET() {
       .from("vendors")
       .select(`
         id, business_name, description, return_policy, vacation_mode,
-        phone, city, state, bank_account_number, bank_code, bank_name
+        phone, city, state, bank_account_number, bank_code, bank_name,
+        notification_preferences
       `)
       .eq("id", user.id)
       .single();
@@ -42,6 +38,7 @@ export async function PATCH(request) {
     const {
       business_name, description, return_policy, vacation_mode,
       phone, city, state, bank_account_number, bank_code, bank_name,
+      notification_preferences,
     } = body;
 
     const update = {};
@@ -55,6 +52,7 @@ export async function PATCH(request) {
     if (bank_account_number !== undefined) update.bank_account_number = bank_account_number.trim();
     if (bank_code          !== undefined) update.bank_code          = bank_code.trim();
     if (bank_name          !== undefined) update.bank_name          = bank_name.trim();
+    if (notification_preferences !== undefined) update.notification_preferences = notification_preferences;
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ success: true });

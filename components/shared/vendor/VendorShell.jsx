@@ -144,8 +144,8 @@ export default function VendorShell({ children }) {
   const { user }  = useAuth();
   const { dark, toggle, mounted } = useDashboardTheme("cm-vendor-theme");
 
-  const displayName = user?.user_metadata?.first_name
-    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name ?? ""}`.trim()
+  const displayName = user?.first_name
+    ? `${user.first_name} ${user.last_name ?? ""}`.trim()
     : user?.email ?? "Vendor";
   const initials = displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
@@ -201,7 +201,7 @@ export default function VendorShell({ children }) {
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 rounded-lg transition-colors"
+            className="lg:hidden p-2.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 rounded-lg transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -260,7 +260,7 @@ export default function VendorShell({ children }) {
         <header className="sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-5 sm:px-8 py-4 flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg transition-colors lg:hidden"
+            className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg transition-colors lg:hidden"
           >
             <Menu className="w-5 h-5" />
           </button>

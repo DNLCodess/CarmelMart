@@ -1,25 +1,20 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-function toSlug(name) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
 export async function GET(request, { params }) {
   try {
     const { slug } = await params;
     const admin = createAdminClient();
 
-    // Fetch all verified vendors and find by derived slug
-    // (no users!inner join — vendors.id FK is to auth.users, not public.users)
-    const { data: vendors, error } = await admin
+    const { data: vendor, error } = await admin
       .from("vendors")
       .select("id, business_name, verification_status, subscription_tier, created_at")
-      .eq("verification_status", "verified");
+      .eq("slug", slug)
+      .eq("verification_status", "verified")
+      .single();
 
-    if (error) throw error;
+    if (error && error.code !== "PGRST116") throw error;
 
-    const vendor = (vendors ?? []).find((v) => toSlug(v.business_name) === slug);
     if (!vendor) {
       return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
     }

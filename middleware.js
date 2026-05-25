@@ -7,8 +7,6 @@ const AUTH_REQUIRED = ["/account", "/checkout", "/cart", "/wishlist", "/dashboar
 const VENDOR_PATHS = ["/vendor"];
 // Routes that require admin role (role check done in layout, not here)
 const ADMIN_PATHS = ["/admin"];
-// Routes that require logistics_admin or admin role (role check done in layout, not here)
-const LOGISTICS_PATHS = ["/logistics"];
 // Routes that require rider role (role check done in layout, not here)
 const RIDER_PATHS = ["/rider"];
 
@@ -61,7 +59,6 @@ export async function middleware(request) {
   if (
     (ADMIN_PATHS.some((p) => pathname.startsWith(p)) ||
       VENDOR_PATHS.some((p) => pathname.startsWith(p)) ||
-      LOGISTICS_PATHS.some((p) => pathname.startsWith(p)) ||
       RIDER_PATHS.some((p) => pathname.startsWith(p)) ||
       AUTH_REQUIRED.some((p) => pathname.startsWith(p))) &&
     !user

@@ -71,10 +71,9 @@ export async function GET(request) {
   // Returning user — honour an explicit destination; otherwise route by role
   const safe = next.startsWith("/") && !next.startsWith("//") ? next : "/";
   if (safe === "/") {
-    if (profile.role === "admin")           return NextResponse.redirect(`${origin}/admin/dashboard`);
-    if (profile.role === "vendor")          return NextResponse.redirect(`${origin}/vendor/dashboard`);
-    if (profile.role === "rider")           return NextResponse.redirect(`${origin}/rider/dashboard`);
-    if (profile.role === "logistics_admin") return NextResponse.redirect(`${origin}/logistics/dashboard`);
+    if (profile.role === "admin")  return NextResponse.redirect(`${origin}/admin/dashboard`);
+    if (profile.role === "vendor") return NextResponse.redirect(`${origin}/vendor/dashboard`);
+    if (profile.role === "rider")  return NextResponse.redirect(`${origin}/rider/orders`);
   }
   return NextResponse.redirect(`${origin}${safe}`);
 }

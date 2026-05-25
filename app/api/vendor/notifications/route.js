@@ -50,7 +50,12 @@ export async function PATCH(request) {
     const ctx = await getVendor();
     if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { ids } = await request.json(); // array of IDs, or omit to mark all read
+    const body = await request.json();
+    const { ids } = body; // array of IDs, or omit to mark all read
+
+    if (ids !== undefined && !Array.isArray(ids)) {
+      return NextResponse.json({ error: "ids must be an array" }, { status: 400 });
+    }
 
     let query = ctx.admin
       .from("notifications")

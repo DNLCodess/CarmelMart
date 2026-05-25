@@ -165,9 +165,9 @@ export default function VendorWalletPage() {
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
-          { label: "Total Earned",    value: `₦${(balance * 1.8).toLocaleString()}`, color: "text-green-600"          },
-          { label: "Total Withdrawn", value: `₦${(balance * 0.8).toLocaleString()}`, color: "text-primary"  },
-          { label: "Pending",         value: "₦0",                                   color: "text-amber-600"          },
+          { label: "Total Earned",    value: isLoading ? "—" : `₦${totalEarned.toLocaleString()}`,   color: "text-green-600" },
+          { label: "Available",       value: isLoading ? "—" : `₦${balance.toLocaleString()}`,        color: "text-primary"   },
+          { label: "Pending Payout",  value: isLoading ? "—" : `₦${pendingPayout.toLocaleString()}`,  color: "text-amber-600" },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 text-center">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>

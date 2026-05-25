@@ -33,7 +33,7 @@ export async function GET() {
     const customerIds = [...new Set((orderRows ?? []).map((o) => o.customer_id).filter(Boolean))];
     let customerMap = {};
     if (customerIds.length > 0) {
-      const { data: customers } = await admin.from("users").select("id, email, phone").in("id", customerIds);
+      const { data: customers } = await admin.from("users").select("id, first_name, last_name, email, phone").in("id", customerIds);
       customerMap = Object.fromEntries((customers ?? []).map((c) => [c.id, c]));
     }
 
@@ -47,7 +47,7 @@ export async function GET() {
       return {
         id:               o.id,
         shortId:          `#CM-${o.id.slice(0, 8).toUpperCase()}`,
-        customer:         c.email ?? "Customer",
+        customer:         [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "Customer",
         phone:            c.phone ?? addr.phone ?? null,
         amount:           o.total,
         status:           o.status,

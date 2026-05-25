@@ -142,7 +142,7 @@ export default function VendorOrderDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div>
             <h2 className="font-bold text-gray-900 dark:text-gray-100 text-xl">#CM-{order.id?.slice(0, 8).toUpperCase()}</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{order.date} · {order.items} item{order.items !== 1 ? "s" : ""}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{order.date} · {order.order_items?.length ?? 0} item{(order.order_items?.length ?? 0) !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex-1" />
           <p className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">₦{(order.amount || 0).toLocaleString()}</p>

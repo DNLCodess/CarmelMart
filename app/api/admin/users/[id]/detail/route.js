@@ -73,7 +73,7 @@ export async function GET(request, { params }) {
         stats: {
           totalOrders: (orders || []).length,
           totalSpent:  totalOrderValue,
-          totalPaid:   (payments || []).filter((p) => p.status === "completed").reduce((s, p) => s + (p.amount ?? 0), 0),
+          totalPaid:   (payments || []).filter((p) => p.status === "success").reduce((s, p) => s + (p.amount ?? 0), 0),
           referralsMade: (referrals || []).length,
         },
       },

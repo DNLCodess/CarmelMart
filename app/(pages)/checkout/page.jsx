@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Script from "next/script";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +21,8 @@ import {
   Mail,
   UserCircle,
   Download,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -85,6 +87,8 @@ function Field({ label, required, children, hint }) {
   );
 }
 
+const PENDING_CHECKOUT_KEY = "cm_pending_checkout";
+
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function CheckoutPage() {
   const router = useRouter();
@@ -101,12 +105,74 @@ export default function CheckoutPage() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // Recovery state: detects a payment that was charged but order never created
+  const [recoveryData, setRecoveryData] = useState(null); // { txRef, payload }
+  const [recovering, setRecovering] = useState(false);
+  // true when Flutterwave has received a bank transfer but it hasn't settled yet
+  const [recoveryPending, setRecoveryPending] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(PENDING_CHECKOUT_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      // Only surface recoveries from the last 24 h — older ones are stale
+      if (parsed?.txRef && Date.now() - (parsed.savedAt ?? 0) < 24 * 60 * 60 * 1000) {
+        setRecoveryData(parsed);
+      } else {
+        localStorage.removeItem(PENDING_CHECKOUT_KEY);
+      }
+    } catch {
+      localStorage.removeItem(PENDING_CHECKOUT_KEY);
+    }
+  }, []);
+
+  const dismissRecovery = useCallback(() => {
+    localStorage.removeItem(PENDING_CHECKOUT_KEY);
+    setRecoveryData(null);
+    setRecoveryPending(false);
+  }, []);
+
+  const attemptRecovery = useCallback(async () => {
+    if (!recoveryData) return;
+    setRecovering(true);
+    setRecoveryPending(false);
+    try {
+      const res = await fetch("/api/customer/orders/recover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txRef: recoveryData.txRef, transactionId: recoveryData.transactionId ?? null, payload: recoveryData.payload }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.removeItem(PENDING_CHECKOUT_KEY);
+        clearCart();
+        router.push(`/checkout/success?order_id=${data.order_id}`);
+      } else if (data.pending) {
+        // Bank transfer received by Flutterwave but not yet settled — keep the
+        // banner, show a "check again" state so the user isn't misled.
+        setRecoveryPending(true);
+      } else if (data.not_found) {
+        // No transaction on Flutterwave's side at all. Could mean the bank
+        // transfer hasn't reached them yet OR the user never paid. Keep the
+        // banner so they can retry — don't tell them definitively they weren't
+        // charged since a slow transfer could still arrive.
+        toast("No payment found yet. If you completed your transfer, please wait a few minutes and try again.", { icon: "ℹ️" });
+      } else {
+        toast.error(data.error ?? "Recovery failed. Please contact support.");
+      }
+    } catch {
+      toast.error("Could not check payment status. Please try again.");
+    }
+    setRecovering(false);
+  }, [recoveryData, clearCart, router]);
+
   const [promoInput, setPromoInput] = useState("");
   const [promoValidating, setPromoValidating] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState(null); // { promoId, code, discount, description }
 
   const [address, setAddress] = useState({
-    fullName: user?.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name ?? ""}`.trim() : "",
+    fullName: user?.first_name ? `${user.first_name} ${user.last_name ?? ""}`.trim() : "",
     phone: "",
     email: user?.email ?? "",
     houseNumber: "",
@@ -279,6 +345,53 @@ export default function CheckoutPage() {
 
     const txRef = `CM-FLW-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 
+    // Save payment intent to localStorage BEFORE opening the popup.
+    // If the browser crashes or the tab closes after Flutterwave charges the user
+    // but before the JS callback fires, this record lets us recover the order
+    // when the user returns to the site.
+    const pendingPayload = {
+      items: items.map((i) => ({
+        productId:       i.productId,
+        vendorId:        i.vendorId,
+        quantity:        i.quantity,
+        delivery_format: i.deliveryFormat ?? "physical",
+      })),
+      delivery_address: isAllDigital ? {
+        fullName:        address.fullName,
+        email:           address.email,
+        delivery_method: "digital",
+        delivery_fee:    0,
+      } : {
+        fullName:              address.fullName,
+        phone:                 address.phone,
+        houseNumber:           address.houseNumber,
+        street:                address.street,
+        landmark:              address.landmark,
+        area:                  address.area,
+        city:                  address.city,
+        lga:                   address.lga,
+        state:                 address.state,
+        delivery_instructions: address.deliveryInstructions,
+        delivery_method:       delivery,
+        delivery_fee:          deliveryFee,
+        email:                 address.email,
+      },
+      is_all_digital: isAllDigital,
+      payment_method: payment === "pod" ? "pod" : "card",
+      promo_id:       appliedPromo?.promoId ?? null,
+      pod_deposit:    requiresPODDeposit ? podDeposit : 0,
+    };
+
+    try {
+      localStorage.setItem(PENDING_CHECKOUT_KEY, JSON.stringify({
+        txRef,
+        payload:  pendingPayload,
+        savedAt:  Date.now(),
+      }));
+    } catch {
+      // localStorage unavailable (private mode quota) — proceed without recovery safety-net
+    }
+
     window.FlutterwaveCheckout({
       public_key: publicKey,
       tx_ref: txRef,
@@ -297,6 +410,17 @@ export default function CheckoutPage() {
       },
       callback: async (response) => {
         if (response.status === "successful") {
+          // Persist transactionId immediately — before any async ops that could crash.
+          // Recovery endpoint uses this to verify via the direct API instead of the slower list API.
+          try {
+            const saved = JSON.parse(localStorage.getItem(PENDING_CHECKOUT_KEY) ?? "null");
+            if (saved) {
+              localStorage.setItem(PENDING_CHECKOUT_KEY, JSON.stringify({
+                ...saved,
+                transactionId: response.transaction_id,
+              }));
+            }
+          } catch { /* ignore — private mode / quota */ }
           try {
             // 1. Verify payment with Flutterwave
             const verifyRes = await fetch("/api/flutterwave/verify", {
@@ -315,12 +439,16 @@ export default function CheckoutPage() {
               paymentTransactionId: response.transaction_id,
               podDeposit: requiresPODDeposit ? podDeposit : 0,
             });
+            // Clear the pending recovery record — order was created successfully
+            localStorage.removeItem(PENDING_CHECKOUT_KEY);
             clearCart();
             router.push(`/checkout/success?order_id=${orderId}`);
           } catch (err) {
             toast.error(err.message || "Could not place order. Contact support.");
           }
         } else {
+          // Payment not completed — clear the recovery record (user didn't pay)
+          localStorage.removeItem(PENDING_CHECKOUT_KEY);
           toast.error("Payment was not completed.");
         }
       },
@@ -366,6 +494,54 @@ export default function CheckoutPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="text-2xl font-bold text-gray-900 text-center mb-6">Checkout</h1>
+
+        {/* Payment recovery banner — shown when a previous payment was charged but the order was never created */}
+        {recoveryData && (
+          <div className={`flex items-start justify-between gap-3 rounded-xl px-4 py-3 mb-6 text-sm border ${
+            recoveryPending
+              ? "bg-amber-50 border-amber-200"
+              : "bg-red-50 border-red-200"
+          }`}>
+            <div className={`flex items-start gap-2 ${recoveryPending ? "text-amber-800" : "text-red-800"}`}>
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                {recoveryPending ? (
+                  <>
+                    <p className="font-semibold">Your bank transfer is being processed</p>
+                    <p className="text-xs mt-0.5 text-amber-700">
+                      We received your transfer. It usually clears within a few minutes.
+                      Click below to check if it has settled and create your order.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold">Incomplete payment detected</p>
+                    <p className="text-xs mt-0.5 text-red-700">
+                      A previous payment may have been charged but your order was not confirmed.
+                      Click below to check its status — this is safe to retry.
+                    </p>
+                  </>
+                )}
+                <button
+                  onClick={attemptRecovery}
+                  disabled={recovering}
+                  className={`mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60 ${
+                    recoveryPending ? "bg-amber-600 hover:bg-amber-700" : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  <RefreshCw className={`w-3 h-3 ${recovering ? "animate-spin" : ""}`} />
+                  {recovering ? "Checking…" : recoveryPending ? "Check again" : "Recover my order"}
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={dismissRecovery}
+              className={`transition-colors shrink-0 mt-0.5 ${recoveryPending ? "text-amber-400 hover:text-amber-600" : "text-red-400 hover:text-red-600"}`}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Guest session notice */}
         {isGuest && (
@@ -562,7 +738,7 @@ export default function CheckoutPage() {
                     </label>
                   ))}
 
-                  {payment === "pod" && total > 10000 && (
+                  {requiresPODDeposit && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
                       <p className="font-semibold mb-1">POD Deposit Required</p>
                       <p>A refundable 10% deposit of <strong>₦{podDeposit.toLocaleString()}</strong> is required now via Flutterwave. The remaining <strong>₦{(total - podDeposit).toLocaleString()}</strong> is paid on delivery.</p>

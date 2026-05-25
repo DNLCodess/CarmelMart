@@ -34,7 +34,7 @@ export default function AdminKYCPage() {
       return d;
     },
     onSuccess: (_, { action }) => {
-      toast.success(`Vendor ${action}d`);
+      toast.success(action === "reject" ? "Vendor rejected" : `Vendor ${action}d`);
       qc.invalidateQueries({ queryKey: ["admin-kyc-queue"] });
       qc.invalidateQueries({ queryKey: ["admin-vendors"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
@@ -85,11 +85,11 @@ export default function AdminKYCPage() {
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-gray-100 text-lg">{v.business_name}</h3>
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {v.users?.email && (
-                        <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />{v.users.email}</span>
+                      {v.email && (
+                        <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />{v.email}</span>
                       )}
-                      {v.users?.phone && (
-                        <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />{v.users.phone}</span>
+                      {v.phone && (
+                        <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />{v.phone}</span>
                       )}
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />

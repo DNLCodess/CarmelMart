@@ -142,18 +142,36 @@ export default function FlashSalesPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-flash-sales"] });
 
   const createMutation = useMutation({
-    mutationFn: (body) => fetch("/api/admin/flash-sales", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()),
-    onSuccess: (d) => { if (d.error) { toast.error(d.error); return; } toast.success("Flash sale created"); setModal(null); invalidate(); },
+    mutationFn: async (body) => {
+      const r = await fetch("/api/admin/flash-sales", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to create flash sale");
+      return d;
+    },
+    onSuccess: () => { toast.success("Flash sale created"); setModal(null); invalidate(); },
+    onError: (e) => toast.error(e.message),
   });
 
   const editMutation = useMutation({
-    mutationFn: ({ id, body }) => fetch(`/api/admin/flash-sales/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()),
-    onSuccess: (d) => { if (d.error) { toast.error(d.error); return; } toast.success("Flash sale updated"); setModal(null); invalidate(); },
+    mutationFn: async ({ id, body }) => {
+      const r = await fetch(`/api/admin/flash-sales/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to update flash sale");
+      return d;
+    },
+    onSuccess: () => { toast.success("Flash sale updated"); setModal(null); invalidate(); },
+    onError: (e) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => fetch(`/api/admin/flash-sales/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: (d) => { if (d.error) { toast.error(d.error); return; } toast.success("Flash sale deleted"); setModal(null); invalidate(); },
+    mutationFn: async (id) => {
+      const r = await fetch(`/api/admin/flash-sales/${id}`, { method: "DELETE" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to delete flash sale");
+      return d;
+    },
+    onSuccess: () => { toast.success("Flash sale deleted"); setModal(null); invalidate(); },
+    onError: (e) => toast.error(e.message),
   });
 
   const saving = createMutation.isPending || editMutation.isPending || deleteMutation.isPending;

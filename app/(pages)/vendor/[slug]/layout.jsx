@@ -4,14 +4,12 @@ export async function generateMetadata({ params }) {
   const { slug } = await params;
   try {
     const admin = createAdminClient();
-    const { data: vendors } = await admin
+    const { data: vendor } = await admin
       .from("vendors")
       .select("business_name, business_address, products ( images )")
-      .eq("verification_status", "verified");
-
-    const vendor = (vendors ?? []).find(
-      (v) => v.business_name.toLowerCase().replace(/[^a-z0-9]+/g, "-") === slug
-    );
+      .eq("slug", slug)
+      .eq("verification_status", "verified")
+      .maybeSingle();
 
     if (!vendor) return { title: "Vendor Store | CarmelMart" };
 

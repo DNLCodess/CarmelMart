@@ -97,7 +97,7 @@ export default function VendorSettingsPage() {
         bank_code:           settings.bank_code           ?? "",
       });
     }
-  }, [settings.id]); // eslint-disable-line
+  }, [settings.id, settings.bank_name, settings.bank_account_number, settings.bank_code]); // eslint-disable-line
 
   const { mutate: saveBank } = useMutation({
     mutationFn: saveSettings,
@@ -121,6 +121,21 @@ export default function VendorSettingsPage() {
       toast.success(v ? "Vacation mode enabled — your products are hidden" : "Vacation mode disabled");
       qc.invalidateQueries({ queryKey: ["vendor-settings"] });
     },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // ── Notification preferences ──────────────────────────────────────────────
+  const DEFAULT_NOTIF = { new_order: true, order_status: true, payout: true, review: true, low_stock: true };
+  const [notifPrefs, setNotifPrefs] = useState(DEFAULT_NOTIF);
+
+  useEffect(() => {
+    if (settings.id) {
+      setNotifPrefs({ ...DEFAULT_NOTIF, ...(settings.notification_preferences ?? {}) });
+    }
+  }, [settings.id]); // eslint-disable-line
+
+  const { mutate: saveNotifPrefs } = useMutation({
+    mutationFn: (prefs) => saveSettings({ notification_preferences: prefs }),
     onError: (e) => toast.error(e.message),
   });
 
@@ -236,16 +251,32 @@ export default function VendorSettingsPage() {
               className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Account Number</label>
-            <input
-              {...regBank("bank_account_number")}
-              type="text"
-              inputMode="numeric"
-              maxLength={10}
-              placeholder="10-digit NUBAN"
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Account Number</label>
+              <input
+                {...regBank("bank_account_number")}
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit NUBAN"
+                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Bank Code <span className="text-gray-400 dark:text-gray-500 font-normal">(3-digit)</span>
+              </label>
+              <input
+                {...regBank("bank_code")}
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="e.g. 011 (First Bank)"
+                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+              />
+              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Required for bank transfers. Find yours at your bank.</p>
+            </div>
           </div>
           <button
             type="submit"
@@ -311,7 +342,16 @@ export default function VendorSettingsPage() {
                 <p className="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
               </div>
               <label className="relative inline-flex cursor-pointer">
-                <input type="checkbox" defaultChecked className="sr-only peer" />
+                <input
+                  type="checkbox"
+                  checked={notifPrefs[id] ?? true}
+                  onChange={(e) => {
+                    const updated = { ...notifPrefs, [id]: e.target.checked };
+                    setNotifPrefs(updated);
+                    saveNotifPrefs(updated);
+                  }}
+                  className="sr-only peer"
+                />
                 <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
               </label>
             </div>

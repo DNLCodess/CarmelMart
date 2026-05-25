@@ -43,6 +43,10 @@ export async function GET() {
       { data: recentOrderData },
       { data: recentVendorData },
       { data: stateOrderData },
+      { count: deliveredCount },
+      { count: shippedCount },
+      { count: cancelledCount },
+      { count: pendingOnlyCount },
     ] = await Promise.all([
       admin.from("users").select("*", { count: "exact", head: true }),
       admin.from("users").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
@@ -51,9 +55,9 @@ export async function GET() {
       admin.from("products").select("*", { count: "exact", head: true }).eq("status", "active"),
       admin.from("orders").select("*", { count: "exact", head: true }),
       admin.from("orders").select("*", { count: "exact", head: true }).in("status", ["pending", "processing"]),
-      admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "disputed").catch(() => ({ count: 0 })),
-      admin.from("payments").select("amount").eq("status", "completed").gte("created_at", thirtyDaysAgo),
-      admin.from("payments").select("amount, created_at").eq("status", "completed").gte("created_at", sixMonthsAgo),
+      admin.from("disputes").select("*", { count: "exact", head: true }).eq("status", "open"),
+      admin.from("payments").select("amount").eq("status", "success").gte("created_at", thirtyDaysAgo),
+      admin.from("payments").select("amount, created_at").eq("status", "success").gte("created_at", sixMonthsAgo),
       // New: 14-day registrations
       admin.from("users").select("created_at").gte("created_at", fourteenDaysAgo),
       // New: category GMV (last 30 days)
@@ -75,6 +79,10 @@ export async function GET() {
         .select("delivery_address, total")
         .gte("created_at", thirtyDaysAgo)
         .not("delivery_address", "is", null),
+      admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "delivered"),
+      admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "shipped"),
+      admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "cancelled"),
+      admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
     ]);
 
     const gmv = (revenueData || []).reduce((s, p) => s + (p.amount || 0), 0);
@@ -178,6 +186,12 @@ export async function GET() {
       top_categories:       topCategories,
       recent_activity:      recentActivity,
       orders_by_state:      ordersByState,
+      order_status: [
+        { name: "Delivered", value: deliveredCount   ?? 0, color: "#10b981" },
+        { name: "Pending",   value: pendingOnlyCount ?? 0, color: "#f59e0b" },
+        { name: "Shipped",   value: shippedCount     ?? 0, color: "#6366f1" },
+        { name: "Cancelled", value: cancelledCount   ?? 0, color: "#ef4444" },
+      ],
     });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -99,11 +99,11 @@ export async function POST(request) {
 
     if (uploadError) throw uploadError;
 
-    // Increment vendor's storage usage atomically
-    await admin
-      .from("vendors")
-      .update({ digital_storage_bytes: usedBytes + fileSize })
-      .eq("id", user.id);
+    // Increment vendor's storage usage — use rpc to avoid read-modify-write race
+    await admin.rpc("increment_digital_storage", {
+      p_vendor_id: user.id,
+      p_bytes:     fileSize,
+    });
 
     // Return path + size — the form stores size so the product save can record it
     return NextResponse.json({ success: true, path, size: fileSize });
@@ -141,16 +141,12 @@ export async function DELETE(request) {
     const { error } = await admin.storage.from(BUCKET).remove([path]);
     if (error) throw error;
 
-    // Decrement storage usage (floor at 0 to guard against drift)
+    // Decrement storage usage atomically (RPC floors at 0 via GREATEST)
     if (fileSize > 0) {
-      const { data: vendor } = await admin
-        .from("vendors")
-        .select("digital_storage_bytes")
-        .eq("id", user.id)
-        .single();
-
-      const newUsed = Math.max(0, (vendor?.digital_storage_bytes ?? 0) - fileSize);
-      await admin.from("vendors").update({ digital_storage_bytes: newUsed }).eq("id", user.id);
+      await admin.rpc("increment_digital_storage", {
+        p_vendor_id: user.id,
+        p_bytes:     -fileSize,
+      });
     }
 
     return NextResponse.json({ success: true });

@@ -41,7 +41,7 @@ export async function PATCH(request, { params }) {
 
     if (error) throw error;
 
-    // If siding with customer, optionally update order status to refunded
+    // If siding with customer: refund the order and credit the wallet
     if (action === "side_customer") {
       const { data: dispute } = await ctx.admin
         .from("disputes")
@@ -49,10 +49,43 @@ export async function PATCH(request, { params }) {
         .eq("id", id)
         .single();
       if (dispute?.order_id) {
-        await ctx.admin
+        const { data: order } = await ctx.admin
           .from("orders")
-          .update({ status: "refunded" })
-          .eq("id", dispute.order_id);
+          .select("id, customer_id, total, status, payment_status, payment_method, pod_deposit, delivery_address")
+          .eq("id", dispute.order_id)
+          .single();
+
+        if (order && order.status !== "refunded") {
+          await ctx.admin
+            .from("orders")
+            .update({ status: "refunded" })
+            .eq("id", dispute.order_id);
+
+          // Credit wallet for card-paid orders (full total) or POD orders with an upfront
+          // deposit (deposit + delivery fee actually charged). Pure POD with no deposit = ₦0 refund.
+          const isCardPaid   = order.payment_status === "paid";
+          const isPodDeposit = order.payment_method === "pod" && (order.pod_deposit ?? 0) > 0;
+          if ((isCardPaid || isPodDeposit) && order.customer_id) {
+            const refundAmount = isCardPaid
+              ? order.total
+              : (order.pod_deposit ?? 0) + (order.delivery_address?.delivery_fee ?? 0);
+            if (refundAmount > 0) {
+              await ctx.admin.rpc("increment_wallet", {
+                p_user_id: order.customer_id,
+                p_amount:  refundAmount,
+              });
+
+              const reference = `CM-DISP-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 7).toUpperCase()}`;
+              await ctx.admin.from("wallet_transactions").insert({
+                user_id:     order.customer_id,
+                type:        "credit",
+                amount:      refundAmount,
+                description: `Dispute resolution refund — Order ${dispute.order_id.slice(0, 8).toUpperCase()}`,
+                reference,
+              });
+            }
+          }
+        }
       }
     }
 

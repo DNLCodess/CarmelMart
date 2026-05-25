@@ -35,7 +35,7 @@ export async function GET() {
       admin.from("order_items").select("order_id, orders!inner(id, status)").eq("vendor_id", user.id).eq("orders.status", "pending"),
       admin.from("products").select("*", { count: "exact", head: true }).eq("vendor_id", user.id).eq("status", "active"),
       admin.from("order_items").select("orders!inner(customer_id)").eq("vendor_id", user.id),
-      admin.from("orders").select("id, status, total, created_at, users!customer_id ( user_metadata ), order_items!inner ( vendor_id )").eq("order_items.vendor_id", user.id).order("created_at", { ascending: false }).limit(5),
+      admin.from("orders").select("id, status, total, created_at, users!customer_id ( first_name, last_name, email ), order_items!inner ( vendor_id )").eq("order_items.vendor_id", user.id).order("created_at", { ascending: false }).limit(5),
       admin.from("products").select("id, name, images, sold_count, price").eq("vendor_id", user.id).order("sold_count", { ascending: false }).limit(5),
       admin.from("users").select("wallet_balance").eq("id", user.id).single(),
       admin.from("products").select("id, name, stock").eq("vendor_id", user.id).eq("status", "active").lte("stock", 5).order("stock", { ascending: true }).limit(5),
@@ -63,8 +63,8 @@ export async function GET() {
     const uniqueCustomers = new Set((customerData || []).map((r) => r.orders?.customer_id)).size;
 
     const recentOrders = (recentOrdersRaw || []).map((o) => ({
-      id:       o.id.slice(0, 13).toUpperCase(),
-      customer: o.users?.user_metadata?.full_name ?? "Customer",
+      id:       o.id,
+      customer: [o.users?.first_name, o.users?.last_name].filter(Boolean).join(" ") || o.users?.email || "Customer",
       amount:   o.total,
       status:   o.status,
       date:     new Date(o.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short" }),

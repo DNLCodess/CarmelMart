@@ -49,16 +49,15 @@ export async function PATCH(request, { params }) {
           .single();
 
         if (product?.vendor_id) {
-          const { data: vendor } = await admin
-            .from("vendors")
-            .select("business_name, email")
-            .eq("id", product.vendor_id)
-            .single();
+          const [{ data: vendor }, { data: vendorUser }] = await Promise.all([
+            admin.from("vendors").select("business_name").eq("id", product.vendor_id).single(),
+            admin.from("users").select("email").eq("id", product.vendor_id).single(),
+          ]);
 
-          if (vendor?.email) {
+          if (vendorUser?.email) {
             await sendVendorProductDecision({
-              to:          vendor.email,
-              vendorName:  vendor.business_name ?? "Vendor",
+              to:          vendorUser.email,
+              vendorName:  vendor?.business_name ?? "Vendor",
               productName: product.name,
               approved:    action === "approve",
               reason:      reason ?? null,

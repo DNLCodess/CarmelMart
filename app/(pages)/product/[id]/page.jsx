@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Star,
   ShoppingCart,
@@ -289,6 +289,7 @@ function StickyCTABar({ product, quantity, onAddToCart, onBuyNow, inStock }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ProductDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [imgIndex, setImgIndex] = useState(0);
   const [selectedAttrs, setSelectedAttrs] = useState({});
@@ -368,9 +369,15 @@ export default function ProductDetailPage() {
   const hasPhysical = (product?.stock ?? 0) > 0;
   const isDualFormat = hasDigital && hasPhysical;
 
-  const [deliveryFormat, setDeliveryFormat] = useState(
-    hasDigital ? "digital" : "physical"
-  );
+  const [deliveryFormat, setDeliveryFormat] = useState("physical");
+
+  // Sync format once when product data arrives (product is null at mount so the
+  // initial useState above always evaluates to "physical" regardless of product type).
+  useEffect(() => {
+    if (!product) return;
+    setDeliveryFormat(hasDigital ? "digital" : "physical");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   const physicalPrice = product?.salePrice ?? product?.price ?? 0;
   const price = deliveryFormat === "digital" && hasDigital
@@ -404,8 +411,8 @@ export default function ProductDetailPage() {
       isDigital:      product.isDigital ?? false,
       deliveryFormat,
     });
-    window.location.href = "/checkout";
-  }, [product, price, quantity, deliveryFormat, addItem]);
+    router.push("/checkout");
+  }, [product, price, quantity, deliveryFormat, addItem, router]);
 
   const handleWishlist = useCallback(() => {
     if (isWishlisted) {

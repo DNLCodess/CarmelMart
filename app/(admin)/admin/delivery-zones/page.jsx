@@ -126,18 +126,27 @@ export default function AdminDeliveryZonesPage() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, active }) =>
-      fetch(`/api/admin/delivery-zones/${id}`, {
+    mutationFn: async ({ id, active }) => {
+      const r = await fetch(`/api/admin/delivery-zones/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active }),
-      }).then((r) => r.json()),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to update zone");
+      return d;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-delivery-zones"] }),
     onError: (e) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => fetch(`/api/admin/delivery-zones/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    mutationFn: async (id) => {
+      const r = await fetch(`/api/admin/delivery-zones/${id}`, { method: "DELETE" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to delete zone");
+      return d;
+    },
     onSuccess: () => {
       toast.success("Zone deleted");
       qc.invalidateQueries({ queryKey: ["admin-delivery-zones"] });
@@ -214,7 +223,7 @@ export default function AdminDeliveryZonesPage() {
               </div>
               <div className="divide-y divide-gray-50 dark:divide-gray-700">
                 {byState[state].map((z) => (
-                  <div key={z.id} className={`px-5 py-3.5 flex items-center gap-4 ${!z.active ? "opacity-50" : ""}`}>
+                  <div key={z.id} className={`px-5 py-3.5 flex items-center gap-4 ${z.active ? "" : "opacity-50"}`}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         {z.lga ?? <span className="italic text-gray-400 dark:text-gray-500">All LGAs</span>}

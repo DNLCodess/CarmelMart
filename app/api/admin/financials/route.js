@@ -46,7 +46,7 @@ export async function GET(request) {
       .reduce((s, o) => s + (o.total ?? 0), 0);
 
     const gatewayReceipts = (paymentsData || [])
-      .filter((p) => p.status === "success" || p.status === "completed")
+      .filter((p) => p.status === "success")
       .reduce((s, p) => s + Number(p.amount ?? 0), 0);
 
     const PLATFORM_FEE_RATE = 0.05;

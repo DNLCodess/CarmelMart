@@ -12,21 +12,9 @@ async function guardAdmin() {
   return { admin };
 }
 
-async function guardLogisticsOrAdmin() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return { error: "Unauthorized", status: 401 };
-  const admin = createAdminClient();
-  const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
-  if (!profile || !["admin", "logistics_admin"].includes(profile.role)) {
-    return { error: "Forbidden", status: 403 };
-  }
-  return { admin };
-}
-
 /**
  * GET /api/admin/riders
- * - ?active=true  → only active riders (for assignment dropdown — logistics_admin and admin)
+ * - ?active=true  → only active riders (for assignment dropdown — admin only)
  * - no param      → all riders by status (admin only, for management page)
  */
 export async function GET(request) {
@@ -34,8 +22,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("active") === "true";
 
-    // Assignment dropdown: logistics_admin can call with ?active=true
-    const guard = activeOnly ? await guardLogisticsOrAdmin() : await guardAdmin();
+    const guard = await guardAdmin();
     if (guard.error) return NextResponse.json({ error: guard.error }, { status: guard.status });
     const { admin } = guard;
 

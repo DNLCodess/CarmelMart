@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Server action: complete vendor registration after successful payment.
@@ -20,7 +21,20 @@ export async function completeVendorPaymentAction({ transactionId, reference, fl
   if (authError || !user) throw new Error("Unauthorized");
   const userId = user.id;
 
-  // 1. Verify payment with Flutterwave server-side
+  const admin = createAdminClient();
+
+  // 1. Fetch the pending payment record to get the expected amount
+  const { data: pendingPayment } = await admin
+    .from("payments")
+    .select("amount, status")
+    .eq("reference", reference)
+    .eq("user_id", userId)
+    .single();
+
+  if (!pendingPayment) throw new Error("Payment record not found. Please contact support.");
+  if (pendingPayment.status === "success") throw new Error("Payment already processed.");
+
+  // 2. Verify payment with Flutterwave server-side
   const fwRes = await fetch(
     `https://api.flutterwave.com/v3/transactions/${transactionId}/verify`,
     {
@@ -38,8 +52,20 @@ export async function completeVendorPaymentAction({ transactionId, reference, fl
     throw new Error("Payment verification failed. Please contact support.");
   }
 
-  // 2. Mark payment record as successful
-  await supabase
+  // 3. Amount + currency integrity check — prevents any successful Flutterwave tx from activating vendor
+  const paidAmount   = Number(fwData.data?.amount ?? 0);
+  const paidCurrency = fwData.data?.currency;
+  const expectedAmount = Number(pendingPayment.amount);
+
+  if (paidCurrency !== "NGN") {
+    throw new Error("Invalid payment currency. Please contact support.");
+  }
+  if (paidAmount < expectedAmount) {
+    throw new Error(`Insufficient payment amount. Expected ₦${expectedAmount.toLocaleString()}, received ₦${paidAmount.toLocaleString()}.`);
+  }
+
+  // 4. Mark payment record as successful — use admin client to bypass RLS
+  await admin
     .from("payments")
     .update({
       status: "success",
@@ -48,16 +74,16 @@ export async function completeVendorPaymentAction({ transactionId, reference, fl
     })
     .eq("reference", reference);
 
-  // 3. Activate vendor — this is the critical write that must NOT happen from the client
-  const { error: vendorError } = await supabase
+  // 5. Activate vendor — use admin client; RLS on vendors table would block user updating own payment_verified
+  const { error: vendorError } = await admin
     .from("vendors")
-    .update({ payment_verified: true, status: "active" })
+    .update({ payment_verified: true, verification_status: "pending" })
     .eq("id", userId);
 
   if (vendorError) throw new Error("Failed to activate vendor account.");
 
-  // 4. Mark user as verified
-  await supabase
+  // 6. Mark user as verified — use admin client for consistency
+  await admin
     .from("users")
     .update({ verified: true, updated_at: new Date().toISOString() })
     .eq("id", userId);

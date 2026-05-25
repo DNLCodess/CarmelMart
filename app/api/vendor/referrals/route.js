@@ -10,6 +10,9 @@ export async function GET() {
 
     const admin = createAdminClient();
 
+    const { data: roleCheck } = await admin.from("users").select("role").eq("id", user.id).single();
+    if (!roleCheck || roleCheck.role !== "vendor") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     // Get referral code + bonus
     const { data: profile } = await admin
       .from("users")

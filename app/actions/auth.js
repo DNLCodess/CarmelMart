@@ -197,11 +197,9 @@ export async function signupAction({
 
       if (referrer) {
         await admin.from("referrals").insert({
-          referrer_id:   referrer.id,
-          referred_id:   userId,
-          referral_code: referralCode.trim().toUpperCase(),
-          bonus_amount:  500,
-          status:        "pending",
+          referrer_id: referrer.id,
+          referred_id: userId,
+          status:      "pending",
         });
       }
     } catch {
@@ -283,8 +281,14 @@ export async function guestSignInAction(captchaToken = null) {
   // Reuse existing session — don't create a duplicate anonymous user
   const { data: { user: existing } } = await supabase.auth.getUser();
   if (existing) {
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from("users")
+      .select("id, email, role, wallet_balance, status")
+      .eq("id", existing.id)
+      .single();
     revalidatePath("/", "layout");
-    return { error: null };
+    return { error: null, user: profile ?? null, isGuest: existing.is_anonymous ?? false };
   }
 
   const { data, error } = await supabase.auth.signInAnonymously(

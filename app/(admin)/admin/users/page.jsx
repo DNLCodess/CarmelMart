@@ -212,14 +212,14 @@ export default function AdminUsersPage() {
   });
 
   const podMutation = useMutation({
-    mutationFn: (body) =>
-      fetch("/api/admin/pod-blacklist", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()),
-    onSuccess: (d) => {
-      if (d.error) { toast.error(d.error); return; }
-      toast.success("POD refusal recorded");
-      setPodTarget(null);
+    mutationFn: async (body) => {
+      const r = await fetch("/api/admin/pod-blacklist", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to record refusal");
+      return d;
     },
-    onError: () => toast.error("Failed to record refusal"),
+    onSuccess: () => { toast.success("POD refusal recorded"); setPodTarget(null); },
+    onError: (e) => toast.error(e.message),
   });
 
   const handleAction = (id, action) => {

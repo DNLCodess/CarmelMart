@@ -34,10 +34,10 @@ const NIGERIAN_STATES = [
 
 function ProfileTab({ user }) {
   const [form, setForm] = useState({
-    fullName: user?.user_metadata?.full_name ?? "",
+    fullName: user?.first_name ? `${user.first_name} ${user.last_name ?? ""}`.trim() : "",
     phone:    user?.phone ?? "",
     email:    user?.email ?? "",
-    location: user?.user_metadata?.location ?? "",
+    location: user?.location ?? "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -45,11 +45,16 @@ function ProfileTab({ user }) {
     e.preventDefault();
     setSaving(true);
     try {
-      await updateProfileAction(user.id, {
-        full_name: form.fullName,
-        phone:     form.phone,
-        location:  form.location,
+      const parts = form.fullName.trim().split(/\s+/);
+      const first_name = parts[0] ?? "";
+      const last_name  = parts.slice(1).join(" ") || null;
+      const result = await updateProfileAction(user.id, {
+        first_name,
+        last_name,
+        phone:    form.phone,
+        location: form.location,
       });
+      if (result?.error) throw new Error(result.error);
       toast.success("Profile updated");
     } catch (err) {
       toast.error(err.message || "Failed to save profile");
@@ -64,16 +69,16 @@ function ProfileTab({ user }) {
       <div className="flex items-center gap-5">
         <div className="relative">
           <div className="w-20 h-20 rounded-2xl overflow-hidden bg-primary/10 flex items-center justify-center">
-            {user?.user_metadata?.avatar_url ? (
-              <Image src={user.user_metadata.avatar_url} alt="Avatar" width={80} height={80} className="object-cover" />
+            {user?.avatar_url ? (
+              <Image src={user.avatar_url} alt="Avatar" width={80} height={80} className="object-cover" />
             ) : (
               <span className="text-3xl font-bold text-primary">
                 {(form.fullName || form.email || "U")[0].toUpperCase()}
               </span>
             )}
           </div>
-          <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary text-white rounded-full flex items-center justify-center shadow hover:opacity-90 transition-opacity">
-            <Camera className="w-3.5 h-3.5" />
+          <button className="absolute -bottom-1 -right-1 w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center shadow hover:opacity-90 transition-opacity">
+            <Camera className="w-4 h-4" />
           </button>
         </div>
         <div>
@@ -156,38 +161,55 @@ function ProfileTab({ user }) {
   );
 }
 
-function AddressesTab() {
-  const [addresses, setAddresses] = useState([
-    {
-      id: 1, label: "Home", fullName: "Adebayo Johnson", phone: "08012345678",
-      street: "14 Adeola Odeku Street", landmark: "Opposite Access Bank",
-      area: "Victoria Island", city: "Lagos", state: "Lagos", isDefault: true,
-    },
-  ]);
+function AddressesTab({ user }) {
+  const qc = useQueryClient();
+  const [addresses, setAddresses] = useState(user?.addresses ?? []);
   const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newAddr, setNewAddr] = useState({
     label: "", fullName: "", phone: "", street: "", landmark: "", area: "", city: "", state: "Lagos",
   });
 
-  const handleAdd = (e) => {
+  const persist = async (updated) => {
+    setSaving(true);
+    try {
+      const result = await updateProfileAction(user.id, { addresses: updated });
+      if (result?.error) throw new Error(result.error);
+      setAddresses(updated);
+      qc.invalidateQueries({ queryKey: ["auth-user"] });
+      return true;
+    } catch (err) {
+      toast.error(err.message || "Failed to save address");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAdd = async (e) => {
     e.preventDefault();
     if (!newAddr.street || !newAddr.landmark) {
       toast.error("Street and landmark are required"); return;
     }
-    setAddresses((prev) => [...prev, { ...newAddr, id: Date.now(), isDefault: prev.length === 0 }]);
-    setNewAddr({ label: "", fullName: "", phone: "", street: "", landmark: "", area: "", city: "", state: "Lagos" });
-    setAdding(false);
-    toast.success("Address saved");
+    const updated = [...addresses, { ...newAddr, id: Date.now(), isDefault: addresses.length === 0 }];
+    const ok = await persist(updated);
+    if (ok) {
+      setNewAddr({ label: "", fullName: "", phone: "", street: "", landmark: "", area: "", city: "", state: "Lagos" });
+      setAdding(false);
+      toast.success("Address saved");
+    }
   };
 
-  const removeAddress = (id) => {
-    setAddresses((prev) => prev.filter((a) => a.id !== id));
-    toast.success("Address removed");
+  const removeAddress = async (id) => {
+    const updated = addresses.filter((a) => a.id !== id);
+    const ok = await persist(updated);
+    if (ok) toast.success("Address removed");
   };
 
-  const setDefault = (id) => {
-    setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
-    toast.success("Default address updated");
+  const setDefault = async (id) => {
+    const updated = addresses.map((a) => ({ ...a, isDefault: a.id === id }));
+    const ok = await persist(updated);
+    if (ok) toast.success("Default address updated");
   };
 
   return (
@@ -218,14 +240,16 @@ function AddressesTab() {
               {!addr.isDefault && (
                 <button
                   onClick={() => setDefault(addr.id)}
-                  className="text-xs font-semibold text-primary hover:underline whitespace-nowrap"
+                  disabled={saving}
+                  className="text-xs font-semibold text-primary hover:underline whitespace-nowrap disabled:opacity-50"
                 >
                   Set default
                 </button>
               )}
               <button
                 onClick={() => removeAddress(addr.id)}
-                className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                disabled={saving}
+                className="p-3 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -251,10 +275,11 @@ function AddressesTab() {
             </select>
           </div>
           <div className="flex gap-2 pt-1">
-            <button type="submit" className="flex items-center gap-1.5 bg-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 transition-opacity">
-              <Check className="w-4 h-4" /> Save Address
+            <button type="submit" disabled={saving} className="flex items-center gap-1.5 bg-primary text-white text-sm font-semibold px-5 py-2 rounded-full hover:opacity-90 transition-opacity disabled:opacity-60">
+              {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Check className="w-4 h-4" />}
+              {saving ? "Saving…" : "Save Address"}
             </button>
-            <button type="button" onClick={() => setAdding(false)} className="px-5 py-2 text-sm font-semibold border border-gray-200 rounded-full text-gray-700 hover:bg-gray-50 transition-colors">
+            <button type="button" onClick={() => setAdding(false)} disabled={saving} className="px-5 py-2 text-sm font-semibold border border-gray-200 rounded-full text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
               Cancel
             </button>
           </div>
@@ -262,7 +287,8 @@ function AddressesTab() {
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-dashed border-gray-200 rounded-2xl text-sm font-semibold text-gray-500 hover:border-primary hover:text-primary transition-colors"
+          disabled={saving}
+          className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-dashed border-gray-200 rounded-2xl text-sm font-semibold text-gray-500 hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
         >
           <Plus className="w-4 h-4" /> Add New Address
         </button>
@@ -479,7 +505,7 @@ export default function SettingsPage() {
         <div className="text-center px-4">
           <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Sign in to manage settings</h2>
-          <Link href="/login?next=/settings" className="text-primary font-semibold hover:underline">Sign In</Link>
+          <Link href="/login?from=/settings" className="text-primary font-semibold hover:underline">Sign In</Link>
         </div>
       </div>
     );
@@ -487,7 +513,7 @@ export default function SettingsPage() {
 
   const ActiveComponent = {
     profile:       <ProfileTab user={user} />,
-    addresses:     <AddressesTab />,
+    addresses:     <AddressesTab user={user} />,
     notifications: <NotificationsTab />,
     security:      <SecurityTab />,
   }[activeTab];
