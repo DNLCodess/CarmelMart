@@ -133,9 +133,7 @@ export default function ForgotPassword() {
     setError("");
     setIsLoading(true);
     try {
-      console.log("[forgot-password] sendOTP → email:", email.trim().toLowerCase());
       const result = await sendPasswordResetAction(email.trim().toLowerCase());
-      console.log("[forgot-password] sendPasswordResetAction result:", result);
       if (!result.ok) {
         toast.error(result.error || "Something went wrong. Please try again.");
         return;
@@ -143,8 +141,7 @@ export default function ForgotPassword() {
       // Always advance to step 2 — never reveal whether the email is registered
       toast.success("If that email is registered, a reset code has been sent.");
       setStep(2);
-    } catch (err) {
-      console.error("[forgot-password] sendOTP unexpected error:", err);
+    } catch {
       toast.error("Something went wrong. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
@@ -157,14 +154,11 @@ export default function ForgotPassword() {
     setIsLoading(true);
     try {
       const supabase = createClient();
-      console.log("[forgot-password] verifyOtp → email:", email.trim().toLowerCase(), "| otp:", otp);
-      const { data, error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: otp, type: "recovery" });
-      console.log("[forgot-password] verifyOtp result:", { data, error });
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: otp, type: "recovery" });
       if (error) throw error;
       toast.success("Code verified");
       setStep(3);
-    } catch (err) {
-      console.error("[forgot-password] verifyOtp failed:", err);
+    } catch {
       toast.error("Invalid or expired code — please try again");
     } finally {
       setIsLoading(false);
@@ -177,9 +171,7 @@ export default function ForgotPassword() {
     setError("");
     setIsLoading(true);
     try {
-      console.log("[forgot-password] resetPasswordAction → calling server action");
       const result = await resetPasswordAction({ newPassword });
-      console.log("[forgot-password] resetPasswordAction result:", result);
       if (result?.error) {
         setError(result.error);
         toast.error(result.error);
@@ -187,8 +179,7 @@ export default function ForgotPassword() {
       }
       toast.success("Password reset successfully! Please sign in with your new password.");
       router.push("/login");
-    } catch (err) {
-      console.error("[forgot-password] resetPassword failed:", err);
+    } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);

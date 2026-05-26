@@ -79,8 +79,10 @@ async function verifyVendor() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const admin = createAdminClient();
-  const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
-  return profile?.role === "vendor" ? user : null;
+  const { data: profile } = await admin.from("users").select("role, status").eq("id", user.id).single();
+  if (!profile || profile.role !== "vendor") return null;
+  if (profile.status === "suspended" || profile.status === "banned") return null;
+  return user;
 }
 
 // PATCH /api/vendor/orders/[id] — update order status (vendor scope)
@@ -90,7 +92,7 @@ export async function PATCH(request, { params }) {
     if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
-    const { status, tracking_number } = await request.json();
+    const { status } = await request.json();
 
     const allowed = ["confirmed", "shipped", "delivered"];
     if (!allowed.includes(status)) {
@@ -111,7 +113,6 @@ export async function PATCH(request, { params }) {
     if (!item) return NextResponse.json({ error: "Order not found or access denied" }, { status: 404 });
 
     const updatePayload = { status, updated_at: new Date().toISOString() };
-    if (tracking_number != null) updatePayload.tracking_number = tracking_number;
 
     const { error } = await admin
       .from("orders")
@@ -125,11 +126,15 @@ export async function PATCH(request, { params }) {
       try {
         const { data: fullOrder } = await admin
           .from("orders")
-          .select("payment_status")
+          .select("payment_status, payment_method")
           .eq("id", id)
           .single();
 
-        if (fullOrder?.payment_status === "paid") {
+        const shouldCredit =
+          fullOrder?.payment_status === "paid" ||
+          fullOrder?.payment_method === "pod";
+
+        if (shouldCredit) {
           const { data: allItems } = await admin
             .from("order_items")
             .select("vendor_id, total")

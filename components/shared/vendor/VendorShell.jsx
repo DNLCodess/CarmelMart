@@ -36,12 +36,15 @@ function NotificationBell() {
   const unread        = data?.unreadCount    ?? 0;
 
   const markRead = useMutation({
-    mutationFn: (ids) =>
-      fetch("/api/vendor/notifications", {
+    mutationFn: async (ids) => {
+      const r = await fetch("/api/vendor/notifications", {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(ids ? { ids } : {}),
-      }),
+      });
+      if (!r.ok) throw new Error("Failed to mark notifications read");
+      return r.json();
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["vendor-notifications"] }),
   });
 

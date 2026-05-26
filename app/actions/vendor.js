@@ -88,9 +88,9 @@ export async function completeVendorPaymentAction({ transactionId, reference, fl
     .update({ verified: true, updated_at: new Date().toISOString() })
     .eq("id", userId);
 
-  // 5. Credit referral bonus if a pending referral exists
+  // 6. Credit referral bonus if a pending referral exists
   try {
-    const { data: referral } = await supabase
+    const { data: referral } = await admin
       .from("referrals")
       .select("id, referrer_id")
       .eq("referred_id", userId)
@@ -98,15 +98,22 @@ export async function completeVendorPaymentAction({ transactionId, reference, fl
       .single();
 
     if (referral) {
-      await supabase
+      await admin
         .from("referrals")
         .update({ status: "completed" })
         .eq("id", referral.id);
 
-      await supabase.rpc("credit_wallet", {
-        user_id: referral.referrer_id,
-        amount: 500,
+      await admin.rpc("increment_wallet", {
+        p_user_id: referral.referrer_id,
+        p_amount:  500,
+      });
+
+      await admin.from("wallet_transactions").insert({
+        user_id:     referral.referrer_id,
+        type:        "credit",
+        amount:      500,
         description: "Referral bonus — new vendor verified",
+        created_at:  new Date().toISOString(),
       });
     }
   } catch {

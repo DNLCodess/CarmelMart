@@ -134,9 +134,9 @@ export default function VendorOverviewPage() {
             <h3 className="font-bold text-gray-900 dark:text-gray-100 text-sm">Action Required ({todos.length})</h3>
           </div>
           <div className="divide-y divide-gray-50 dark:divide-gray-700">
-            {todos.map((todo, i) => (
+            {todos.map((todo) => (
               <Link
-                key={i}
+                key={todo.href}
                 href={todo.href}
                 className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               >
@@ -245,7 +245,7 @@ export default function VendorOverviewPage() {
           ) : (
             <div className="space-y-4">
               {topProducts.map((p, i) => (
-                <div key={i} className="flex items-center gap-3">
+                <div key={p.id ?? i} className="flex items-center gap-3">
                   <span className="w-5 text-xs font-bold text-gray-400 dark:text-gray-500 shrink-0">{i + 1}</span>
                   {p.image ? (
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">

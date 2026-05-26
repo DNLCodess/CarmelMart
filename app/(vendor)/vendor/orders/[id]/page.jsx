@@ -276,8 +276,8 @@ export default function VendorOrderDetailPage() {
             <h3 className="font-bold text-gray-900 dark:text-gray-100">Order Items</h3>
           </div>
           <div className="divide-y divide-gray-50 dark:divide-gray-700">
-            {order.order_items.map((item, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4">
+            {order.order_items.map((item) => (
+              <div key={item.id} className="flex items-center gap-4 px-5 py-4">
                 <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
                   <Package className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                 </div>

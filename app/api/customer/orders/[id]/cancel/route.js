@@ -95,7 +95,7 @@ export async function POST(request, { params }) {
 
       if (walletErr) {
         // Log for admin to manually credit — order is cancelled but payment_status
-        // stays "paid"/"deposit_paid" so it's clear a refund is still owed.
+        // stays "paid" (or "pending" for POD with pod_deposit > 0) so it's clear a refund is still owed.
         console.error(`[cancel] wallet credit failed for order ${id}:`, walletErr.message);
       } else {
         // Mark refunded only after the credit actually lands

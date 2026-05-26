@@ -239,11 +239,12 @@ export default function SearchPage() {
 
   const handleAddToCart = (product) => {
     addItem({
-      id:       product.id,
-      name:     product.name,
-      price:    product.salePrice || product.price,
-      image:    product.image,
-      vendorId: product.vendor?.id,
+      productId: product.id,
+      vendorId:  product.vendor?.id ?? null,
+      name:      product.name,
+      price:     product.salePrice ?? product.price,
+      image:     product.image ?? null,
+      quantity:  1,
     });
     toast.success("Added to cart");
   };

@@ -339,6 +339,7 @@ export default function CheckoutPage() {
   const initiateFlutterwave = () => {
     const publicKey = process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY;
     if (!publicKey || typeof window.FlutterwaveCheckout === "undefined") {
+      setLoading(false);
       toast.error("Payment gateway not available. Please try again.");
       return;
     }
@@ -741,7 +742,7 @@ export default function CheckoutPage() {
                   {requiresPODDeposit && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
                       <p className="font-semibold mb-1">POD Deposit Required</p>
-                      <p>A refundable 10% deposit of <strong>₦{podDeposit.toLocaleString()}</strong> is required now via Flutterwave. The remaining <strong>₦{(total - podDeposit).toLocaleString()}</strong> is paid on delivery.</p>
+                      <p>A refundable 10% deposit of <strong>₦{podDeposit.toLocaleString()}</strong> is required now via Flutterwave. The remaining <strong>₦{(discountedSubtotal - podDeposit).toLocaleString()}</strong> is paid on delivery.</p>
                     </div>
                   )}
                 </motion.div>

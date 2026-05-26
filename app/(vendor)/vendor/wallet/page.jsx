@@ -193,8 +193,8 @@ export default function VendorWalletPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-50 dark:divide-gray-700">
-            {transactions.map((t, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4">
+            {transactions.map((t) => (
+              <div key={t.id} className="flex items-center gap-4 px-5 py-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                   t.type === "credit" ? "bg-green-50 dark:bg-green-900/20" : "bg-red-50 dark:bg-red-900/20"
                 }`}>

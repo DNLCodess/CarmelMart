@@ -33,6 +33,8 @@ const NIGERIAN_STATES = [
 // ── sub-tabs ─────────────────────────────────────────────────────────────────
 
 function ProfileTab({ user }) {
+  const qc = useQueryClient();
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [form, setForm] = useState({
     fullName: user?.first_name ? `${user.first_name} ${user.last_name ?? ""}`.trim() : "",
     phone:    user?.phone ?? "",
@@ -77,9 +79,36 @@ function ProfileTab({ user }) {
               </span>
             )}
           </div>
-          <button className="absolute -bottom-1 -right-1 w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center shadow hover:opacity-90 transition-opacity">
-            <Camera className="w-4 h-4" />
-          </button>
+          <label htmlFor="settings-avatar" className="absolute -bottom-1 -right-1 w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center shadow hover:opacity-90 transition-opacity cursor-pointer">
+            {avatarUploading
+              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <Camera className="w-4 h-4" />}
+          </label>
+          <input
+            id="settings-avatar"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (file.size > 2 * 1024 * 1024) { toast.error("Photo must be under 2 MB"); return; }
+              setAvatarUploading(true);
+              try {
+                const fd = new FormData();
+                fd.append("file", file);
+                const r = await fetch("/api/customer/profile/avatar", { method: "POST", body: fd });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error ?? "Upload failed");
+                toast.success("Photo updated");
+                qc.invalidateQueries({ queryKey: ["auth-user"] });
+              } catch (err) {
+                toast.error(err.message);
+              } finally {
+                setAvatarUploading(false);
+              }
+            }}
+          />
         </div>
         <div>
           <p className="font-bold text-gray-900">{form.fullName || "Your Name"}</p>
@@ -191,7 +220,7 @@ function AddressesTab({ user }) {
     if (!newAddr.street || !newAddr.landmark) {
       toast.error("Street and landmark are required"); return;
     }
-    const updated = [...addresses, { ...newAddr, id: Date.now(), isDefault: addresses.length === 0 }];
+    const updated = [...addresses, { ...newAddr, id: Date.now(), is_default: addresses.length === 0 }];
     const ok = await persist(updated);
     if (ok) {
       setNewAddr({ label: "", fullName: "", phone: "", street: "", landmark: "", area: "", city: "", state: "Lagos" });
@@ -207,7 +236,7 @@ function AddressesTab({ user }) {
   };
 
   const setDefault = async (id) => {
-    const updated = addresses.map((a) => ({ ...a, isDefault: a.id === id }));
+    const updated = addresses.map((a) => ({ ...a, is_default: a.id === id }));
     const ok = await persist(updated);
     if (ok) toast.success("Default address updated");
   };
@@ -222,7 +251,7 @@ function AddressesTab({ user }) {
                 <span className="text-xs font-bold bg-white border border-gray-200 px-2 py-0.5 rounded-full text-gray-700">
                   {addr.label || "Address"}
                 </span>
-                {addr.isDefault && (
+                {addr.is_default && (
                   <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
                     Default
                   </span>
@@ -237,7 +266,7 @@ function AddressesTab({ user }) {
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              {!addr.isDefault && (
+              {!addr.is_default && (
                 <button
                   onClick={() => setDefault(addr.id)}
                   disabled={saving}

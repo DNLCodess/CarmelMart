@@ -500,18 +500,18 @@ export default function VendorSubscriptionPage() {
   const history       = data?.history      ?? [];
 
   const cancelMutation = useMutation({
-    mutationFn: () =>
-      fetch("/api/vendor/subscription/cancel", { method: "POST" }).then((r) => r.json()),
+    mutationFn: async () => {
+      const r = await fetch("/api/vendor/subscription/cancel", { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed to cancel subscription.");
+      return d;
+    },
     onSuccess: (res) => {
       setShowCancelModal(false);
-      if (res.success) {
-        toast.success(res.message ?? "Subscription cancelled.");
-        qc.invalidateQueries({ queryKey: ["vendor-subscription"] });
-      } else {
-        toast.error(res.error ?? "Failed to cancel subscription.");
-      }
+      toast.success(res.message ?? "Subscription cancelled.");
+      qc.invalidateQueries({ queryKey: ["vendor-subscription"] });
     },
-    onError: () => toast.error("An unexpected error occurred. Please try again."),
+    onError: (e) => toast.error(e.message),
   });
 
   const handleUpgrade = async (tier, billingCycle) => {

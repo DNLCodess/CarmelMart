@@ -215,7 +215,7 @@ export default function AdminUserDetailPage({ params }) {
                     <td className="px-5 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{p.reference}</td>
                     <td className="px-5 py-3 text-gray-700 dark:text-gray-300 capitalize">{p.type}</td>
                     <td className="px-5 py-3">
-                      <span className={`text-xs font-semibold capitalize ${p.status === "completed" ? "text-green-600 dark:text-green-400" : p.status === "failed" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
+                      <span className={`text-xs font-semibold capitalize ${p.status === "success" ? "text-green-600 dark:text-green-400" : p.status === "failed" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
                         {p.status}
                       </span>
                     </td>

@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
     const admin = createAdminClient();
     const { data: product, error } = await admin
       .from("products")
-      .select(`id, name, slug, description, price, sale_price, stock, images, status, condition, attributes,
+      .select(`id, name, slug, description, price, sale_price, stock, images, status, attributes,
         category_id, categories(id, name, slug, template),
         media_author, media_isbn, media_publisher, media_publish_date, media_edition,
         media_pages, media_language, media_format, media_genre,
@@ -58,7 +58,6 @@ export async function PATCH(request, { params }) {
       stock:       body.stock,
       category_id: body.category_id,
       images:      body.images ?? [],
-      condition:   ["new","used","refurbished"].includes(body.condition) ? body.condition : "new",
       attributes:  body.attributes && typeof body.attributes === "object" ? body.attributes : {},
       updated_at:  new Date().toISOString(),
     };
