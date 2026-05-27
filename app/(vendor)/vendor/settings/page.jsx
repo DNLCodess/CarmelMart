@@ -151,6 +151,12 @@ export default function VendorSettingsPage() {
   const onChangePassword = async (formData) => {
     try {
       const supabase = createClient();
+      // Re-authenticate with current password before allowing the change
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email,
+        password: formData.currentPassword,
+      });
+      if (signInError) throw new Error("Current password is incorrect.");
       const { error } = await supabase.auth.updateUser({ password: formData.newPassword });
       if (error) throw error;
       resetPw();
@@ -363,10 +369,21 @@ export default function VendorSettingsPage() {
       <Section title="Security">
         <form onSubmit={handlePw(onChangePassword)} className="space-y-4">
           <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Current Password</label>
+            <input
+              {...regPw("currentPassword", { required: "Current password is required" })}
+              type="password"
+              autoComplete="current-password"
+              placeholder="Enter your current password"
+              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+            />
+          </div>
+          <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">New Password</label>
             <input
               {...regPw("newPassword", { required: "New password is required", minLength: { value: 8, message: "Min 8 characters" } })}
               type="password"
+              autoComplete="new-password"
               placeholder="At least 8 characters"
               className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
@@ -379,6 +396,7 @@ export default function VendorSettingsPage() {
                 validate: (v) => v === watchPw("newPassword") || "Passwords do not match",
               })}
               type="password"
+              autoComplete="new-password"
               className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
             />
           </div>

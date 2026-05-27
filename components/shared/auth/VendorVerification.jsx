@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
@@ -46,8 +46,20 @@ export default function VendorVerification({
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm();
+
+  const [verifiedAccountName, setVerifiedAccountName] = useState(null);
+  const [bankVerifying, setBankVerifying] = useState(false);
+
+  const watchedAccountNumber = watch("accountNumber");
+  const watchedBankCode      = watch("bankCode");
+
+  // Clear verification when either field changes
+  useEffect(() => {
+    setVerifiedAccountName(null);
+  }, [watchedAccountNumber, watchedBankCode]);
 
   // Steps vary by tier; only show tier-specific steps once a tier is chosen
   const getSteps = () => {
@@ -70,8 +82,38 @@ export default function VendorVerification({
   const paymentStep = verificationType === "nin_cac" ? 5 : 4;
   const totalSteps = steps.length;
 
+  // ── Bank Account Verification ─────────────────────────────────────────────
+  const verifyBankAccount = async () => {
+    const accountNumber = watch("accountNumber");
+    const bankCode      = watch("bankCode");
+    if (!accountNumber || !bankCode) {
+      toast.error("Enter account number and bank code first");
+      return;
+    }
+    setBankVerifying(true);
+    try {
+      const res = await fetch("/api/flutterwave/verify-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_number: accountNumber, account_bank: bankCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Verification failed");
+      setVerifiedAccountName(data.account_name);
+      toast.success(`Account verified: ${data.account_name}`);
+    } catch (err) {
+      toast.error(err.message || "Could not verify bank account");
+    } finally {
+      setBankVerifying(false);
+    }
+  };
+
   // ── Step 1: Business Details ──────────────────────────────────────────────
   const handleBusinessDetails = async (data) => {
+    if (!verifiedAccountName) {
+      toast.error("Please verify your bank account number before continuing");
+      return;
+    }
     setIsSubmittingBusiness(true);
     try {
       // vendor shell was created in signupAction — just update with business details
@@ -111,7 +153,7 @@ export default function VendorVerification({
       if (error) throw error;
       setVerificationType(type);
       toast.success(
-        type === "nin_cac" ? "Premium verification selected" : "Standard verification selected"
+        type === "nin_cac" ? "Business verification selected" : "Starter verification selected"
       );
       setCurrentStep(3);
     } catch (error) {
@@ -361,7 +403,7 @@ export default function VendorVerification({
 
           {/* Step 1: Business Details */}
           {currentStep === 1 && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-7">
+            <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6">
               <form onSubmit={handleSubmit(handleBusinessDetails)} className="space-y-5">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
@@ -386,6 +428,8 @@ export default function VendorVerification({
 
                 <Input
                   label="Phone Number"
+                  type="tel"
+                  inputMode="tel"
                   placeholder="+234 XXX XXX XXXX"
                   {...register("phone", {
                     required: "Phone number is required",
@@ -430,6 +474,40 @@ export default function VendorVerification({
                       {...register("bankName", { required: "Bank name is required" })}
                       error={errors.bankName?.message}
                     />
+
+                    {/* Verify account number */}
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={verifyBankAccount}
+                        disabled={bankVerifying}
+                        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                      >
+                        {bankVerifying ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Verifying...
+                          </>
+                        ) : verifiedAccountName ? (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            Verified
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="w-4 h-4" />
+                            Verify Account Number
+                          </>
+                        )}
+                      </button>
+
+                      {verifiedAccountName && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                          <span className="text-sm font-medium text-green-800">{verifiedAccountName}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -439,7 +517,7 @@ export default function VendorVerification({
                   size="lg"
                   className="w-full group"
                   isLoading={isSubmittingBusiness}
-                  disabled={isSubmittingBusiness}
+                  disabled={isSubmittingBusiness || !verifiedAccountName}
                 >
                   {isSubmittingBusiness ? "Saving..." : (
                     <>
@@ -465,7 +543,7 @@ export default function VendorVerification({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Standard */}
+                {/* Starter */}
                 <button
                   onClick={() => handleVerificationChoice("nin")}
                   className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all text-left flex flex-col justify-between"
@@ -476,11 +554,11 @@ export default function VendorVerification({
                         <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
                           <Shield className="w-5 h-5 text-gray-700" />
                         </div>
-                        <h3 className="font-semibold text-gray-900">Standard</h3>
+                        <h3 className="font-semibold text-gray-900">Starter</h3>
                       </div>
                       <span className="text-sm font-bold text-gray-700">₦5,000</span>
                     </div>
-                    <p className="text-xs text-gray-400 mb-3">NIN Verification</p>
+                    <p className="text-xs text-gray-400 mb-3">NIN Verification — Individual sellers</p>
                     <ul className="text-sm text-gray-600 space-y-2">
                       {["Quick verification", "Unlimited listings", "Verified badge"].map((b) => (
                         <li key={b} className="flex items-center gap-2">
@@ -491,12 +569,12 @@ export default function VendorVerification({
                     </ul>
                   </div>
                   <div className="mt-5 w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Select Standard
+                    Select Starter
                     <ArrowRight className="w-4 h-4" />
                   </div>
                 </button>
 
-                {/* Premium */}
+                {/* Business */}
                 <button
                   onClick={() => handleVerificationChoice("nin_cac")}
                   className="bg-white border-2 border-gray-800 rounded-xl p-5 hover:shadow-md transition-all text-left flex flex-col justify-between relative"
@@ -510,13 +588,13 @@ export default function VendorVerification({
                         <div className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center">
                           <Star className="w-5 h-5 text-white" />
                         </div>
-                        <h3 className="font-semibold text-gray-900">Premium</h3>
+                        <h3 className="font-semibold text-gray-900">Business</h3>
                       </div>
                       <span className="text-sm font-bold text-gray-800">₦10,000</span>
                     </div>
-                    <p className="text-xs text-gray-400 mb-3">NIN + CAC Verification</p>
+                    <p className="text-xs text-gray-400 mb-3">NIN + CAC Verification — Registered businesses</p>
                     <ul className="text-sm text-gray-600 space-y-2">
-                      {["All Standard benefits", "Enhanced credibility", "Priority visibility"].map((b) => (
+                      {["All Starter benefits", "Enhanced credibility", "Priority visibility"].map((b) => (
                         <li key={b} className="flex items-center gap-2">
                           <Check className="w-4 h-4 text-gray-800 shrink-0" />
                           {b}
@@ -525,7 +603,7 @@ export default function VendorVerification({
                     </ul>
                   </div>
                   <div className="mt-5 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
-                    Select Premium
+                    Select Business
                     <Star className="w-4 h-4" />
                   </div>
                 </button>
@@ -534,7 +612,7 @@ export default function VendorVerification({
               <div className="flex gap-3 border border-gray-200 bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
                 <AlertCircle className="w-5 h-5 text-gray-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-gray-900 mb-0.5">Why Premium?</p>
+                  <p className="font-semibold text-gray-900 mb-0.5">Why Business?</p>
                   <p>Vendors with CAC verification get higher trust and better search visibility.</p>
                 </div>
               </div>
@@ -543,7 +621,7 @@ export default function VendorVerification({
 
           {/* Step 3: NIN Verification */}
           {currentStep === 3 && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-7">
+            <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6">
               {verificationStatus.nin.verified ? (
                 <motion.div
                   initial={{ scale: 0.95, opacity: 0 }}
@@ -630,7 +708,7 @@ export default function VendorVerification({
 
           {/* Step 4: CAC Verification (Premium only) */}
           {currentStep === 4 && verificationType === "nin_cac" && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-7">
+            <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6">
               {verificationStatus.cac.verified ? (
                 <motion.div
                   initial={{ scale: 0.95, opacity: 0 }}
@@ -709,7 +787,7 @@ export default function VendorVerification({
 
           {/* Payment Step */}
           {currentStep === paymentStep && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-7">
+            <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6">
               {verificationStatus.payment.processing ? (
                 <motion.div
                   initial={{ scale: 0.95, opacity: 0 }}
@@ -736,7 +814,7 @@ export default function VendorVerification({
                   {verificationType === "nin_cac" && (
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-linear-to-br from-primary to-accent text-white rounded-full font-semibold text-sm mb-3">
                       <Star className="w-4 h-4" fill="currentColor" />
-                      Premium Vendor Active
+                      Business Vendor Active
                     </div>
                   )}
                   {referredBy && (
@@ -770,7 +848,7 @@ export default function VendorVerification({
                     {verificationType === "nin_cac" && (
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
                         <Star className="w-3 h-3" fill="currentColor" />
-                        Premium Tier
+                        Business Tier
                       </div>
                     )}
                   </div>

@@ -59,6 +59,44 @@ export async function PATCH(request) {
     }
 
     const admin = createAdminClient();
+
+    // If bank details are changing, verify the account with Flutterwave before saving.
+    if (update.bank_account_number !== undefined || update.bank_code !== undefined) {
+      // Fetch current values to fill in whichever field isn't being updated
+      const { data: current } = await admin
+        .from("vendors")
+        .select("bank_account_number, bank_code")
+        .eq("id", user.id)
+        .single();
+
+      const resolveNumber = update.bank_account_number ?? current?.bank_account_number;
+      const resolveCode   = update.bank_code           ?? current?.bank_code;
+
+      if (!resolveNumber || !resolveCode) {
+        return NextResponse.json(
+          { error: "Both account number and bank code are required to verify bank details." },
+          { status: 400 }
+        );
+      }
+
+      const flwRes = await fetch("https://api.flutterwave.com/v3/resolve_account", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ account_number: resolveNumber, account_bank: resolveCode }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      const flwData = await flwRes.json();
+
+      if (flwData.status !== "success" || !flwData.data?.account_name) {
+        return NextResponse.json(
+          { error: "Could not verify bank account. Please check your account number and bank code." },
+          { status: 400 }
+        );
+      }
+    }
     const { error: upErr } = await admin.from("vendors").update(update).eq("id", user.id);
     if (upErr) throw upErr;
 

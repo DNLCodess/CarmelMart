@@ -203,7 +203,7 @@ export default function VendorStorePage() {
         </div>
 
         {isLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-12">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-12">
             {[...Array(8)].map((_, i) => <ProductSkeleton key={i} />)}
           </div>
         ) : products.length === 0 ? (
@@ -212,7 +212,7 @@ export default function VendorStorePage() {
             <p className="text-gray-500">No products listed yet.</p>
           </div>
         ) : (
-          <div className={`pb-12 ${view === "grid" ? "grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "space-y-4"}`}>
+          <div className={`pb-12 ${view === "grid" ? "grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6" : "space-y-4"}`}>
             {products.map((product) =>
               view === "grid" ? (
                 <motion.div key={product.id} whileHover={{ y: -4 }} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300">
@@ -232,7 +232,17 @@ export default function VendorStorePage() {
                           <Package className="w-12 h-12" />
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-300 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
+                      {/* Mobile: persistent cart button */}
+                      <button
+                        onClick={(e) => { e.preventDefault(); handleAddToCart(product); }}
+                        disabled={!product.in_stock}
+                        className="sm:hidden absolute bottom-2 right-2 w-9 h-9 flex items-center justify-center bg-primary text-white rounded-full shadow-lg disabled:opacity-40 active:scale-95 transition-opacity"
+                        aria-label="Add to cart"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                      </button>
+                      {/* Desktop: hover overlay */}
+                      <div className="hidden sm:flex absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-300 items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
                         <button
                           onClick={(e) => { e.preventDefault(); handleAddToCart(product); }}
                           disabled={!product.in_stock}

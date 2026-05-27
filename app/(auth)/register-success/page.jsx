@@ -30,10 +30,13 @@ function VendorSuccessContent() {
    */
   const verificationType = searchParams.get("registrationtype");
 
+  const REGISTRATION_FEES = { nin_cac: 10_000, nin: 5_000 };
+
   // Determine tier and pricing based on verification type
   const isPremium = verificationType === "nin_cac";
-  const vendorTier = isPremium ? "Premium" : "Standard";
-  const amount = isPremium ? "₦10,000" : "₦5,000";
+  const vendorTier = isPremium ? "Business" : "Starter";
+  const fee = REGISTRATION_FEES[verificationType] ?? REGISTRATION_FEES.nin;
+  const amount = `₦${fee.toLocaleString()}`;
 
   const whatsappLink = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7?mode=gi_t";
 
@@ -59,7 +62,7 @@ function VendorSuccessContent() {
     <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-100">
       {/* Header with Success State */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-8 sm:pb-12 text-center">
           {/* Logo */}
           <div className="flex justify-center mb-8">
             <Link href="/">
@@ -109,7 +112,7 @@ function VendorSuccessContent() {
                       Vendor Tier
                     </div>
                     <div className="text-base font-semibold text-gray-900">
-                      Premium Vendor
+                      Business Vendor
                     </div>
                   </div>
                 </>
@@ -123,7 +126,7 @@ function VendorSuccessContent() {
                       Vendor Tier
                     </div>
                     <div className="text-base font-semibold text-gray-900">
-                      Standard Vendor
+                      Starter Vendor
                     </div>
                   </div>
                 </>
@@ -134,7 +137,7 @@ function VendorSuccessContent() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -288,7 +291,7 @@ function VendorSuccessContent() {
               {isPremium && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
                   <Star className="w-3.5 h-3.5" fill="currentColor" />
-                  Premium
+                  Business
                 </div>
               )}
             </div>

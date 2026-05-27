@@ -67,7 +67,7 @@ export default function OrdersPage() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl border border-gray-100 shadow-xl p-10 max-w-md w-full text-center"
+          className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 sm:p-10 max-w-md w-full text-center"
         >
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5">
             <UserPlus className="w-8 h-8 text-primary" />
@@ -106,7 +106,7 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">My Orders</h1>
 
         {/* Tabs */}

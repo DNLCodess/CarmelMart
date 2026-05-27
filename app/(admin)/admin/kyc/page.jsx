@@ -3,19 +3,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, CheckCircle, Clock, Mail, Phone, Calendar,
-  Check, XCircle, RefreshCw,
+  Check, XCircle, RefreshCw, AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 async function fetchPendingVendors() {
   const r = await fetch("/api/admin/vendors?status=pending&page=1");
-  return r.json();
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || "Failed to load KYC queue");
+  return d;
 }
 
 export default function AdminKYCPage() {
   const qc = useQueryClient();
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["admin-kyc-queue"],
     queryFn: fetchPendingVendors,
     staleTime: 30_000,
@@ -65,6 +67,12 @@ export default function AdminKYCPage() {
         <div className="py-12 text-center">
           <RefreshCw className="w-6 h-6 text-gray-300 dark:text-gray-600 animate-spin mx-auto mb-2" />
           <p className="text-sm text-gray-500 dark:text-gray-400">Loading KYC queue…</p>
+        </div>
+      ) : isError ? (
+        <div className="py-12 text-center">
+          <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+          <p className="text-sm text-red-600 dark:text-red-400">{error?.message ?? "Failed to load KYC queue"}</p>
+          <button onClick={() => refetch()} className="mt-3 text-sm text-primary font-semibold hover:underline">Try again</button>
         </div>
       ) : vendors.length === 0 ? (
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-12 text-center">

@@ -209,7 +209,7 @@ export default function HelpPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <div className="bg-primary text-white py-14 px-4">
+      <div className="bg-primary text-white py-10 sm:py-14 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl font-extrabold mb-3">How can we help?</h1>
           <p className="text-white/80 mb-8">Find answers to common questions about CarmelMart</p>
@@ -227,11 +227,11 @@ export default function HelpPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
 
         {/* ── Category quick-links ──────────────────────────────────────── */}
         {!search && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-10">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6 sm:mb-10">
             {FAQ_SECTIONS.map((section) => {
               const Icon = section.icon;
               const active = activeSection === section.id;

@@ -188,7 +188,16 @@ export default function FlashSaleSection() {
                           sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 16vw"
                         />
                       )}
-                      <div className="absolute inset-x-0 bottom-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                      {/* Mobile: persistent cart button */}
+                      <button
+                        onClick={(e) => handleAddToCart(e, item)}
+                        className="sm:hidden absolute bottom-2 right-2 w-7 h-7 flex items-center justify-center bg-primary text-white rounded-full shadow active:scale-95 transition-opacity"
+                        aria-label="Add to cart"
+                      >
+                        <ShoppingCart className="w-3 h-3" />
+                      </button>
+                      {/* Desktop: slide-up overlay */}
+                      <div className="hidden sm:block absolute inset-x-0 bottom-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                         <button
                           onClick={(e) => handleAddToCart(e, item)}
                           className="w-full flex items-center justify-center gap-1.5 bg-primary-dark text-white text-xs font-bold py-2 rounded-full hover:bg-accent transition-colors"

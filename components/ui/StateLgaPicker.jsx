@@ -30,9 +30,9 @@ function getLgas(stateName) {
 }
 
 const selectCls =
-  "w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/50 outline-none text-sm bg-white appearance-none";
+  "w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none text-sm bg-white appearance-none";
 const errorCls =
-  "border-red-300 focus:border-red-500 focus:ring-red-500/40";
+  "border-red-300 focus:border-red-500 focus:ring-red-500/15";
 
 export default function StateLgaPicker({
   stateValue = "",

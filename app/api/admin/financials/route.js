@@ -30,11 +30,12 @@ export async function GET(request) {
       .limit(50);
     if (since) { orderBase = orderBase.gte("created_at", since); payBase = payBase.gte("created_at", since); txBase = txBase.gte("created_at", since); }
 
-    const [{ data: ordersData }, { data: paymentsData }, { data: walletData }, { data: txData }] = await Promise.all([
+    const [{ data: ordersData }, { data: paymentsData }, { data: walletData }, { data: txData }, { data: feeRow }] = await Promise.all([
       orderBase,
       payBase,
       admin.from("users").select("wallet_balance").gt("wallet_balance", 0),
       txBase,
+      admin.from("platform_settings").select("value").eq("key", "platform_fee_percent").single(),
     ]);
 
     const gmv = (ordersData || [])
@@ -49,7 +50,7 @@ export async function GET(request) {
       .filter((p) => p.status === "success")
       .reduce((s, p) => s + Number(p.amount ?? 0), 0);
 
-    const PLATFORM_FEE_RATE = 0.05;
+    const PLATFORM_FEE_RATE = Number(feeRow?.value ?? 10) / 100;
     const platformFees = Math.round(gmv * PLATFORM_FEE_RATE);
 
     const totalWalletBalances = (walletData || []).reduce((s, u) => s + (u.wallet_balance ?? 0), 0);
@@ -83,7 +84,7 @@ export async function GET(request) {
         const key = o.created_at.slice(0, 10);
         if (chartMap[key]) {
           chartMap[key].gmv   += o.total ?? 0;
-          chartMap[key].fees  += Math.round((o.total ?? 0) * PLATFORM_FEE_RATE);
+          chartMap[key].fees += Math.round((o.total ?? 0) * PLATFORM_FEE_RATE);
         }
       });
     const revenueChart = Object.values(chartMap);
@@ -97,7 +98,8 @@ export async function GET(request) {
         totalWalletBalances,
         walletCredits,
         walletDebits,
-        feeRate: PLATFORM_FEE_RATE,
+        feeRate:       PLATFORM_FEE_RATE,
+        feeRateSource: feeRow ? "platform_settings" : "default",
       },
       revenueChart,
       transactions,

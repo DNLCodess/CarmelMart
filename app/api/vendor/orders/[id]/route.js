@@ -101,80 +101,127 @@ export async function PATCH(request, { params }) {
 
     const admin = createAdminClient();
 
-    // Confirm vendor owns an item in this order
-    const { data: item } = await admin
-      .from("order_items")
-      .select("id")
-      .eq("order_id", id)
-      .eq("vendor_id", user.id)
-      .limit(1)
-      .single();
+    // Fetch order and confirm vendor owns an item in it
+    const [{ data: currentOrder }, { data: item }] = await Promise.all([
+      admin.from("orders").select("id, status, payment_status, payment_method").eq("id", id).single(),
+      admin.from("order_items").select("id").eq("order_id", id).eq("vendor_id", user.id).limit(1).single(),
+    ]);
 
     if (!item) return NextResponse.json({ error: "Order not found or access denied" }, { status: 404 });
+    if (!currentOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-    const updatePayload = { status, updated_at: new Date().toISOString() };
+    // Enforce forward-only transitions — vendor cannot jump directly to "delivered"
+    // from "pending" or "confirmed" (would bypass dispatch/shipping steps).
+    const ALLOWED_TRANSITIONS = {
+      pending:    ["confirmed"],
+      confirmed:  ["processing", "shipped"],
+      processing: ["shipped"],
+      shipped:    ["delivered"],
+    };
+    const validNext = ALLOWED_TRANSITIONS[currentOrder.status] ?? [];
+    if (!validNext.includes(status)) {
+      return NextResponse.json(
+        { error: `Cannot move order from '${currentOrder.status}' to '${status}'.` },
+        { status: 400 }
+      );
+    }
 
     const { error } = await admin
       .from("orders")
-      .update(updatePayload)
+      .update({ status, updated_at: new Date().toISOString() })
       .eq("id", id);
 
     if (error) throw error;
 
-    // Credit vendor wallets on delivery (self-fulfilled orders — no rider)
+    // Credit only THIS vendor's wallet on delivery (self-fulfilled orders — no rider).
+    // We scope strictly to the calling vendor's items to prevent privilege escalation
+    // in multi-vendor orders where vendor A cannot trigger credits for vendors B/C.
     if (status === "delivered") {
       try {
-        const { data: fullOrder } = await admin
-          .from("orders")
-          .select("payment_status, payment_method")
-          .eq("id", id)
-          .single();
-
         const shouldCredit =
-          fullOrder?.payment_status === "paid" ||
-          fullOrder?.payment_method === "pod";
+          currentOrder.payment_status === "paid" ||
+          currentOrder.payment_method === "pod";
 
         if (shouldCredit) {
-          const { data: allItems } = await admin
+          // Only this vendor's items, not all vendors in the order
+          const { data: myItems } = await admin
             .from("order_items")
-            .select("vendor_id, total")
-            .eq("order_id", id);
+            .select("total, product_id")
+            .eq("order_id", id)
+            .eq("vendor_id", user.id);
 
-          if (allItems?.length) {
-            const vendorTotals = {};
-            for (const it of allItems) {
-              vendorTotals[it.vendor_id] = (vendorTotals[it.vendor_id] ?? 0) + it.total;
-            }
-            const vendorIds = Object.keys(vendorTotals);
-            const [{ data: vendorRows }, { data: rateOverrides }] = await Promise.all([
-              admin.from("vendors").select("id, subscription_tier").in("id", vendorIds),
-              admin.from("commission_rates").select("target_id, rate").eq("type", "vendor").in("target_id", vendorIds),
-            ]);
-            const tierMap     = Object.fromEntries((vendorRows     ?? []).map((v) => [v.id, v.subscription_tier ?? "free"]));
-            const overrideMap = Object.fromEntries((rateOverrides  ?? []).map((r) => [r.target_id, Number(r.rate)]));
-            const now      = new Date().toISOString();
-            const shortId  = `#CM-${id.slice(0, 8).toUpperCase()}`;
+          if ((myItems ?? []).length > 0) {
+            // Idempotency: skip if already credited (guards against duplicate calls)
+            const { count: alreadyCredited } = await admin
+              .from("wallet_transactions")
+              .select("id", { count: "exact", head: true })
+              .eq("reference", id)
+              .eq("user_id", user.id)
+              .eq("type", "credit");
 
-            for (const [vendorId, grossTotal] of Object.entries(vendorTotals)) {
-              const tier           = tierMap[vendorId] ?? "free";
-              const commissionRate = overrideMap[vendorId] ?? getCommissionRate(tier);
-              const vendorEarning  = Math.round(grossTotal * (1 - commissionRate / 100));
-              if (vendorEarning <= 0) continue;
+            if ((alreadyCredited ?? 0) === 0) {
+              const productIds = [...new Set(myItems.map((i) => i.product_id).filter(Boolean))];
 
-              const { error: walletErr } = await admin.rpc("increment_wallet", {
-                p_user_id: vendorId,
-                p_amount:  vendorEarning,
-              });
-              if (walletErr) throw walletErr;
+              const [
+                { data: vendorRow },
+                { data: allRateOverrides },
+                { data: platformFeeRow },
+              ] = await Promise.all([
+                admin.from("vendors").select("subscription_tier").eq("id", user.id).single(),
+                admin.from("commission_rates").select("target_id, rate, type").in("type", ["vendor", "category"]),
+                admin.from("platform_settings").select("value").eq("key", "platform_fee_percent").single(),
+              ]);
 
-              await admin.from("wallet_transactions").insert({
-                user_id:     vendorId,
-                type:        "credit",
-                amount:      vendorEarning,
-                description: `Order ${shortId} delivered (vendor fulfilled) — after ${commissionRate}% commission`,
-                reference:   id,
-                created_at:  now,
-              });
+              let productCategoryMap = {};
+              if (productIds.length > 0) {
+                const { data: productRows } = await admin
+                  .from("products").select("id, category_id").in("id", productIds);
+                productCategoryMap = Object.fromEntries((productRows ?? []).map((p) => [p.id, p.category_id]));
+              }
+
+              const tier = vendorRow?.subscription_tier ?? "free";
+              const platformDefaultRate = Number(platformFeeRow?.value ?? getCommissionRate("free"));
+              const vendorOverrideRow = (allRateOverrides ?? []).find(
+                (r) => r.type === "vendor" && r.target_id === user.id
+              );
+              const categoryOverrideMap = Object.fromEntries(
+                (allRateOverrides ?? []).filter((r) => r.type === "category").map((r) => [r.target_id, Number(r.rate)])
+              );
+
+              // Sum earning per item — priority: vendor override → category override → tier default
+              let vendorEarning = 0;
+              for (const item of myItems) {
+                const categoryId = productCategoryMap[item.product_id];
+                let rate;
+                if (vendorOverrideRow) {
+                  rate = Number(vendorOverrideRow.rate);
+                } else if (categoryId && categoryOverrideMap[categoryId] !== undefined) {
+                  rate = categoryOverrideMap[categoryId];
+                } else {
+                  rate = tier === "free" ? platformDefaultRate : getCommissionRate(tier);
+                }
+                vendorEarning += Math.round((item.total ?? 0) * (1 - rate / 100));
+              }
+
+              if (vendorEarning > 0) {
+                const now     = new Date().toISOString();
+                const shortId = `#CM-${id.slice(0, 8).toUpperCase()}`;
+
+                const { error: walletErr } = await admin.rpc("increment_wallet", {
+                  p_user_id: user.id,
+                  p_amount:  vendorEarning,
+                });
+                if (walletErr) throw walletErr;
+
+                await admin.from("wallet_transactions").insert({
+                  user_id:     user.id,
+                  type:        "credit",
+                  amount:      vendorEarning,
+                  description: `Order ${shortId} delivered (vendor fulfilled) — after commission`,
+                  reference:   id,
+                  created_at:  now,
+                });
+              }
             }
           }
         }

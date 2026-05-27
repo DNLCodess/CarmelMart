@@ -74,21 +74,15 @@ export async function completeVendorPaymentAction({ transactionId, reference, fl
     })
     .eq("reference", reference);
 
-  // 5. Activate vendor — use admin client; RLS on vendors table would block user updating own payment_verified
+  // 5. Record payment as complete — admin approval sets verification_status to "verified"
   const { error: vendorError } = await admin
     .from("vendors")
-    .update({ payment_verified: true, verification_status: "pending" })
+    .update({ payment_verified: true })
     .eq("id", userId);
 
   if (vendorError) throw new Error("Failed to activate vendor account.");
 
-  // 6. Mark user as verified — use admin client for consistency
-  await admin
-    .from("users")
-    .update({ verified: true, updated_at: new Date().toISOString() })
-    .eq("id", userId);
-
-  // 6. Credit referral bonus if a pending referral exists
+  // 7. Credit referral bonus if a pending referral exists
   try {
     const { data: referral } = await admin
       .from("referrals")

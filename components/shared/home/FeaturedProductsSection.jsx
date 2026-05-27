@@ -110,8 +110,16 @@ function ProductCard({ product, rank, index }) {
             ) : (
               <div className="w-full h-full bg-gray-100" />
             )}
-            {/* Cart hover overlay */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-300 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
+            {/* Mobile: persistent cart button */}
+            <button
+              onClick={handleAddToCart}
+              className="sm:hidden absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full shadow-lg active:scale-95 transition-opacity"
+              aria-label="Add to cart"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+            </button>
+            {/* Desktop: hover overlay */}
+            <div className="hidden sm:flex absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-300 items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
               <button
                 onClick={handleAddToCart}
                 className="flex items-center gap-2 bg-white text-gray-900 text-xs font-bold px-5 py-2.5 rounded-full shadow-xl hover:bg-primary hover:text-white transition-colors"

@@ -54,9 +54,9 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-5 sm:mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
             Shopping Cart
             <span className="ml-2 text-base font-normal text-gray-500">
@@ -79,11 +79,11 @@ export default function CartPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-white rounded-2xl border border-gray-100 p-5 flex gap-5"
+                  className="bg-white rounded-2xl border border-gray-100 p-3 sm:p-5 flex gap-3 sm:gap-5"
                 >
                   {/* Image */}
                   <Link href={`/product/${item.productId}`} className="shrink-0">
-                    <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100">
+                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-gray-100">
                       {item.image ? (
                         <Image src={item.image} alt={item.name} fill className="object-cover" />
                       ) : (

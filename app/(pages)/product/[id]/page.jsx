@@ -91,7 +91,7 @@ function ProductSkeleton() {
   return (
     <div className="grid lg:grid-cols-2 gap-12 animate-pulse">
       <div className="space-y-4">
-        <div className="h-96 lg:h-[500px] bg-gray-200 rounded-3xl" />
+        <div className="h-72 sm:h-96 lg:h-[500px] bg-gray-200 rounded-3xl" />
         <div className="flex gap-3">
           {[0, 1, 2].map((i) => (
             <div key={i} className="w-20 h-20 bg-gray-200 rounded-xl" />
@@ -452,9 +452,9 @@ export default function ProductDetailPage() {
   return (
     <>
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-28">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-gray-500 mb-8 flex-wrap">
+          <nav className="flex items-center gap-2 text-sm text-gray-500 mb-4 sm:mb-8 flex-wrap">
             <Link href="/" className="hover:text-primary transition-colors">
               Home
             </Link>
@@ -505,10 +505,10 @@ export default function ProductDetailPage() {
           {isLoading && <ProductSkeleton />}
 
           {product && (
-            <div className="grid lg:grid-cols-2 gap-12">
+            <div className="grid lg:grid-cols-2 gap-6 lg:gap-12">
               {/* ── Image gallery ──────────────────────────────────────────── */}
               <div>
-                <div className="relative h-96 lg:h-[520px] rounded-3xl overflow-hidden bg-white border border-gray-100 mb-4">
+                <div className="relative h-72 sm:h-96 lg:h-[520px] rounded-3xl overflow-hidden bg-white border border-gray-100 mb-4">
                   <Image
                     src={images[imgIndex]}
                     alt={product.name}
@@ -926,8 +926,8 @@ export default function ProductDetailPage() {
 
           {/* ── Tabs (Description / Specs / Reviews) ──────────────────────────── */}
           {product && (
-            <div className="mt-16" id="reviews">
-              <div className="flex gap-1 border-b border-gray-200 mb-8 overflow-x-auto">
+            <div className="mt-8 sm:mt-16" id="reviews">
+              <div className="flex gap-1 border-b border-gray-200 mb-5 sm:mb-8 overflow-x-auto">
                 {[
                   { id: "description", label: "Description" },
                   { id: "specs", label: "Specifications" },
@@ -1007,7 +1007,7 @@ export default function ProductDetailPage() {
               {activeTab === "reviews" && (
                 <div>
                   {(product.avgRating > 0 || reviews.length > 0) && (
-                    <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6 flex items-center gap-8 flex-wrap">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-6 mb-6 flex items-center gap-4 sm:gap-8 flex-wrap">
                       <div className="text-center shrink-0">
                         <div className="text-5xl font-bold text-gray-900 mb-2">
                           {product.avgRating?.toFixed(1) ?? "—"}
@@ -1113,7 +1113,7 @@ export default function ProductDetailPage() {
 
           {/* ── Related products ───────────────────────────────────────────────── */}
           {related.length > 0 && (
-            <section className="mt-16">
+            <section className="mt-8 sm:mt-16">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">
                   You May Also Like

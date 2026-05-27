@@ -40,8 +40,8 @@ const Input = ({ label, type = "text", placeholder, icon: Icon, error, value, on
             error
               ? "border-red-300 bg-red-50 focus:border-red-500"
               : "border-gray-200 bg-white focus:border-primary"
-          } focus:outline-none focus:ring-4 ${
-            error ? "focus:ring-red-500/10" : "focus:ring-primary/10"
+          } focus:outline-none focus:ring-2 ${
+            error ? "focus:ring-red-500/15" : "focus:ring-primary/15"
           } transition-all text-sm text-gray-900 placeholder:text-gray-400`}
         />
         {type === "password" && (
@@ -344,7 +344,7 @@ function LoginContent() {
 
       {/* ── Right: Form panel ── */}
       <div className="flex-1 flex flex-col bg-gray-50">
-        <div className="flex-1 flex items-center justify-center px-5 py-10 sm:px-10">
+        <div className="flex-1 flex items-start sm:items-center justify-center px-5 py-6 sm:py-10 sm:px-10">
           <div className="w-full max-w-[420px]">
 
             {/* Back link */}
@@ -457,7 +457,7 @@ function LoginContent() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-linear-to-br from-primary to-accent text-white hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-px active:translate-y-0 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-linear-to-br from-primary to-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-px active:translate-y-0 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
                 >
                   {isLoading ? (
                     <>

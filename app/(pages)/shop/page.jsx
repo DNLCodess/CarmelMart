@@ -445,8 +445,17 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
               {inCompare && <CheckCircle className="w-3.5 h-3.5" />}
             </button>
           )}
-          {/* Hover overlay with Add to Cart + Quick View */}
-          <div className="absolute inset-x-0 bottom-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex gap-1.5">
+          {/* Mobile: persistent cart button — hover overlay is invisible on touch */}
+          <button
+            onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
+            disabled={product.stock === 0}
+            className="sm:hidden absolute bottom-2 right-2 w-9 h-9 flex items-center justify-center bg-primary text-white rounded-full shadow-lg disabled:opacity-40 transition-opacity active:scale-95"
+            aria-label="Add to cart"
+          >
+            <ShoppingCart className="w-4 h-4" />
+          </button>
+          {/* Desktop: hover overlay */}
+          <div className="hidden sm:flex absolute inset-x-0 bottom-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 gap-1.5">
             <button
               onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
               disabled={product.stock === 0}
@@ -464,7 +473,7 @@ function ProductCard({ product, view, onAddToCart, onToggleWishlist, inWishlist,
           </div>
         </div>
       </Link>
-      <div className="p-4 flex flex-col flex-1">
+      <div className="p-3 sm:p-4 flex flex-col flex-1">
         {product.category && (
           <p className="text-xs font-semibold text-primary mb-1">{product.category.name}</p>
         )}
@@ -1145,6 +1154,10 @@ function ShopContent() {
       max_price:     filters.maxPrice,
       min_rating:    filters.minRating,
       condition:     filters.condition,
+      color:         filters.color,
+      size:          filters.size,
+      brand:         filters.brand,
+      delivery:      filters.delivery,
       verified_only: filters.verifiedOnly ? "true" : undefined,
       min_discount:  filters.minDiscount,
       sort:          filters.sort,
@@ -1318,11 +1331,12 @@ function ShopContent() {
           {/* Main */}
           <div className="flex-1 min-w-0">
             {/* Toolbar */}
-            <div className="flex items-center gap-3 mb-4 flex-wrap">
+            {/* Row 1: filter toggle + sort + view toggle */}
+            <div className="flex items-center gap-2 mb-3">
               {/* Mobile filter toggle */}
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold border border-gray-200 rounded-xl text-gray-700 hover:border-primary bg-white"
+                className="lg:hidden flex items-center gap-1.5 px-3 py-2 text-sm font-semibold border border-gray-200 rounded-xl text-gray-700 hover:border-primary bg-white shrink-0"
               >
                 <Filter className="w-4 h-4" /> Filters
                 {activeFilters.length > 0 && (
@@ -1332,49 +1346,50 @@ function ShopContent() {
                 )}
               </button>
 
-              {/* Active filter chips */}
-              {activeFilters.map((f) => (
-                <span key={f.key} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-primary/10 text-primary rounded-full">
-                  {f.label}
-                  <button onClick={() => clearFilter(f.key)} className="hover:opacity-70">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-
-              {activeFilters.length > 1 && (
-                <button
-                  onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, brand: null, color: null, size: null, verifiedOnly: false, minDiscount: null, sort: "popular", page: 1 })}
-                  className="text-xs font-semibold text-gray-500 hover:text-red-500 underline"
+              {/* Sort — visible on all screen sizes */}
+              <div className="relative flex-1 sm:flex-none">
+                <select
+                  value={filters.sort}
+                  onChange={(e) => setFilter("sort", e.target.value)}
+                  className="w-full sm:w-auto appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/15 bg-white font-medium text-gray-700 cursor-pointer"
                 >
-                  Clear all
+                  {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+
+              {/* View toggle */}
+              <div className="flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden shrink-0 ml-auto sm:ml-0">
+                <button onClick={() => setView("grid")} className={`p-2.5 transition-colors ${view === "grid" ? "bg-primary text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+                  <LayoutGrid className="w-4 h-4" />
                 </button>
-              )}
-
-              <div className="flex items-center gap-3 ml-auto">
-                {/* Sort */}
-                <div className="relative hidden sm:block">
-                  <select
-                    value={filters.sort}
-                    onChange={(e) => setFilter("sort", e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white font-medium text-gray-700 cursor-pointer"
-                  >
-                    {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
-
-                {/* View toggle */}
-                <div className="flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <button onClick={() => setView("grid")} className={`p-2.5 transition-colors ${view === "grid" ? "bg-primary text-white" : "text-gray-500 hover:bg-gray-50"}`}>
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setView("list")} className={`p-2.5 transition-colors ${view === "list" ? "bg-primary text-white" : "text-gray-500 hover:bg-gray-50"}`}>
-                    <List className="w-4 h-4" />
-                  </button>
-                </div>
+                <button onClick={() => setView("list")} className={`p-2.5 transition-colors ${view === "list" ? "bg-primary text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+                  <List className="w-4 h-4" />
+                </button>
               </div>
             </div>
+
+            {/* Row 2: active filter chips */}
+            {activeFilters.length > 0 && (
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                {activeFilters.map((f) => (
+                  <span key={f.key} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-primary/10 text-primary rounded-full">
+                    {f.label}
+                    <button onClick={() => clearFilter(f.key)} className="hover:opacity-70">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                {activeFilters.length > 1 && (
+                  <button
+                    onClick={() => setFiltersState({ category: null, search: "", minPrice: null, maxPrice: null, minRating: null, condition: null, delivery: null, brand: null, color: null, size: null, verifiedOnly: false, minDiscount: null, sort: "popular", page: 1 })}
+                    className="text-xs font-semibold text-gray-500 hover:text-red-500 underline"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Top pagination (desktop only, when enough products) */}
             {!isLoading && pagination.pages > 1 && (
@@ -1388,7 +1403,7 @@ function ShopContent() {
 
             {/* Loading skeleton */}
             {isLoading && (
-              <div className={view === "grid" ? "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" : "space-y-4"}>
+              <div className={view === "grid" ? "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4" : "space-y-4"}>
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className={`bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse ${view === "grid" ? "" : "flex gap-4 p-4"}`}>
                     <div className={view === "grid" ? "aspect-square bg-gray-200" : "w-32 h-32 bg-gray-200 rounded-xl shrink-0"} />
@@ -1434,7 +1449,7 @@ function ShopContent() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className={view === "grid"
-                    ? "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+                    ? "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
                     : "space-y-3"
                   }
                 >

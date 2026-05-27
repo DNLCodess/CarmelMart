@@ -19,7 +19,7 @@ function SuccessContent() {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
-      className="bg-white rounded-3xl border border-gray-100 shadow-xl p-10 max-w-md w-full text-center"
+      className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 sm:p-10 max-w-md w-full text-center"
     >
       {/* Icon */}
       <motion.div
@@ -113,7 +113,7 @@ export default function CheckoutSuccessPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <Suspense
         fallback={
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-10 max-w-md w-full text-center">
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 sm:p-10 max-w-md w-full text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-6 animate-pulse" />
             <div className="h-6 bg-gray-200 rounded w-48 mx-auto mb-3 animate-pulse" />
             <div className="h-4 bg-gray-200 rounded w-64 mx-auto animate-pulse" />

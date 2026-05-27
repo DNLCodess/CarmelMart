@@ -50,23 +50,23 @@ const STEPS_DIGITAL  = ["Contact",  "Payment",  "Review"];
 // ─── Step indicator ────────────────────────────────────────────────────────────
 function StepBar({ steps, current }) {
   return (
-    <div className="flex items-center justify-center gap-0 mb-10">
+    <div className="flex items-center justify-center gap-0 mb-6 sm:mb-10">
       {steps.map((label, i) => (
         <div key={label} className="flex items-center">
           <div className="flex flex-col items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-colors ${
               i < current ? "bg-green-500 text-white" :
               i === current ? "bg-primary text-white" :
               "bg-gray-200 text-gray-500"
             }`}>
-              {i < current ? <CheckCircle className="w-4 h-4" /> : i + 1}
+              {i < current ? <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : i + 1}
             </div>
-            <span className={`text-xs mt-1 font-medium ${i === current ? "text-primary" : "text-gray-400"}`}>
+            <span className={`text-[10px] sm:text-xs mt-1 font-medium ${i === current ? "text-primary" : "text-gray-400"}`}>
               {label}
             </span>
           </div>
           {i < steps.length - 1 && (
-            <div className={`h-0.5 w-12 sm:w-20 mb-4 mx-1 transition-colors ${i < current ? "bg-green-500" : "bg-gray-200"}`} />
+            <div className={`h-0.5 w-8 sm:w-20 mb-4 mx-1 transition-colors ${i < current ? "bg-green-500" : "bg-gray-200"}`} />
           )}
         </div>
       ))}
@@ -493,8 +493,8 @@ export default function CheckoutPage() {
       {/* Flutterwave SDK — must use next/script, not plain <script>, to execute on client-side navigation */}
       <Script src="https://checkout.flutterwave.com/v3.js" strategy="lazyOnload" />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <h1 className="text-2xl font-bold text-gray-900 text-center mb-6">Checkout</h1>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10">
+        <h1 className="text-2xl font-bold text-gray-900 text-center mb-5">Checkout</h1>
 
         {/* Payment recovery banner — shown when a previous payment was charged but the order was never created */}
         {recoveryData && (
@@ -666,13 +666,13 @@ export default function CheckoutPage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <Field label="Area / Estate">
                       <input value={address.area} onChange={(e) => setAddress({ ...address, area: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/50 outline-none text-sm"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none text-sm"
                         placeholder="Victoria Island" />
                     </Field>
 
                     <Field label="City" required>
                       <input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/50 outline-none text-sm"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none text-sm"
                         placeholder="Lagos" />
                     </Field>
                   </div>
@@ -803,8 +803,20 @@ export default function CheckoutPage() {
               )}
             </AnimatePresence>
 
+            {/* Mobile order total strip — shows total before the user taps Continue/Pay */}
+            <div className="lg:hidden flex items-center justify-between bg-white border border-gray-100 rounded-2xl px-4 py-3 mt-4">
+              <div className="text-sm text-gray-500">
+                {items.reduce((s, i) => s + i.quantity, 0)} item{items.reduce((s, i) => s + i.quantity, 0) !== 1 ? "s" : ""}
+                {deliveryFee > 0 && <span className="text-gray-400"> · incl. delivery</span>}
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] text-gray-400 uppercase tracking-wide">Total</p>
+                <p className="font-bold text-gray-900">₦{grandTotal.toLocaleString()}</p>
+              </div>
+            </div>
+
             {/* Navigation buttons */}
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-3">
               {step > 0 && (
                 <button onClick={back} className="flex-1 py-3 rounded-full border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-400 transition-colors">
                   Back

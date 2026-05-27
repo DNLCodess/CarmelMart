@@ -169,8 +169,17 @@ export default function DailyDealsSection() {
                         )}
                       </div>
 
-                      {/* Hover add-to-cart */}
-                      <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                      {/* Mobile: persistent cart button */}
+                      <button
+                        onClick={(e) => handleAddToCart(e, p)}
+                        disabled={p.stock === 0}
+                        className="sm:hidden absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded-full shadow disabled:opacity-40 active:scale-95 transition-opacity"
+                        aria-label="Add to cart"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                      </button>
+                      {/* Desktop: slide-up add-to-cart */}
+                      <div className="hidden sm:block absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                         <button
                           onClick={(e) => handleAddToCart(e, p)}
                           disabled={p.stock === 0}

@@ -135,7 +135,7 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
         <div className="flex gap-8">
 
           {/* Sidebar filters (desktop) */}
@@ -204,7 +204,7 @@ export default function CategoryPage() {
           <div className="flex-1 min-w-0">
 
             {/* Toolbar */}
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
+            <div className="flex items-center gap-3 mb-4 sm:mb-6 flex-wrap">
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="lg:hidden flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-full text-gray-700 hover:border-primary transition-colors"
@@ -327,7 +327,7 @@ export default function CategoryPage() {
 
             {/* Products grid */}
             {!isLoading && !isError && products.length > 0 && view === "grid" && (
-              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
                 <AnimatePresence mode="popLayout">
                   {products.map((product) => {
                     const inWishlist = wishlist.some((w) => (w?.id ?? w) === product.id);
@@ -359,7 +359,17 @@ export default function CategoryPage() {
                             >
                               <Heart className={`w-4 h-4 ${inWishlist ? "fill-current" : ""}`} />
                             </button>
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-300 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
+                            {/* Mobile: persistent cart button */}
+                            <button
+                              onClick={(e) => handleAddToCart(e, product)}
+                              disabled={product.stock === 0}
+                              className="sm:hidden absolute bottom-2 left-2 w-9 h-9 flex items-center justify-center bg-primary text-white rounded-full shadow-lg disabled:opacity-40 active:scale-95 transition-opacity"
+                              aria-label="Add to cart"
+                            >
+                              <ShoppingCart className="w-4 h-4" />
+                            </button>
+                            {/* Desktop: hover overlay */}
+                            <div className="hidden sm:flex absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-300 items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
                               <button
                                 onClick={(e) => handleAddToCart(e, product)}
                                 className="flex items-center gap-2 bg-white text-gray-900 text-sm font-semibold px-4 py-2 rounded-full shadow-lg hover:bg-primary hover:text-white transition-colors"

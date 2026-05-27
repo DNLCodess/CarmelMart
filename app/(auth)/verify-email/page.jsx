@@ -81,7 +81,7 @@ function VerifyEmailContent() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-8 text-center">
           {/* Icon */}
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-6">
             <Check className="w-8 h-8 text-green-600" strokeWidth={2.5} />

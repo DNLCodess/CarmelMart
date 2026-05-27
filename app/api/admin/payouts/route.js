@@ -131,7 +131,7 @@ export async function POST(request) {
           currency:        "NGN",
           narration:       `CarmelMart payout – ${business_name}`,
           reference:       payout.reference,
-          callback_url:    `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/webhooks/flutterwave`,
+          callback_url:    `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/webhooks/flutterwave`,
         }),
         signal: AbortSignal.timeout(10_000),
       });

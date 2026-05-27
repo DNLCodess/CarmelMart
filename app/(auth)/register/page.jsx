@@ -23,7 +23,6 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { signupAction } from "@/app/actions/auth";
-import { createClient } from "@/lib/supabase/client";
 
 import VendorVerification from "@/components/shared/auth/VendorVerification";
 import { formatNigerianPhone } from "@/lib/utils";
@@ -61,8 +60,8 @@ const Input = ({
           {...register}
           className={`w-full ${Icon ? "pl-12" : "pl-4"} ${type === "password" ? "pr-12" : "pr-4"} py-3.5 rounded-xl border-2 ${
             error
-              ? "border-red-300 focus:border-red-500"
-              : "border-gray-200 focus:border-primary"
+              ? "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/15"
+              : "border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/15"
           } focus:outline-none transition-all duration-300 text-gray-900 placeholder:text-gray-400 bg-white hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed`}
         />
         {type === "password" && (
@@ -114,12 +113,12 @@ const RoleCard = ({
     }`}
   >
     {selected && (
-      <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center">
+      <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-linear-to-br from-primary to-primary-dark flex items-center justify-center">
         <Check className="w-4 h-4 text-white" />
       </div>
     )}
     <div
-      className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${selected ? "bg-linear-to-br from-primary to-accent" : "bg-gray-100"}`}
+      className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${selected ? "bg-linear-to-br from-primary to-primary-dark" : "bg-gray-100"}`}
     >
       <Icon
         className={`w-7 h-7 ${selected ? "text-white" : "text-gray-600"}`}
@@ -221,13 +220,9 @@ function RegisterPageContent() {
     }
     setIsValidatingReferral(true);
     try {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("users")
-        .select("id")
-        .eq("referral_code", code)
-        .single();
-      if (data) {
+      const r = await fetch(`/api/referral/validate?code=${encodeURIComponent(code)}`);
+      const d = await r.json();
+      if (d.valid) {
         setReferralValid(true);
         toast.success("Valid referral code! You'll earn a ₦500 bonus.", {
           icon: "🎉",
@@ -414,14 +409,14 @@ function RegisterPageContent() {
       </div>
 
       {/* Right: Form */}
-      <div className="flex-1 flex items-center justify-center px-4 lg:px-12 py-10 bg-gray-50 relative">
+      <div className="flex-1 flex items-start sm:items-center justify-center px-4 lg:px-12 py-6 sm:py-10 bg-gray-50 relative">
         <div className="relative w-full max-w-5xl z-10">
           {/* Mobile logo */}
           <div className="lg:hidden flex justify-center mb-6">
             <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
           </div>
 
-          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-lg border border-gray-100 p-8 lg:p-10">
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-lg border border-gray-100 p-4 sm:p-6 lg:p-10">
             <AnimatePresence mode="wait">
               {/* Step 1 — Role Selection */}
               {step === 1 && (
@@ -446,7 +441,7 @@ function RegisterPageContent() {
                       className="mb-6 p-4 rounded-xl bg-linear-to-br from-primary/10 to-accent/10 border-2 border-primary/20"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-primary-dark flex items-center justify-center">
                           <Gift className="w-5 h-5 text-white" />
                         </div>
                         <div>
@@ -488,10 +483,21 @@ function RegisterPageContent() {
                 >
                   <button
                     onClick={() => setStep(1)}
-                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary mb-6 transition-colors"
+                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary mb-4 transition-colors"
                   >
                     <ArrowLeft className="w-4 h-4" /> Change account type
                   </button>
+
+                  <div className="mb-5">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
+                      {selectedRole === "vendor" ? "Register as a Vendor" : "Create your Account"}
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {selectedRole === "vendor"
+                        ? "Fill in your details — KYC verification comes next"
+                        : "Join CarmelMart and start shopping today"}
+                    </p>
+                  </div>
 
                   {/* Google sign-up — customers only (vendors need phone/KYC) */}
                   {selectedRole === "customer" && (
@@ -515,7 +521,7 @@ function RegisterPageContent() {
                         {googleLoading ? "Redirecting…" : "Continue with Google"}
                       </button>
 
-                      <div className="flex items-center gap-3 my-1">
+                      <div className="flex items-center gap-3 my-4">
                         <div className="flex-1 h-px bg-gray-100" />
                         <span className="text-xs font-medium text-gray-400">or sign up with email</span>
                         <div className="flex-1 h-px bg-gray-100" />
@@ -665,7 +671,7 @@ function RegisterPageContent() {
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl bg-linear-to-br from-primary to-accent text-white hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 shadow-md shadow-primary/30"
+                      className="w-full inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl bg-linear-to-br from-primary to-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 shadow-sm shadow-primary/20"
                     >
                       {isLoading ? (
                         <>

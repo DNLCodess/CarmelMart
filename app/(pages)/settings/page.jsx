@@ -549,10 +549,10 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10">
 
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-5 sm:mb-8">
           <Link href="/my-account" className="p-2 rounded-full border border-gray-200 text-gray-600 hover:border-primary hover:text-primary transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
@@ -586,7 +586,7 @@ export default function SettingsPage() {
             key={activeTab}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex-1 bg-white rounded-2xl border border-gray-100 p-6"
+            className="flex-1 bg-white rounded-2xl border border-gray-100 p-4 sm:p-6"
           >
             <h2 className="font-bold text-gray-900 text-lg mb-6">
               {TABS.find((t) => t.id === activeTab)?.label}

@@ -118,8 +118,16 @@ export default function NewArrivalsSection() {
                       >
                         <Heart className={`w-4 h-4 ${isWished ? "fill-current" : ""}`} />
                       </button>
-                      {/* Hover CTA */}
-                      <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                      {/* Mobile: persistent cart button */}
+                      <button
+                        onClick={(e) => handleAddToCart(e, p)}
+                        className="sm:hidden absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center bg-gray-900 text-white rounded-full shadow active:scale-95 transition-opacity"
+                        aria-label="Add to cart"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                      </button>
+                      {/* Desktop: slide-up CTA */}
+                      <div className="hidden sm:block absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                         <button
                           onClick={(e) => handleAddToCart(e, p)}
                           className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white text-xs font-bold py-2.5 rounded-full hover:bg-primary transition-colors"

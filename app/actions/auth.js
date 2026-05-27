@@ -136,6 +136,18 @@ export async function signupAction({
   const admin = createAdminClient();
   const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
 
+  // Validate referral code server-side if provided
+  if (referralCode) {
+    const { data: referrer } = await admin
+      .from("users")
+      .select("id")
+      .eq("referral_code", referralCode.trim().toUpperCase())
+      .single();
+    if (!referrer) {
+      return { error: "Invalid referral code. Please check the code and try again." };
+    }
+  }
+
   const { data: linkData, error } = await admin.auth.admin.generateLink({
     type: "signup",
     email: normalizedEmail,
@@ -181,6 +193,8 @@ export async function signupAction({
     });
 
     if (vendorError) {
+      // Delete users row explicitly — don't rely solely on FK cascade
+      await admin.from("users").delete().eq("id", userId);
       await admin.auth.admin.deleteUser(userId);
       return { error: "Failed to complete vendor registration. Please try again." };
     }
@@ -417,8 +431,6 @@ export async function sendPasswordResetAction(email) {
     || linkData.user?.user_metadata?.first_name
     || normalizedEmail.split("@")[0];
 
-  console.log("[sendPasswordResetAction] OTP generated for:", normalizedEmail, "| otp:", otp ? `${otp.slice(0, 2)}****` : "MISSING");
-
   if (!otp) {
     console.error("[sendPasswordResetAction] generateLink returned no email_otp — cannot send usable code");
     return { ok: true }; // still return ok to avoid enumeration; user can retry
@@ -433,7 +445,6 @@ export async function sendPasswordResetAction(email) {
       subject: template.subject,
       html:    template.html,
     });
-    console.log("[sendPasswordResetAction] Resend result:", result);
   } catch (emailError) {
     console.error("[sendPasswordResetAction] Resend failed:", emailError?.message);
     // Non-fatal — the OTP is valid even if delivery fails; user can retry
@@ -460,8 +471,6 @@ export async function resetPasswordAction({ newPassword }) {
     return { error: "Your reset session has expired. Please start the password reset process again." };
   }
 
-  console.log("[resetPasswordAction] Updating password for user:", user.id, user.email);
-
   // Use admin API to write the password directly — supabase.auth.updateUser() in a
   // server action with a recovery session cookie can return no error but silently fail
   // to persist the change (GoTrue session state mismatch). The admin API writes straight
@@ -482,8 +491,6 @@ export async function resetPasswordAction({ newPassword }) {
     }
     return { error: "Failed to reset password. Please try again." };
   }
-
-  console.log("[resetPasswordAction] Password updated successfully for:", user.id);
 
   // Clear the recovery session server-side so the middleware doesn't block /login
   await supabase.auth.signOut({ scope: "local" });

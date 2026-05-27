@@ -61,7 +61,7 @@ function ConfirmEmailContent() {
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-8 text-center">
           {status === "verifying" && (
             <>
               <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto mb-4" />

@@ -58,40 +58,71 @@ export async function POST(request, { params }) {
 
         const { data: items } = await admin
           .from("order_items")
-          .select("vendor_id, total")
+          .select("vendor_id, total, product_id")
           .eq("order_id", id);
 
         if (items?.length) {
-          const vendorTotals = {};
-          for (const item of items) {
-            vendorTotals[item.vendor_id] = (vendorTotals[item.vendor_id] ?? 0) + item.total;
+          const vendorIds  = [...new Set(items.map((i) => i.vendor_id))];
+          const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
+
+          const [
+            { data: vendorRows },
+            { data: allRateOverrides },
+            { data: platformFeeRow },
+          ] = await Promise.all([
+            admin.from("vendors").select("id, subscription_tier").in("id", vendorIds),
+            admin.from("commission_rates").select("target_id, rate, type").in("type", ["vendor", "category"]),
+            admin.from("platform_settings").select("value").eq("key", "platform_fee_percent").single(),
+          ]);
+
+          let productCategoryMap = {};
+          if (productIds.length > 0) {
+            const { data: productRows } = await admin
+              .from("products").select("id, category_id").in("id", productIds);
+            productCategoryMap = Object.fromEntries((productRows ?? []).map((p) => [p.id, p.category_id]));
           }
 
-          const vendorIds = Object.keys(vendorTotals);
-
-          const { data: vendorRows } = await admin
-            .from("vendors")
-            .select("id, subscription_tier")
-            .in("id", vendorIds);
+          const platformDefaultRate = Number(platformFeeRow?.value ?? getCommissionRate("free"));
           const tierMap = Object.fromEntries(
             (vendorRows ?? []).map((v) => [v.id, v.subscription_tier ?? "free"])
           );
-
-          const { data: rateOverrides } = await admin
-            .from("commission_rates")
-            .select("target_id, rate")
-            .eq("type", "vendor")
-            .in("target_id", vendorIds);
-          const overrideMap = Object.fromEntries(
-            (rateOverrides ?? []).map((r) => [r.target_id, Number(r.rate)])
+          const vendorOverrideMap = Object.fromEntries(
+            (allRateOverrides ?? []).filter((r) => r.type === "vendor").map((r) => [r.target_id, Number(r.rate)])
+          );
+          const categoryOverrideMap = Object.fromEntries(
+            (allRateOverrides ?? []).filter((r) => r.type === "category").map((r) => [r.target_id, Number(r.rate)])
           );
 
-          for (const [vendorId, grossTotal] of Object.entries(vendorTotals)) {
-            const tier           = tierMap[vendorId] ?? "free";
-            const commissionRate = overrideMap[vendorId] ?? getCommissionRate(tier);
-            const vendorEarning  = Math.round(grossTotal * (1 - commissionRate / 100));
+          // Compute per-vendor earnings by summing per-item commissions.
+          // Priority: vendor override → item's category override → tier default
+          // (free-tier default comes from platform_settings so admin can change it without a deploy)
+          const vendorEarningsMap = {};
+          for (const item of items) {
+            const vid        = item.vendor_id;
+            const categoryId = productCategoryMap[item.product_id];
+            const tier       = tierMap[vid] ?? "free";
+            let rate;
+            if (vendorOverrideMap[vid] !== undefined) {
+              rate = vendorOverrideMap[vid];
+            } else if (categoryId && categoryOverrideMap[categoryId] !== undefined) {
+              rate = categoryOverrideMap[categoryId];
+            } else {
+              rate = tier === "free" ? platformDefaultRate : getCommissionRate(tier);
+            }
+            vendorEarningsMap[vid] = (vendorEarningsMap[vid] ?? 0) + Math.round((item.total ?? 0) * (1 - rate / 100));
+          }
 
+          for (const [vendorId, vendorEarning] of Object.entries(vendorEarningsMap)) {
             if (vendorEarning <= 0) continue;
+
+            // Idempotency: skip if this vendor was already credited for this order
+            const { count: alreadyCredited } = await admin
+              .from("wallet_transactions")
+              .select("id", { count: "exact", head: true })
+              .eq("reference", id)
+              .eq("user_id", vendorId)
+              .eq("type", "credit");
+            if ((alreadyCredited ?? 0) > 0) continue;
 
             const { error: walletErr } = await admin.rpc("increment_wallet", {
               p_user_id: vendorId,
@@ -103,7 +134,7 @@ export async function POST(request, { params }) {
               user_id:     vendorId,
               type:        "credit",
               amount:      vendorEarning,
-              description: `Order ${shortId} delivered (customer confirmed) — after ${commissionRate}% commission`,
+              description: `Order ${shortId} delivered (customer confirmed) — after commission`,
               reference:   id,
               created_at:  now,
             });

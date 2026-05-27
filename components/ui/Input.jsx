@@ -39,10 +39,10 @@ const Input = forwardRef(
             ${Icon ? "pl-12" : ""}
             ${
               error
-                ? "border-red-300 focus:border-red-500 focus:ring-red-500/40"
-                : "border-gray-200 focus:border-primary focus:ring-primary/50"
+                ? "border-red-300 focus:border-red-500 focus:ring-red-500/15"
+                : "border-gray-200 focus:border-primary focus:ring-primary/15"
             }
-            focus:outline-none focus:ring-4
+            focus:outline-none focus:ring-2
             placeholder:text-gray-400
             ${className}
           `}

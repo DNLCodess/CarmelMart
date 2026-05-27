@@ -45,6 +45,14 @@ export async function PATCH(request, { params }) {
 
     if (error) throw error;
 
+    // Mark the user as verified only when admin explicitly approves
+    if (action === "approve") {
+      await admin
+        .from("users")
+        .update({ verified: true, updated_at: new Date().toISOString() })
+        .eq("id", id);
+    }
+
     // Email the vendor about the KYC decision
     if (action === "approve" || action === "reject") {
       // vendors.id === users.id — fetch separately to avoid cross-schema FK join
@@ -56,7 +64,7 @@ export async function PATCH(request, { params }) {
       const vendorEmail = userRow?.email;
       const vendorName  = vendorRow?.business_name ?? "Vendor";
       if (vendorEmail) {
-        sendVendorKYCDecision({
+        await sendVendorKYCDecision({
           to:         vendorEmail,
           vendorName,
           approved:   action === "approve",

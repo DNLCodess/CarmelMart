@@ -232,7 +232,7 @@ function ProfileTab({ profile }) {
 // ── Orders Tab ────────────────────────────────────────────────────────────────
 function OrdersTab() {
   const { data, isLoading } = useQuery({
-    queryKey: ["customer-orders"],
+    queryKey: ["my-orders"],
     queryFn: fetchOrders,
     staleTime: 30_000,
     retry: false,
@@ -533,14 +533,14 @@ function ReferralsTab({ profile }) {
                 <Users className="w-4 h-4 text-orange-300" />
                 <span className="text-xs text-white/70 uppercase tracking-wide font-semibold">Referrals</span>
               </div>
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{profile?.referral_count ?? 0}</p>
             </div>
             <div className="bg-white/10 border border-white/20 rounded-xl p-4">
               <div className="flex items-center gap-1.5 mb-1">
                 <Wallet className="w-4 h-4 text-orange-300" />
                 <span className="text-xs text-white/70 uppercase tracking-wide font-semibold">Earned</span>
               </div>
-              <p className="text-2xl font-bold">₦0</p>
+              <p className="text-2xl font-bold">₦{(profile?.referral_earnings ?? 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -614,7 +614,7 @@ function ActivityTab() {
 
   if (events.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 p-10 flex flex-col items-center gap-3 text-center">
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-10 flex flex-col items-center gap-3 text-center">
         <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
           <Activity className="w-6 h-6 text-gray-400" />
         </div>
@@ -706,7 +706,7 @@ export default function MyAccountPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6">
         {/* Page header */}
         <div className="flex items-center justify-between">
           <div>

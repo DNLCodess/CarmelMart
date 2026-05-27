@@ -47,15 +47,15 @@ export default function WishlistPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10">
+        <div className="flex items-center justify-between mb-5 sm:mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
             Wishlist <span className="text-base font-normal text-gray-500">({products.length} items)</span>
           </h1>
           <Link href="/shop" className="text-sm text-primary font-semibold hover:underline">Continue Shopping</Link>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
           <AnimatePresence>
             {products.map((product) => (
               <motion.div

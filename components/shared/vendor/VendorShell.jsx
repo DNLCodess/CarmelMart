@@ -9,6 +9,7 @@ import {
   ShoppingBag, AlertTriangle, CheckCircle, Info, Crown,
 } from "lucide-react";
 import SubscriptionBadge from "@/components/shared/vendor/SubscriptionBadge";
+import VendorKYCWall from "@/components/shared/vendor/VendorKYCWall";
 import { useAuth } from "@/lib/auth-context";
 import { logoutAction } from "@/app/actions/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,7 +29,12 @@ function NotificationBell() {
 
   const { data } = useQuery({
     queryKey:  ["vendor-notifications"],
-    queryFn:   () => fetch("/api/vendor/notifications").then((r) => r.json()),
+    queryFn:   async () => {
+      const r = await fetch("/api/vendor/notifications");
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to load notifications");
+      return d;
+    },
     refetchInterval: 60_000,
   });
 
@@ -139,6 +145,14 @@ const NAV_ITEMS = [
   { href: "/vendor/settings",      label: "Settings",      icon: Settings         },
 ];
 
+const BOTTOM_TABS = [
+  { href: "/vendor/dashboard", label: "Overview",  icon: LayoutDashboard },
+  { href: "/vendor/orders",    label: "Orders",    icon: ShoppingCart    },
+  { href: "/vendor/products",  label: "Products",  icon: Package         },
+  { href: "/vendor/wallet",    label: "Wallet",    icon: Wallet          },
+  { href: "/vendor/settings",  label: "Settings",  icon: Settings        },
+];
+
 export default function VendorShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname  = usePathname();
@@ -160,6 +174,20 @@ export default function VendorShell({ children }) {
     retry: false,
   });
   const vendorTier = subData?.tier ?? "free";
+
+  // KYC gate — fetch once, stale after 30s; clears immediately after verification
+  const { data: kycData } = useQuery({
+    queryKey: ["vendor-kyc-status"],
+    queryFn: () => fetch("/api/vendor/kyc-status").then((r) => r.json()),
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  // Only block when we have a confirmed negative — never block on loading/error
+  const kycIncomplete = kycData && (
+    !kycData.nin_verified ||
+    (kycData.verification_type === "nin_cac" && !kycData.cac_verified)
+  );
 
   const handleSignOut = async () => {
     await logoutAction();
@@ -291,11 +319,35 @@ export default function VendorShell({ children }) {
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 px-5 sm:px-8 py-8">
-          {children}
+        {/* Page content — extra bottom padding on mobile to clear the tab bar */}
+        <main className="flex-1 px-5 sm:px-8 py-8 pb-24 lg:pb-8">
+          {kycIncomplete ? <VendorKYCWall kycData={kycData} /> : children}
         </main>
       </div>
+
+      {/* ── Mobile bottom tab bar ────────────────────────────────────────── */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex items-stretch"
+        style={{ paddingBottom: "max(0.25rem, env(safe-area-inset-bottom))" }}
+      >
+        {BOTTOM_TABS.map(({ href, label, icon: Icon }) => {
+          const active = isActive(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 pt-2.5 pb-1.5 text-[10px] font-semibold transition-colors min-h-[52px] ${
+                active
+                  ? "text-primary dark:text-primary"
+                  : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
+              }`}
+            >
+              <Icon className="w-5 h-5 shrink-0" />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

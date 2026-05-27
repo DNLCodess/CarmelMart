@@ -7,15 +7,33 @@ export async function GET() {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: profile, error: qErr } = await supabase
-      .from("users")
-      .select("id, email, phone, role, referral_code, wallet_balance, created_at, first_name, last_name, location, addresses, avatar_url")
-      .eq("id", user.id)
-      .single();
+    const [
+      { data: profile, error: qErr },
+      { count: referralCount, data: referralData },
+    ] = await Promise.all([
+      supabase
+        .from("users")
+        .select("id, email, phone, role, referral_code, wallet_balance, created_at, first_name, last_name, location, addresses, avatar_url")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("referrals")
+        .select("amount_credited", { count: "exact" })
+        .eq("referrer_id", user.id)
+        .eq("status", "completed"),
+    ]);
 
     if (qErr) throw qErr;
 
-    return NextResponse.json({ profile });
+    const referralEarnings = referralData?.reduce((sum, r) => sum + (Number(r.amount_credited) || 0), 0) ?? 0;
+
+    return NextResponse.json({
+      profile: {
+        ...profile,
+        referral_count:    referralCount ?? 0,
+        referral_earnings: referralEarnings,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -30,6 +30,10 @@ function sanitizeSearchTerm(value) {
  *   condition      — "new" | "used" | "refurbished"
  *   verified_only  — "true" to return only products from verified vendors
  *   min_discount   — minimum discount % (integer 1–99, requires sale_price)
+ *   color          — filter by color name (matches attributes.colors array)
+ *   size           — filter by size value (matches attributes.sizes array)
+ *   brand          — filter by brand name (matched against product name)
+ *   delivery       — "Express (24hrs)" | "Standard (2-5 days)" (price-based threshold ≥/< ₦10,000)
  */
 export async function GET(request) {
   try {
@@ -48,6 +52,10 @@ export async function GET(request) {
     const condition     = searchParams.get("condition")      || null;
     const verifiedOnly  = searchParams.get("verified_only") === "true";
     const minDiscount   = searchParams.get("min_discount") ? Number(searchParams.get("min_discount")) : null;
+    const color         = searchParams.get("color")    || null;
+    const size          = searchParams.get("size")     || null;
+    const brand         = sanitizeSearchTerm(searchParams.get("brand"));
+    const delivery      = searchParams.get("delivery") || null;
     const page          = Math.max(1, Number(searchParams.get("page") || 1));
     const perPage    = Math.min(48, Math.max(1, Number(searchParams.get("per_page") || 12)));
     const offset     = (page - 1) * perPage;
@@ -118,6 +126,14 @@ export async function GET(request) {
     if (verifiedVendorIds)      query = query.in("vendor_id", verifiedVendorIds);
     if (excludedVendorIds.length > 0) query = query.not("vendor_id", "in", `(${excludedVendorIds.join(",")})`);
     if (minDiscount !== null)   query = query.not("sale_price", "is", null);
+    // color / size: check JSONB attributes array membership
+    if (color) query = query.contains("attributes", { colors: [color] });
+    if (size)  query = query.contains("attributes", { sizes:  [size]  });
+    // brand: no dedicated column — match against product name
+    if (brand) query = query.ilike("name", `%${brand}%`);
+    // delivery: Express = price >= 10000 (free delivery threshold shown in product cards)
+    if (delivery === "Express (24hrs)")      query = query.gte("price", 10000);
+    if (delivery === "Standard (2-5 days)")  query = query.lt("price",  10000);
 
     // featured column may not exist in older DB instances — try it, fall back gracefully
     if (featured) query = query.eq("featured", true);
