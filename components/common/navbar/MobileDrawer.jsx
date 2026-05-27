@@ -141,7 +141,7 @@ export default function MobileDrawer({
                   { label: "Cart",       sub: `${cartCount} items`,       href: "/cart",             icon: ShoppingCart, badge: cartCount },
                   ...(isAuthenticated ? [{ label: "My Account", sub: "Profile & orders", href: "/my-account",       icon: User,       badge: 0 }] : []),
                   ...(isAuthenticated ? [{ label: "Dashboard",  sub: "Manage your store", href: "/vendor/dashboard", icon: TrendingUp, badge: 0 }] : []),
-                  { label: "Orders",    sub: "Track & returns",           href: isAuthenticated ? "/my-account/orders" : "/login", icon: RotateCcw, badge: 0 },
+                  { label: "Orders",    sub: "Track & returns",           href: isAuthenticated ? "/my-account" : "/login", icon: RotateCcw, badge: 0 },
                 ].map((tile) => {
                   const Icon = tile.icon;
                   return (
