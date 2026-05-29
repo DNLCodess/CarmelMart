@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { loginAction, guestSignInAction } from "@/app/actions/auth";
+import { loginAction, guestSignInAction, resendVerificationAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 
 // ─── Reusable input ───────────────────────────────────────────────────────────
@@ -84,6 +84,9 @@ function LoginContent() {
   const [guestLoading, setGuestLoading]   = useState(false);
   const [formData, setFormData]           = useState({ email: "", password: "" });
   const [errors, setErrors]               = useState({});
+  const [unverifiedEmail, setUnverifiedEmail] = useState(null);
+  const [resendLoading, setResendLoading]     = useState(false);
+  const [resendSent, setResendSent]           = useState(false);
   const tokenRef             = useRef(null); // pre-warmed Turnstile token
   const widgetRef            = useRef(null); // login Turnstile widget ID
   const turnstileWidgetIdRef = useRef(null); // guest widget ID
@@ -209,6 +212,23 @@ function LoginContent() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
+  const handleResend = async () => {
+    setResendLoading(true);
+    try {
+      const result = await resendVerificationAction(unverifiedEmail);
+      if (result?.ok) {
+        setResendSent(true);
+        toast.success("Verification email sent! Check your inbox.");
+      } else {
+        toast.error(result?.error || "Could not resend. Please try again.");
+      }
+    } catch {
+      toast.error("Could not resend. Please try again.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
@@ -243,6 +263,11 @@ function LoginContent() {
       const result = await loginAction({ email: formData.email, password: formData.password, captchaToken });
 
       if (result?.error) {
+        if (result.emailNotConfirmed) {
+          setUnverifiedEmail(result.email);
+          setResendSent(false);
+          return;
+        }
         toast.error(result.error);
         // Re-warm for the next attempt
         if (widgetRef.current !== null) {
@@ -392,6 +417,32 @@ function LoginContent() {
               {needsVerification && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
                   <span className="font-medium">Check your inbox.</span> Verify your email address before signing in.
+                </div>
+              )}
+
+              {unverifiedEmail && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 space-y-2">
+                  <p>
+                    <span className="font-semibold">Email not verified.</span>{" "}
+                    Check your inbox for the confirmation link we sent when you signed up.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendLoading || resendSent}
+                    className="font-semibold text-amber-700 hover:underline disabled:opacity-60 flex items-center gap-1.5"
+                  >
+                    {resendLoading ? (
+                      <>
+                        <div className="w-3 h-3 border border-amber-700 border-t-transparent rounded-full animate-spin" />
+                        Sending…
+                      </>
+                    ) : resendSent ? (
+                      "✓ Verification email sent — check your inbox"
+                    ) : (
+                      "Resend verification email →"
+                    )}
+                  </button>
                 </div>
               )}
 

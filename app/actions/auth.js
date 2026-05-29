@@ -31,8 +31,9 @@ function _makeRateLimiter(max, windowMs) {
   };
 }
 
-const _loginRate = _makeRateLimiter(5, 15 * 60 * 1000);  // 5 attempts / 15 min
-const _resetRate = _makeRateLimiter(5, 60 * 60 * 1000);   // 5 resets   / 1 hour
+const _loginRate  = _makeRateLimiter(5, 15 * 60 * 1000); // 5 attempts / 15 min
+const _resetRate  = _makeRateLimiter(5, 60 * 60 * 1000); // 5 resets   / 1 hour
+const _resendRate = _makeRateLimiter(3, 60 * 60 * 1000); // 3 resends  / 1 hour
 
 function _checkRate(email)  { return _loginRate.check(email); }
 function _clearRate(email)  { return _loginRate.clear(email); }
@@ -65,8 +66,16 @@ export async function loginAction({ email, password, captchaToken = null }) {
 
   if (error) {
     console.error("[loginAction] signInWithPassword error:", error.code, error.message);
-    // Return a generic message — never distinguish between "wrong password" and
-    // "email not found / not confirmed" to prevent account enumeration.
+    // email_not_confirmed fires only when credentials are correct but the email
+    // hasn't been verified — safe to surface (no enumeration risk because the
+    // caller already proved they know the password).
+    if (error.code === "email_not_confirmed") {
+      return {
+        error: "Please verify your email before signing in.",
+        emailNotConfirmed: true,
+        email: normalizedEmail,
+      };
+    }
     return { error: "Invalid email or password." };
   }
 
@@ -496,6 +505,82 @@ export async function resetPasswordAction({ newPassword }) {
   await supabase.auth.signOut({ scope: "local" });
 
   return { error: null };
+}
+
+/**
+ * Resend signup confirmation email for an unconfirmed account.
+ *
+ * Uses the same admin.generateLink + Resend path as signupAction — the
+ * send-email hook ignores "signup" events, so we must send directly.
+ *
+ * Safe against enumeration: always returns { ok: true } for unknown emails
+ * and already-confirmed accounts.
+ */
+export async function resendVerificationAction(email) {
+  if (!email?.includes("@")) {
+    return { ok: false, error: "Please provide a valid email address." };
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const rateCheck = _resendRate.check(normalizedEmail);
+  if (rateCheck.limited) {
+    return {
+      ok: false,
+      error: `Too many requests. Please try again in ${rateCheck.retryAfter} minute${rateCheck.retryAfter === 1 ? "" : "s"}.`,
+    };
+  }
+
+  const admin   = createAdminClient();
+  const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+
+  // Guard: only resend if the email exists in our users table.
+  // Prevents creating a new auth user via generateLink for unknown emails.
+  const { data: profile } = await admin
+    .from("users")
+    .select("id, first_name")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  if (!profile) return { ok: true }; // silent — enumeration prevention
+
+  // For existing UNCONFIRMED users, generateLink updates the confirmation token
+  // without changing the password. For confirmed users it returns "already registered"
+  // which we also treat as ok (user can just sign in).
+  const { data: linkData, error } = await admin.auth.admin.generateLink({
+    type:     "signup",
+    email:    normalizedEmail,
+    password: crypto.randomUUID(), // required by API signature; ignored for existing users
+  });
+
+  if (error) {
+    console.log("[resendVerificationAction] generateLink:", error.code, error.message);
+    return { ok: true }; // silent — could be confirmed or other transient error
+  }
+
+  const tokenHash = linkData.properties?.hashed_token;
+  if (!tokenHash) {
+    console.error("[resendVerificationAction] generateLink returned no hashed_token");
+    return { ok: true };
+  }
+
+  const confirmUrl = `${BASE_URL}/confirm-email?token_hash=${encodeURIComponent(tokenHash)}&type=signup`;
+  const name       = profile.first_name ?? normalizedEmail.split("@")[0];
+
+  try {
+    const resend   = new Resend(process.env.RESEND_API_KEY);
+    const template = authEmailTemplates.signup({ name, confirmUrl });
+    await resend.emails.send({
+      from:    process.env.RESEND_FROM_EMAIL,
+      to:      normalizedEmail,
+      subject: template.subject,
+      html:    template.html,
+    });
+  } catch (emailError) {
+    console.error("[resendVerificationAction] Resend failed:", emailError?.message);
+  }
+
+  return { ok: true };
 }
 
 export async function updatePasswordAction({ currentPassword, newPassword }) {
