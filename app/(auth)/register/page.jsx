@@ -173,6 +173,19 @@ function RegisterPageContent() {
     window.turnstile.execute(widgetRef.current);
   };
 
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    if (typeof window?.turnstile !== "undefined") { mountRegisterTurnstile(); return; }
+    const interval = setInterval(() => {
+      if (typeof window?.turnstile !== "undefined") {
+        clearInterval(interval);
+        mountRegisterTurnstile();
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -311,16 +324,19 @@ function RegisterPageContent() {
           try { window.turnstile.remove(widgetRef.current); } catch {}
           widgetRef.current = null;
         }
-        captchaToken = await new Promise((resolve, reject) => {
-          widgetRef.current = window.turnstile.render("#turnstile-register", {
-            sitekey: TURNSTILE_SITE_KEY,
-            size: "invisible",
-            callback: resolve,
-            "error-callback": (code) => reject(new Error(`Security check failed (${code}). Please try again.`)),
-            "expired-callback": () => reject(new Error("Security token expired. Please try again.")),
-          });
-          window.turnstile.execute(widgetRef.current);
-        });
+        captchaToken = await Promise.race([
+          new Promise((resolve, reject) => {
+            widgetRef.current = window.turnstile.render("#turnstile-register", {
+              sitekey: TURNSTILE_SITE_KEY,
+              size: "invisible",
+              callback: resolve,
+              "error-callback": (code) => reject(new Error(`Security check failed (${code}). Please try again.`)),
+              "expired-callback": () => reject(new Error("Security token expired. Please try again.")),
+            });
+            window.turnstile.execute(widgetRef.current);
+          }),
+          new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
+        ]);
       }
 
       const result = await signupAction({

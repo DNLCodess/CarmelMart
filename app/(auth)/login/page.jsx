@@ -107,8 +107,6 @@ function LoginContent() {
     }
   }, [router, searchParams]);
 
-  // Pre-warm the Turnstile widget as soon as the SDK loads so the token is ready
-  // by the time the user clicks "Sign In" — eliminates the challenge wait on submit.
   const mountLoginTurnstile = () => {
     if (!TURNSTILE_SITE_KEY || typeof window?.turnstile === "undefined") return;
     if (widgetRef.current !== null) return;
@@ -125,6 +123,22 @@ function LoginContent() {
     });
     window.turnstile.execute(widgetRef.current);
   };
+
+  // Poll for the SDK as soon as the component mounts — the Script onLoad fires after
+  // hydration, but the SDK may already be cached. Polling starts the challenge earlier
+  // so the token is more likely to be ready before the user clicks submit.
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    if (typeof window?.turnstile !== "undefined") { mountLoginTurnstile(); return; }
+    const interval = setInterval(() => {
+      if (typeof window?.turnstile !== "undefined") {
+        clearInterval(interval);
+        mountLoginTurnstile();
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -248,16 +262,21 @@ function LoginContent() {
           try { window.turnstile.remove(widgetRef.current); } catch {}
           widgetRef.current = null;
         }
-        captchaToken = await new Promise((resolve, reject) => {
-          widgetRef.current = window.turnstile.render("#turnstile-login-widget", {
-            sitekey: TURNSTILE_SITE_KEY,
-            size: "invisible",
-            callback: resolve,
-            "error-callback": (code) => reject(new Error(`Security check failed (${code}). Please try again.`)),
-            "expired-callback": () => reject(new Error("Security token expired. Please try again.")),
-          });
-          window.turnstile.execute(widgetRef.current);
-        });
+        // Race the challenge against a 3-second timeout — if Cloudflare is slow,
+        // proceed without a token rather than blocking the user indefinitely.
+        captchaToken = await Promise.race([
+          new Promise((resolve, reject) => {
+            widgetRef.current = window.turnstile.render("#turnstile-login-widget", {
+              sitekey: TURNSTILE_SITE_KEY,
+              size: "invisible",
+              callback: resolve,
+              "error-callback": (code) => reject(new Error(`Security check failed (${code}). Please try again.`)),
+              "expired-callback": () => reject(new Error("Security token expired. Please try again.")),
+            });
+            window.turnstile.execute(widgetRef.current);
+          }),
+          new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
+        ]);
       }
 
       const result = await loginAction({ email: formData.email, password: formData.password, captchaToken });
