@@ -20,8 +20,9 @@ export default async function VendorKycPage() {
   // Payment already done — go to the "under review" waiting room
   if (vendor?.payment_verified) redirect("/vendor-pending");
 
-  // Already fully verified — go straight to dashboard
-  if (vendor?.verification_status === "verified") redirect("/vendor/dashboard");
+  // requireVendor() already handles fully-verified vendors (redirects them to dashboard).
+  // A vendor who reaches here has payment_verified=false, so show the KYC form regardless
+  // of verification_status — they still need to complete the registration payment step.
 
   return <KycResumeClient userId={user.id} email={user.email} />;
 }
