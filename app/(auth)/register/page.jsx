@@ -23,8 +23,10 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { signupAction } from "@/app/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 
 import VendorVerification from "@/components/shared/auth/VendorVerification";
+import MobileAuthHeader from "@/components/shared/auth/MobileAuthHeader";
 import { formatNigerianPhone } from "@/lib/utils";
 
 // ─── Shared Input ──────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ const RoleCard = ({
   title,
   description,
   benefits,
+  fee,
   selected,
   onClick,
 }) => (
@@ -107,33 +110,50 @@ const RoleCard = ({
     onClick={onClick}
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
-    className={`relative p-6 rounded-2xl border-2 transition-all duration-300 text-left w-full ${
+    className={`relative rounded-2xl border-2 transition-all duration-300 text-left w-full ${
       selected
-        ? "border-primary bg-linear-to-br from-primary/5 to-accent/5 shadow-lg"
+        ? "border-primary bg-primary/5 shadow-lg"
         : "border-gray-200 hover:border-primary/50 hover:shadow-md bg-white"
     }`}
   >
     {selected && (
-      <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-linear-to-br from-primary to-primary-dark flex items-center justify-center">
-        <Check className="w-4 h-4 text-white" />
+      <div className="absolute top-3 right-3 md:top-4 md:right-4 w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary flex items-center justify-center">
+        <Check className="w-3 h-3 md:w-4 md:h-4 text-white" />
       </div>
     )}
-    <div
-      className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${selected ? "bg-linear-to-br from-primary to-primary-dark" : "bg-gray-100"}`}
-    >
-      <Icon
-        className={`w-7 h-7 ${selected ? "text-white" : "text-gray-600"}`}
-      />
-    </div>
-    <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
-    <p className="text-gray-600 text-sm mb-4">{description}</p>
-    <div className="space-y-2">
-      {benefits.map((b, i) => (
-        <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
-          <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-          <span>{b}</span>
+
+    {/* Mobile: horizontal layout — icon left, text right */}
+    <div className="md:hidden flex items-center gap-4 p-4">
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${selected ? "bg-primary" : "bg-gray-100"}`}>
+        <Icon className={`w-5 h-5 ${selected ? "text-white" : "text-gray-600"}`} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2 mb-0.5">
+          <h3 className="text-base font-bold text-gray-900">{title}</h3>
+          {fee && <span className="text-xs font-semibold text-gray-400 shrink-0">{fee}</span>}
         </div>
-      ))}
+        <p className="text-xs text-gray-500 leading-snug">{description}</p>
+      </div>
+    </div>
+
+    {/* Desktop: vertical layout — full card */}
+    <div className="hidden md:block p-6">
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${selected ? "bg-primary" : "bg-gray-100"}`}>
+        <Icon className={`w-7 h-7 ${selected ? "text-white" : "text-gray-600"}`} />
+      </div>
+      <div className="flex items-baseline gap-2 mb-2">
+        <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+        {fee && <span className="text-xs font-semibold text-gray-400">{fee}</span>}
+      </div>
+      <p className="text-gray-600 text-sm mb-4">{description}</p>
+      <div className="space-y-2">
+        {benefits.map((b, i) => (
+          <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
+            <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+            <span>{b}</span>
+          </div>
+        ))}
+      </div>
     </div>
   </motion.button>
 );
@@ -269,6 +289,7 @@ function RegisterPageContent() {
       icon: Store,
       title: "Vendor",
       description: "Sell your products to thousands of buyers",
+      fee: "from ₦5,000",
       benefits: [
         "Reach active shoppers",
         "Easy inventory",
@@ -357,6 +378,7 @@ function RegisterPageContent() {
         setVendorData({
           userId: result.userId,
           email: formData.email,
+          phone: formData.phone || null,
           // referralCode entered is the code of whoever referred them,
           // passed as referredBy so VendorVerification shows the bonus banner
           referredBy: formData.referralCode?.trim().toUpperCase() || null,
@@ -426,12 +448,13 @@ function RegisterPageContent() {
       </div>
 
       {/* Right: Form */}
-      <div className="flex-1 flex items-start sm:items-center justify-center px-4 lg:px-12 py-6 sm:py-10 bg-gray-50 relative">
+      <div className="flex-1 flex flex-col bg-white lg:bg-gray-50 relative">
+
+        {/* Mobile brand header */}
+        <MobileAuthHeader backHref="/" tagline="Join Nigeria's trusted marketplace" />
+
+        <div className="flex-1 flex items-start sm:items-center justify-center px-4 lg:px-12 py-6 sm:py-10">
         <div className="relative w-full max-w-5xl z-10">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex justify-center mb-6">
-            <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
-          </div>
 
           <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-lg border border-gray-100 p-4 sm:p-6 lg:p-10">
             <AnimatePresence mode="wait">
@@ -473,7 +496,7 @@ function RegisterPageContent() {
                     </motion.div>
                   )}
 
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
                     {roles.map((role) => (
                       <RoleCard
                         key={role.id}
@@ -506,6 +529,12 @@ function RegisterPageContent() {
                   </button>
 
                   <div className="mb-5">
+                    {selectedRole === "vendor" && (
+                      <div className="sm:hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/8 text-primary text-xs font-semibold mb-3">
+                        <span className="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold">2</span>
+                        Step 2 of 3 — Account Details
+                      </div>
+                    )}
                     <h2 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
                       {selectedRole === "vendor" ? "Register as a Vendor" : "Create your Account"}
                     </h2>
@@ -514,6 +543,11 @@ function RegisterPageContent() {
                         ? "Fill in your details — KYC verification comes next"
                         : "Join CarmelMart and start shopping today"}
                     </p>
+                    {selectedRole === "vendor" && (
+                      <p className="text-xs text-gray-400 mt-1.5">
+                        One-time verification fee: <span className="font-semibold text-gray-600">₦5,000–₦10,000</span>
+                      </p>
+                    )}
                   </div>
 
                   {/* Google sign-up — customers only (vendors need phone/KYC) */}
@@ -729,12 +763,14 @@ function RegisterPageContent() {
                   <VendorVerification
                     userId={vendorData.userId}
                     email={vendorData.email}
+                    phone={vendorData.phone}
                     referredBy={vendorData.referredBy}
                   />
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
+        </div>
         </div>
       </div>
     </div>

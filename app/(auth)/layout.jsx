@@ -1,10 +1,3 @@
-import Footer from "@/components/common/footer";
-
 export default function AuthLayout({ children }) {
-  return (
-    <>
-      <main className="min-h-screen">{children}</main>
-      <Footer />
-    </>
-  );
+  return <main className="min-h-screen">{children}</main>;
 }

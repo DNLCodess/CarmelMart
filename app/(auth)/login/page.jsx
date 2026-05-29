@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, ShieldCheck, Store, Star } from "lucide-react";
+import MobileAuthHeader from "@/components/shared/auth/MobileAuthHeader";
 import Image from "next/image";
 import Script from "next/script";
 import Link from "next/link";
@@ -388,12 +389,16 @@ function LoginContent() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className="flex-1 flex flex-col bg-gray-50">
-        <div className="flex-1 flex items-start sm:items-center justify-center px-5 py-6 sm:py-10 sm:px-10">
+      <div className="flex-1 flex flex-col bg-white lg:bg-gray-50">
+
+        {/* Mobile brand header */}
+        <MobileAuthHeader backHref="/" tagline="Nigeria's trusted marketplace" />
+
+        <div className="flex-1 flex items-start lg:items-center justify-center px-5 py-6 sm:py-10 sm:px-10">
           <div className="w-full max-w-[420px]">
 
-            {/* Back link */}
-            <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
+            {/* Back link — desktop only */}
+            <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} className="hidden lg:block mb-8">
               <Link
                 href="/"
                 className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors group"
@@ -405,17 +410,8 @@ function LoginContent() {
               </Link>
             </motion.div>
 
-            {/* Logo — mobile only (hidden on lg where left panel shows it) */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="lg:hidden mb-6"
-            >
-              <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
-            </motion.div>
-
             {/* Heading */}
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-6 lg:mb-8">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Sign in</h1>
               <p className="text-sm text-gray-500">Enter your details to continue shopping</p>
             </motion.div>

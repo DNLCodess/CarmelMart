@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
@@ -15,11 +15,13 @@ import {
   Star,
   Check,
   Gift,
+  ChevronDown,
+  X,
 } from "lucide-react";
 
 import { qoreIdHelpers } from "@/lib/qoreId";
 import { flutterwaveHelpers } from "@/lib/flutterwave";
-import { NIGERIAN_BANKS, getBankName } from "@/lib/nigerian-banks";
+import { NIGERIAN_BANKS } from "@/lib/nigerian-banks";
 import { createClient } from "@/lib/supabase/client";
 import { completeVendorPaymentAction } from "@/app/actions/vendor";
 import toast from "react-hot-toast";
@@ -28,10 +30,107 @@ import Button from "@/components/ui/button";
 
 const supabase = createClient();
 
+// ─── Searchable bank combobox ─────────────────────────────────────────────────
+const BankSelect = ({ value, onChange, error }) => {
+  const [query, setQuery]   = useState("");
+  const [open, setOpen]     = useState(false);
+  const inputRef            = useRef(null);
+
+  const selectedBank = NIGERIAN_BANKS.find((b) => b.code === value) ?? null;
+  const filtered     = query.trim()
+    ? NIGERIAN_BANKS.filter((b) =>
+        b.name.toLowerCase().includes(query.toLowerCase().trim())
+      )
+    : NIGERIAN_BANKS;
+
+  const handleSelect = (bank) => {
+    onChange(bank.code, bank.name);
+    setQuery("");
+    setOpen(false);
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange("", "");
+    setQuery("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        Bank <span className="text-red-500">*</span>
+      </label>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          autoComplete="off"
+          placeholder="Search for your bank…"
+          value={open ? query : (selectedBank?.name ?? "")}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => { setOpen(true); setQuery(""); }}
+          onBlur={() => setTimeout(() => setOpen(false), 200)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { setOpen(false); setQuery(""); }
+          }}
+          className={`w-full px-4 py-3 pr-16 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all bg-white ${
+            error
+              ? "border-red-300 focus:border-red-500 focus:ring-red-500/15"
+              : "border-gray-200 focus:border-primary focus:ring-primary/15"
+          }`}
+        />
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+          {selectedBank && !open && (
+            <button
+              type="button"
+              onMouseDown={handleClear}
+              className="pointer-events-auto text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Clear selection"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <ChevronDown
+            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
+        </div>
+
+        {open && (
+          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-gray-400">
+                No banks found for &quot;{query}&quot;
+              </p>
+            ) : (
+              filtered.map((bank) => (
+                <button
+                  key={bank.code}
+                  type="button"
+                  onMouseDown={() => handleSelect(bank)}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                    bank.code === value
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "hover:bg-gray-50 text-gray-700"
+                  }`}
+                >
+                  {bank.name}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  );
+};
+
 export default function VendorVerification({
   userId,
   email,
-  referredBy, // referral code of the person who referred this user
+  phone,
+  referredBy,
 }) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
@@ -53,14 +152,21 @@ export default function VendorVerification({
   } = useForm();
 
   const [verifiedAccountName, setVerifiedAccountName] = useState(null);
-  const [bankVerifying, setBankVerifying] = useState(false);
+  const [bankVerifying, setBankVerifying]             = useState(false);
+  const [bankVerifyError, setBankVerifyError]         = useState(null);
+
+  // Pre-fill phone from registration if provided
+  useEffect(() => {
+    if (phone) setValue("phone", phone);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const watchedAccountNumber = watch("accountNumber");
   const watchedBankCode      = watch("bankCode");
 
-  // Clear verification when either field changes
+  // Clear verification and error when either field changes
   useEffect(() => {
     setVerifiedAccountName(null);
+    setBankVerifyError(null);
   }, [watchedAccountNumber, watchedBankCode]);
 
   // Steps vary by tier; only show tier-specific steps once a tier is chosen
@@ -88,11 +194,9 @@ export default function VendorVerification({
   const verifyBankAccount = async () => {
     const accountNumber = watch("accountNumber");
     const bankCode      = watch("bankCode");
-    if (!accountNumber || !bankCode) {
-      toast.error("Enter account number and bank code first");
-      return;
-    }
+    if (!accountNumber || !bankCode) return;
     setBankVerifying(true);
+    setBankVerifyError(null);
     try {
       const res = await fetch("/api/flutterwave/verify-account", {
         method: "POST",
@@ -102,13 +206,27 @@ export default function VendorVerification({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Verification failed");
       setVerifiedAccountName(data.account_name);
+      setBankVerifyError(null);
       toast.success(`Account verified: ${data.account_name}`);
     } catch (err) {
+      setBankVerifyError(err.message || "Could not verify bank account");
       toast.error(err.message || "Could not verify bank account");
     } finally {
       setBankVerifying(false);
     }
   };
+
+  // Auto-verify when account number reaches 10 digits and bank is selected
+  useEffect(() => {
+    if (
+      watchedAccountNumber?.length === 10 &&
+      watchedBankCode &&
+      !verifiedAccountName &&
+      !bankVerifying
+    ) {
+      verifyBankAccount();
+    }
+  }, [watchedAccountNumber, watchedBankCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Step 1: Business Details ──────────────────────────────────────────────
   const handleBusinessDetails = async (data) => {
@@ -168,7 +286,11 @@ export default function VendorVerification({
   const handleNINVerification = async (data) => {
     setVerificationStatus((prev) => ({ ...prev, nin: { verified: false, loading: true } }));
     try {
-      const result = await qoreIdHelpers.verifyNIN(data.nin, data.firstName, data.lastName);
+      const result = await qoreIdHelpers.verifyNIN(
+        data.nin.trim(),
+        data.firstName.trim(),
+        data.lastName.trim()
+      );
       if (result.success) {
         // vendors.nin_verified is written server-side inside /api/qoreid/verify-nin
         setVerificationStatus((prev) => ({ ...prev, nin: { verified: true, loading: false } }));
@@ -187,7 +309,7 @@ export default function VendorVerification({
   const handleCACVerification = async (data) => {
     setVerificationStatus((prev) => ({ ...prev, cac: { verified: false, loading: true } }));
     try {
-      const result = await qoreIdHelpers.verifyCAC(data.cacNumber);
+      const result = await qoreIdHelpers.verifyCAC(data.cacNumber.trim().toUpperCase());
       if (result.success) {
         // vendors.cac_verified is written server-side inside /api/qoreid/verify-cac
         setVerificationStatus((prev) => ({ ...prev, cac: { verified: true, loading: false } }));
@@ -446,31 +568,19 @@ export default function VendorVerification({
                 <div className="border-t border-gray-100 pt-5">
                   <h3 className="font-semibold text-gray-900 mb-4 text-sm">Bank Account Details</h3>
                   <div className="space-y-4">
-                    {/* Bank select — shows names, stores code; auto-fills hidden bankName */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                        Bank <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        {...register("bankCode", { required: "Please select your bank" })}
-                        onChange={(e) => {
-                          register("bankCode").onChange(e);
-                          const name = getBankName(e.target.value);
-                          if (name) setValue("bankName", name);
-                          setVerifiedAccountName(null);
-                        }}
-                        className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
-                      >
-                        <option value="">Select your bank</option>
-                        {NIGERIAN_BANKS.map((b) => (
-                          <option key={b.code} value={b.code}>{b.name}</option>
-                        ))}
-                      </select>
-                      {errors.bankCode && (
-                        <p className="mt-1 text-xs text-red-500">{errors.bankCode.message}</p>
-                      )}
-                      <input type="hidden" {...register("bankName", { required: true })} />
-                    </div>
+                    {/* Searchable bank combobox */}
+                    <input type="hidden" {...register("bankCode", { required: "Please select your bank" })} />
+                    <input type="hidden" {...register("bankName", { required: true })} />
+                    <BankSelect
+                      value={watchedBankCode}
+                      onChange={(code, name) => {
+                        setValue("bankCode", code, { shouldValidate: true });
+                        setValue("bankName", name);
+                        setVerifiedAccountName(null);
+                        setBankVerifyError(null);
+                      }}
+                      error={errors.bankCode?.message}
+                    />
                     <Input
                       label="Account Number"
                       placeholder="10-digit NUBAN"
@@ -483,31 +593,32 @@ export default function VendorVerification({
                       error={errors.accountNumber?.message}
                     />
 
-                    {/* Verify account number */}
+                    {/* Account verification */}
                     <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={verifyBankAccount}
-                        disabled={bankVerifying}
-                        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors"
-                      >
-                        {bankVerifying ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Verifying...
-                          </>
-                        ) : verifiedAccountName ? (
-                          <>
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                            Verified
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="w-4 h-4" />
-                            Verify Account Number
-                          </>
-                        )}
-                      </button>
+                      {/* Auto-verifies on 10 digits — button is retry after failure */}
+                      {!verifiedAccountName && (
+                        <button
+                          type="button"
+                          onClick={verifyBankAccount}
+                          disabled={bankVerifying || !watchedBankCode || watchedAccountNumber?.length !== 10}
+                          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                        >
+                          {bankVerifying ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" />Verifying…</>
+                          ) : bankVerifyError ? (
+                            <><Shield className="w-4 h-4" />Re-verify Account</>
+                          ) : (
+                            <><Shield className="w-4 h-4" />Verify Account Number</>
+                          )}
+                        </button>
+                      )}
+
+                      {bankVerifyError && !verifiedAccountName && (
+                        <p className="text-xs text-red-500 font-medium flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          {bankVerifyError}
+                        </p>
+                      )}
 
                       {verifiedAccountName && (
                         <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
@@ -518,6 +629,16 @@ export default function VendorVerification({
                     </div>
                   </div>
                 </div>
+
+                {/* Nudge: explain why Continue is disabled */}
+                {!verifiedAccountName && watchedAccountNumber?.length === 10 && watchedBankCode && !bankVerifying && (
+                  <p className="text-xs text-amber-600 font-medium flex items-center gap-1.5 -mt-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {bankVerifyError
+                      ? "Verification failed — tap \"Re-verify Account\" above before continuing"
+                      : "Account verification is required to continue"}
+                  </p>
+                )}
 
                 <Button
                   type="submit"
@@ -550,24 +671,22 @@ export default function VendorVerification({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {/* Starter */}
                 <button
                   onClick={() => handleVerificationChoice("nin")}
-                  className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all text-left flex flex-col justify-between"
+                  className="bg-white border border-gray-200 rounded-xl p-3.5 sm:p-5 hover:border-gray-300 hover:shadow-sm transition-all text-left flex flex-col justify-between"
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-                          <Shield className="w-5 h-5 text-gray-700" />
-                        </div>
-                        <h3 className="font-semibold text-gray-900">Starter</h3>
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                        <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                       </div>
-                      <span className="text-sm font-bold text-gray-700">₦5,000</span>
+                      <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Starter</h3>
                     </div>
-                    <p className="text-xs text-gray-400 mb-3">NIN Verification — Individual sellers</p>
-                    <ul className="text-sm text-gray-600 space-y-2">
+                    <p className="text-base sm:text-lg font-bold text-gray-800 mb-1">₦5,000</p>
+                    <p className="text-xs text-gray-400 hidden sm:block mb-3">NIN only — Individual sellers</p>
+                    <ul className="hidden sm:block text-sm text-gray-600 space-y-2">
                       {["Quick verification", "Unlimited listings", "Verified badge"].map((b) => (
                         <li key={b} className="flex items-center gap-2">
                           <Check className="w-4 h-4 text-gray-500 shrink-0" />
@@ -575,33 +694,32 @@ export default function VendorVerification({
                         </li>
                       ))}
                     </ul>
+                    <p className="text-xs text-gray-500 sm:hidden">NIN only</p>
                   </div>
-                  <div className="mt-5 w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Select Starter
-                    <ArrowRight className="w-4 h-4" />
+                  <div className="mt-3 sm:mt-5 w-full flex items-center justify-center gap-1 px-2 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Select
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </div>
                 </button>
 
                 {/* Business */}
                 <button
                   onClick={() => handleVerificationChoice("nin_cac")}
-                  className="bg-white border-2 border-gray-800 rounded-xl p-5 hover:shadow-md transition-all text-left flex flex-col justify-between relative"
+                  className="bg-white border-2 border-gray-800 rounded-xl p-3.5 sm:p-5 hover:shadow-md transition-all text-left flex flex-col justify-between relative"
                 >
-                  <span className="absolute top-2.5 right-3 text-[10px] font-bold text-gray-800 uppercase bg-gray-100 px-2 py-0.5 rounded">
+                  <span className="absolute top-2 right-2 text-[9px] sm:text-[10px] font-bold text-gray-800 uppercase bg-gray-100 px-1.5 py-0.5 rounded">
                     Priority
                   </span>
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center">
-                          <Star className="w-5 h-5 text-white" />
-                        </div>
-                        <h3 className="font-semibold text-gray-900">Business</h3>
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gray-800 rounded-lg flex items-center justify-center shrink-0">
+                        <Star className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                       </div>
-                      <span className="text-sm font-bold text-gray-800">₦10,000</span>
+                      <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Business</h3>
                     </div>
-                    <p className="text-xs text-gray-400 mb-3">NIN + CAC Verification — Registered businesses</p>
-                    <ul className="text-sm text-gray-600 space-y-2">
+                    <p className="text-base sm:text-lg font-bold text-gray-800 mb-1">₦10,000</p>
+                    <p className="text-xs text-gray-400 hidden sm:block mb-3">NIN + CAC — Registered businesses</p>
+                    <ul className="hidden sm:block text-sm text-gray-600 space-y-2">
                       {["All Starter benefits", "Enhanced credibility", "Priority visibility"].map((b) => (
                         <li key={b} className="flex items-center gap-2">
                           <Check className="w-4 h-4 text-gray-800 shrink-0" />
@@ -609,10 +727,11 @@ export default function VendorVerification({
                         </li>
                       ))}
                     </ul>
+                    <p className="text-xs text-gray-500 sm:hidden">NIN + CAC</p>
                   </div>
-                  <div className="mt-5 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
-                    Select Business
-                    <Star className="w-4 h-4" />
+                  <div className="mt-3 sm:mt-5 w-full flex items-center justify-center gap-1 px-2 py-2 bg-gray-800 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-700">
+                    Select
+                    <Star className="w-3.5 h-3.5" />
                   </div>
                 </button>
               </div>
@@ -667,10 +786,17 @@ export default function VendorVerification({
                     </div>
                   </div>
 
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                      Enter your name <strong className="font-semibold">exactly as it appears on your NIN slip</strong> — any spelling difference will cause verification to fail.
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label="First Name"
-                      placeholder="As on your NIN"
+                      placeholder="As on your NIN slip"
                       {...register("firstName", {
                         required: "First name is required",
                         minLength: { value: 2, message: "Must be at least 2 characters" },
@@ -679,7 +805,7 @@ export default function VendorVerification({
                     />
                     <Input
                       label="Last Name"
-                      placeholder="As on your NIN"
+                      placeholder="As on your NIN slip"
                       {...register("lastName", {
                         required: "Last name is required",
                         minLength: { value: 2, message: "Must be at least 2 characters" },
@@ -692,6 +818,7 @@ export default function VendorVerification({
                     label="National Identity Number (NIN)"
                     placeholder="11-digit NIN"
                     maxLength={11}
+                    inputMode="numeric"
                     {...register("nin", {
                       required: "NIN is required",
                       pattern: { value: /^\d{11}$/, message: "NIN must be exactly 11 digits" },

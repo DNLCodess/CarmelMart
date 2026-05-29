@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Mail, Lock, CheckCircle, Eye, EyeOff } from "lucide-react";
+import MobileAuthHeader from "@/components/shared/auth/MobileAuthHeader";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -242,12 +243,16 @@ export default function ForgotPassword() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className="flex-1 flex flex-col bg-gray-50">
+      <div className="flex-1 flex flex-col bg-white lg:bg-gray-50">
+
+        {/* Mobile brand header */}
+        <MobileAuthHeader backHref="/login" tagline="Account recovery" />
+
         <div className="flex-1 flex items-center justify-center px-5 py-10 sm:px-10">
           <div className="w-full max-w-[420px]">
 
-            {/* Back link */}
-            <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
+            {/* Back link — desktop only */}
+            <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} className="hidden lg:block mb-8">
               <Link
                 href="/login"
                 className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors group"
@@ -259,10 +264,22 @@ export default function ForgotPassword() {
               </Link>
             </motion.div>
 
-            {/* Mobile logo */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:hidden mb-6">
-              <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
-            </motion.div>
+            {/* Mobile step indicator — pill-style dots */}
+            <div className="lg:hidden flex items-center justify-center gap-2 mb-5">
+              {STEPS.map((s, i) => {
+                const done   = step > i + 1;
+                const active = step === i + 1;
+                return (
+                  <div
+                    key={i}
+                    title={s.label}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      active ? "w-8 bg-primary" : done ? "w-4 bg-primary/40" : "w-4 bg-gray-200"
+                    }`}
+                  />
+                );
+              })}
+            </div>
 
             {/* Card */}
             <AnimatePresence mode="wait">
