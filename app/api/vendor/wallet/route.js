@@ -47,21 +47,10 @@ export async function GET() {
     const totalEarned  = (totalEarnedResult.data || []).reduce((sum, r) => sum + (r.amount ?? 0), 0);
     const pendingPayout = (pendingPayoutResult.data || []).reduce((sum, r) => sum + (r.total ?? 0), 0);
 
-    // Next payout date — every Friday
-    const today        = new Date();
-    const dayOfWeek    = today.getDay(); // 0=Sun, 5=Fri
-    const daysToFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 6;
-    const nextFriday   = new Date(today);
-    nextFriday.setDate(today.getDate() + (daysToFriday === 0 ? 7 : daysToFriday));
-    const nextPayoutDate = nextFriday.toLocaleDateString("en-NG", {
-      weekday: "short", day: "numeric", month: "short",
-    });
-
     return NextResponse.json({
-      balance:         profile.wallet_balance ?? 0,
-      pending_payout:  pendingPayout,
-      total_earned:    totalEarned,
-      next_payout_date: nextPayoutDate,
+      balance:        profile.wallet_balance ?? 0,
+      pending_payout: pendingPayout,
+      total_earned:   totalEarned,
       transactions,
     });
   } catch (error) {

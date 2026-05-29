@@ -26,6 +26,7 @@ const Input = ({ label, type = "text", placeholder, icon: Icon, value, onChange,
           </div>
         )}
         <input
+          suppressHydrationWarning
           type={inputType}
           autoComplete={autoComplete}
           placeholder={placeholder}
@@ -294,7 +295,7 @@ export default function ForgotPassword() {
                   <button
                     onClick={sendOTP}
                     disabled={isLoading}
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-linear-to-br from-primary to-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-px transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-primary hover:bg-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Sending…</>
@@ -333,7 +334,7 @@ export default function ForgotPassword() {
                   <button
                     onClick={verifyOTP}
                     disabled={isLoading || otp.length !== 6}
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-linear-to-br from-primary to-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-px transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-primary hover:bg-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Verifying…</>
@@ -401,7 +402,7 @@ export default function ForgotPassword() {
                   <button
                     onClick={resetPassword}
                     disabled={isLoading}
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-linear-to-br from-primary to-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-px transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-primary hover:bg-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Resetting…</>

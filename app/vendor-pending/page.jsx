@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Clock, Mail, CheckCircle2, LogOut } from "lucide-react";
+import { Clock, Mail, CheckCircle2, LogOut, ArrowRight } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
 
@@ -62,13 +62,21 @@ export default function VendorPendingPage() {
             </a>
           </div>
 
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mx-auto transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign out
-          </button>
+          <div className="border-t border-gray-100 pt-4 mt-2 space-y-3">
+            <p className="text-xs text-gray-400 text-center">
+              Haven&apos;t finished your KYC yet?{" "}
+              <Link href="/vendor-kyc" className="text-primary font-semibold hover:underline inline-flex items-center gap-1">
+                Resume registration <ArrowRight className="w-3 h-3" />
+              </Link>
+            </p>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mx-auto transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </div>
         </motion.div>
       </div>
     </div>

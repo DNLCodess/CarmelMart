@@ -22,11 +22,10 @@ export default function VendorWalletPage() {
     retry: false,
   });
 
-  const balance          = data?.balance           ?? 0;
-  const pendingPayout    = data?.pending_payout    ?? 0;
-  const totalEarned      = data?.total_earned      ?? 0;
-  const nextPayoutDate   = data?.next_payout_date  ?? "—";
-  const transactions     = data?.transactions      ?? [];
+  const balance       = data?.balance        ?? 0;
+  const pendingPayout = data?.pending_payout ?? 0;
+  const totalEarned   = data?.total_earned   ?? 0;
+  const transactions  = data?.transactions   ?? [];
 
   const { mutate: withdraw, isPending: submitting } = useMutation({
     mutationFn: async (amt) => {
@@ -97,9 +96,9 @@ export default function VendorWalletPage() {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">All-time credits to your wallet</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 px-5 py-4 col-span-2 sm:col-span-1">
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wide">Next Payout</p>
-          <p className="text-xl font-extrabold text-primary mt-1">{isLoading ? "—" : nextPayoutDate}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Weekly payouts every Friday</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wide">Bank Transfer</p>
+          <p className="text-xl font-extrabold text-primary mt-1">1–2 Business Days</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">After you request a withdrawal</p>
         </div>
       </div>
 

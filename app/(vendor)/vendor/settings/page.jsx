@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, AlertTriangle, RefreshCw } from "lucide-react";
+import { NIGERIAN_BANKS, getBankName } from "@/lib/nigerian-banks";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
@@ -86,6 +87,7 @@ export default function VendorSettingsPage() {
     register: regBank,
     handleSubmit: handleBank,
     reset: resetBank,
+    setValue: setBankValue,
     formState: { isSubmitting: bankSubmitting, isDirty: bankDirty },
   } = useForm();
 
@@ -250,39 +252,33 @@ export default function VendorSettingsPage() {
         <p className="text-sm text-gray-500 dark:text-gray-400">Your payouts will be sent to this account.</p>
         <form onSubmit={handleBank((d) => saveBank(d))} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Bank Name</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Bank</label>
+            <select
+              {...regBank("bank_code", { required: "Please select your bank" })}
+              onChange={(e) => {
+                regBank("bank_code").onChange(e);
+                const name = getBankName(e.target.value);
+                if (name) setBankValue("bank_name", name, { shouldDirty: true });
+              }}
+              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
+            >
+              <option value="">Select your bank</option>
+              {NIGERIAN_BANKS.map((b) => (
+                <option key={b.code} value={b.code}>{b.name}</option>
+              ))}
+            </select>
+            <input type="hidden" {...regBank("bank_name")} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Account Number</label>
             <input
-              {...regBank("bank_name")}
-              placeholder="e.g. First Bank of Nigeria"
+              {...regBank("bank_account_number")}
+              type="text"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="10-digit NUBAN"
               className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Account Number</label>
-              <input
-                {...regBank("bank_account_number")}
-                type="text"
-                inputMode="numeric"
-                maxLength={10}
-                placeholder="10-digit NUBAN"
-                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Bank Code <span className="text-gray-400 dark:text-gray-500 font-normal">(3-digit)</span>
-              </label>
-              <input
-                {...regBank("bank_code")}
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="e.g. 011 (First Bank)"
-                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-              />
-              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Required for bank transfers. Find yours at your bank.</p>
-            </div>
           </div>
           <button
             type="submit"

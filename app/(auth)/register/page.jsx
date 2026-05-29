@@ -54,6 +54,7 @@ const Input = ({
           </div>
         )}
         <input
+          suppressHydrationWarning
           type={inputType}
           placeholder={placeholder}
           disabled={disabled}
@@ -671,7 +672,7 @@ function RegisterPageContent() {
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl bg-linear-to-br from-primary to-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 shadow-sm shadow-primary/20"
+                      className="w-full inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl bg-primary hover:bg-primary-dark text-white hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98] transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {isLoading ? (
                         <>

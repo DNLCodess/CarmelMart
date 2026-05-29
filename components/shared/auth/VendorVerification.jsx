@@ -19,6 +19,7 @@ import {
 
 import { qoreIdHelpers } from "@/lib/qoreId";
 import { flutterwaveHelpers } from "@/lib/flutterwave";
+import { NIGERIAN_BANKS, getBankName } from "@/lib/nigerian-banks";
 import { createClient } from "@/lib/supabase/client";
 import { completeVendorPaymentAction } from "@/app/actions/vendor";
 import toast from "react-hot-toast";
@@ -47,6 +48,7 @@ export default function VendorVerification({
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm();
 
@@ -444,35 +446,41 @@ export default function VendorVerification({
                 <div className="border-t border-gray-100 pt-5">
                   <h3 className="font-semibold text-gray-900 mb-4 text-sm">Bank Account Details</h3>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Input
-                        label="Account Number"
-                        placeholder="10-digit NUBAN"
-                        maxLength={10}
-                        inputMode="numeric"
-                        {...register("accountNumber", {
-                          required: "Account number is required",
-                          pattern: { value: /^\d{10}$/, message: "Must be 10 digits" },
-                        })}
-                        error={errors.accountNumber?.message}
-                      />
-                      <Input
-                        label="Bank Code"
-                        placeholder="e.g. 011 (First Bank)"
-                        maxLength={6}
-                        inputMode="numeric"
-                        {...register("bankCode", {
-                          required: "Bank code is required",
-                          pattern: { value: /^\d{3,6}$/, message: "3–6 digit code" },
-                        })}
-                        error={errors.bankCode?.message}
-                      />
+                    {/* Bank select — shows names, stores code; auto-fills hidden bankName */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        Bank <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        {...register("bankCode", { required: "Please select your bank" })}
+                        onChange={(e) => {
+                          register("bankCode").onChange(e);
+                          const name = getBankName(e.target.value);
+                          if (name) setValue("bankName", name);
+                          setVerifiedAccountName(null);
+                        }}
+                        className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
+                      >
+                        <option value="">Select your bank</option>
+                        {NIGERIAN_BANKS.map((b) => (
+                          <option key={b.code} value={b.code}>{b.name}</option>
+                        ))}
+                      </select>
+                      {errors.bankCode && (
+                        <p className="mt-1 text-xs text-red-500">{errors.bankCode.message}</p>
+                      )}
+                      <input type="hidden" {...register("bankName", { required: true })} />
                     </div>
                     <Input
-                      label="Bank Name"
-                      placeholder="e.g. First Bank, GTBank"
-                      {...register("bankName", { required: "Bank name is required" })}
-                      error={errors.bankName?.message}
+                      label="Account Number"
+                      placeholder="10-digit NUBAN"
+                      maxLength={10}
+                      inputMode="numeric"
+                      {...register("accountNumber", {
+                        required: "Account number is required",
+                        pattern: { value: /^\d{10}$/, message: "Must be 10 digits" },
+                      })}
+                      error={errors.accountNumber?.message}
                     />
 
                     {/* Verify account number */}
