@@ -143,7 +143,13 @@ export async function signupAction({
 
   const normalizedEmail = email.trim().toLowerCase();
   const admin = createAdminClient();
-  const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+  const BASE_URL = (
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")
+  ).replace(/\/$/, "");
+  if (!BASE_URL) {
+    console.error("[signupAction] NEXT_PUBLIC_BASE_URL is not set — confirmation email links will be broken. Set it in your environment variables.");
+  }
 
   // Validate referral code server-side if provided
   if (referralCode) {
@@ -226,11 +232,30 @@ export async function signupAction({
         });
       }
     } catch {
-      // Non-fatal — don't block registration over referral issues
+      // Non-fatal
     }
   }
 
-  // Send confirmation email directly via Resend — bypasses hook + Supabase rate limits
+  // ── Vendor path: skip confirmation email, sign in immediately ────────────────
+  // Vendors have a multi-step KYC flow ahead. Auto-confirm their email server-side
+  // and establish a session now so every KYC step runs with normal auth. A welcome
+  // email is sent by completeVendorPaymentAction once they finish.
+  if (role === "vendor") {
+    try {
+      // Confirm email via admin so signInWithPassword succeeds
+      await admin.auth.admin.updateUserById(userId, { email_confirm: true });
+      // Sign in — SSR client writes the session into HttpOnly cookies
+      const supabase = await createClient();
+      await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    } catch (err) {
+      console.error("[signupAction] Vendor auto sign-in failed:", err?.message);
+      // Account exists; KYC resume flow handles the session-less case
+    }
+    revalidatePath("/", "layout");
+    return { error: null, userId, role: "vendor", requiresEmailVerification: false };
+  }
+
+  // ── Customer path: send confirmation email ───────────────────────────────────
   try {
     const tokenHash  = linkData.properties?.hashed_token;
     const confirmUrl = `${BASE_URL}/confirm-email?token_hash=${encodeURIComponent(tokenHash)}&type=signup`;
@@ -245,7 +270,6 @@ export async function signupAction({
     });
   } catch (emailError) {
     console.error("[signupAction] Confirmation email failed:", emailError?.message);
-    // Non-fatal — user can request a resend; account is created
   }
 
   revalidatePath("/", "layout");
@@ -254,7 +278,7 @@ export async function signupAction({
     error: null,
     userId,
     role,
-    requiresEmailVerification: true, // always true — email confirmation is required
+    requiresEmailVerification: true,
   };
 }
 
@@ -532,7 +556,13 @@ export async function resendVerificationAction(email) {
   }
 
   const admin   = createAdminClient();
-  const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+  const BASE_URL = (
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")
+  ).replace(/\/$/, "");
+  if (!BASE_URL) {
+    console.error("[resendVerificationAction] NEXT_PUBLIC_BASE_URL is not set — confirmation email links will be broken.");
+  }
 
   // Guard: only resend if the email exists in our users table.
   // Prevents creating a new auth user via generateLink for unknown emails.

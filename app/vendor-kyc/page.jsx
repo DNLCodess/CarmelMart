@@ -11,11 +11,10 @@ export default async function VendorKycPage() {
   if (user.role !== "vendor") redirect("/unauthorized");
 
   const admin = createAdminClient();
-  const { data: vendor } = await admin
-    .from("vendors")
-    .select("payment_verified, verification_status")
-    .eq("id", user.id)
-    .single();
+  const [{ data: vendor }, { data: profile }] = await Promise.all([
+    admin.from("vendors").select("payment_verified, verification_status").eq("id", user.id).single(),
+    admin.from("users").select("phone").eq("id", user.id).single(),
+  ]);
 
   // Payment already done — go to the "under review" waiting room
   if (vendor?.payment_verified) redirect("/vendor-pending");
@@ -24,5 +23,5 @@ export default async function VendorKycPage() {
   // A vendor who reaches here has payment_verified=false, so show the KYC form regardless
   // of verification_status — they still need to complete the registration payment step.
 
-  return <KycResumeClient userId={user.id} email={user.email} />;
+  return <KycResumeClient email={user.email} phone={profile?.phone ?? null} />;
 }

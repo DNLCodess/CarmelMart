@@ -22,13 +22,16 @@ import {
 import { qoreIdHelpers } from "@/lib/qoreId";
 import { flutterwaveHelpers } from "@/lib/flutterwave";
 import { NIGERIAN_BANKS } from "@/lib/nigerian-banks";
-import { createClient } from "@/lib/supabase/client";
-import { completeVendorPaymentAction } from "@/app/actions/vendor";
+import {
+  saveVendorBusinessDetailsAction,
+  setVendorTierAction,
+  createVendorPaymentRecordAction,
+  updateVendorPaymentStatusAction,
+  completeVendorPaymentAction,
+} from "@/app/actions/vendor";
 import toast from "react-hot-toast";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/button";
-
-const supabase = createClient();
 
 // ─── Searchable bank combobox ─────────────────────────────────────────────────
 const BankSelect = ({ value, onChange, error }) => {
@@ -127,7 +130,6 @@ const BankSelect = ({ value, onChange, error }) => {
 };
 
 export default function VendorVerification({
-  userId,
   email,
   phone,
   referredBy,
@@ -236,22 +238,14 @@ export default function VendorVerification({
     }
     setIsSubmittingBusiness(true);
     try {
-      // vendor shell was created in signupAction — just update with business details
-      const { error: vendorError } = await supabase
-        .from("vendors")
-        .update({
-          business_name:        data.businessName,
-          address:              data.address,
-          phone:                data.phone,
-          bank_account_number:  data.accountNumber,
-          bank_name:            data.bankName,
-          bank_code:            data.bankCode,
-          updated_at:           new Date().toISOString(),
-        })
-        .eq("id", userId);
-
-      if (vendorError) throw vendorError;
-
+      await saveVendorBusinessDetailsAction({
+        businessName: data.businessName,
+        address:      data.address,
+        phone:        data.phone,
+        accountNumber: data.accountNumber,
+        bankName:     data.bankName,
+        bankCode:     data.bankCode,
+      });
       setBusinessName(data.businessName);
       toast.success("Business details saved!");
       setCurrentStep(2);
@@ -266,11 +260,7 @@ export default function VendorVerification({
   // ── Step 2: Choose Verification Tier ──────────────────────────────────────
   const handleVerificationChoice = async (type) => {
     try {
-      const { error } = await supabase
-        .from("vendors")
-        .update({ verification_type: type })
-        .eq("id", userId);
-      if (error) throw error;
+      await setVendorTierAction(type);
       setVerificationType(type);
       toast.success(
         type === "nin_cac" ? "Business verification selected" : "Starter verification selected"
@@ -336,15 +326,7 @@ export default function VendorVerification({
     }));
 
     try {
-      await supabase.from("payments").insert([{
-        user_id: userId,
-        amount,
-        reference,
-        status: "pending",
-        type: "vendor_fee",
-        payment_provider: "flutterwave",
-        verification_type: verificationType,
-      }]);
+      await createVendorPaymentRecordAction({ reference, amount, verificationType });
 
       await flutterwaveHelpers.initializePayment(
         email,
@@ -360,7 +342,6 @@ export default function VendorVerification({
               payment: { verified: false, loading: false, processing: true },
             }));
 
-            // Verify payment server-side and activate vendor
             await completeVendorPaymentAction({
               transactionId: response.transaction_id,
               reference,
@@ -387,10 +368,7 @@ export default function VendorVerification({
               ...prev,
               payment: { verified: false, loading: false, processing: false },
             }));
-            await supabase
-              .from("payments")
-              .update({ status: "failed", error_message: error.message })
-              .eq("reference", reference);
+            await updateVendorPaymentStatusAction(reference, "failed", error.message);
             toast.error("Failed to complete registration. Please contact support.", {
               duration: 5000,
             });
@@ -403,10 +381,7 @@ export default function VendorVerification({
             payment: { verified: false, loading: false, processing: false },
           }));
           toast.error("Payment cancelled");
-          supabase
-            .from("payments")
-            .update({ status: "cancelled" })
-            .eq("reference", reference);
+          updateVendorPaymentStatusAction(reference, "cancelled");
         }
       );
     } catch (error) {

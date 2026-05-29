@@ -375,18 +375,16 @@ function RegisterPageContent() {
       }
 
       if (selectedRole === "vendor") {
+        // Vendor is now signed in server-side — sync client cache so auth context
+        // reflects the session immediately without a round-trip.
+        await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
         setVendorData({
-          userId: result.userId,
-          email: formData.email,
-          phone: formData.phone || null,
-          // referralCode entered is the code of whoever referred them,
-          // passed as referredBy so VendorVerification shows the bonus banner
+          email:     formData.email,
+          phone:     formData.phone || null,
           referredBy: formData.referralCode?.trim().toUpperCase() || null,
         });
         setStep(3);
-        toast.success(
-          "Account created! Complete KYC verification to activate.",
-        );
+        toast.success("Account created! Complete verification to activate your store.");
       } else {
         // Invalidate auth query (session may not exist yet if email confirmation required)
         await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
@@ -761,7 +759,6 @@ function RegisterPageContent() {
                   transition={{ duration: 0.4 }}
                 >
                   <VendorVerification
-                    userId={vendorData.userId}
                     email={vendorData.email}
                     phone={vendorData.phone}
                     referredBy={vendorData.referredBy}

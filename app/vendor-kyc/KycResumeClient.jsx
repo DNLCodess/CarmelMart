@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import VendorVerification from "@/components/shared/auth/VendorVerification";
 
-export default function KycResumeClient({ userId, email }) {
+export default function KycResumeClient({ email, phone }) {
   return (
     <div className="min-h-screen bg-gray-50 flex items-start sm:items-center justify-center px-4 py-6 sm:py-10">
       <div className="w-full max-w-5xl">
@@ -18,7 +18,7 @@ export default function KycResumeClient({ userId, email }) {
             Your account was created — complete the steps below to activate your vendor profile.
           </p>
         </div>
-        <VendorVerification userId={userId} email={email} referredBy={null} />
+        <VendorVerification email={email} phone={phone} referredBy={null} />
       </div>
     </div>
   );
