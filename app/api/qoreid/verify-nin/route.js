@@ -55,7 +55,7 @@ export async function POST(request) {
 
     // ✅ Environment variables
     const clientId = process.env.QOREID_CLIENT_ID;
-    const clientSecret = process.env.QOREID_SECRET_KEY;
+    const clientSecret = process.env.QOREID_CLIENT_SECRET;
     const baseUrl = process.env.QOREID_BASE_URL || "https://api.qoreid.com";
 
     if (!clientId || !clientSecret) {
