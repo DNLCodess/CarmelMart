@@ -189,6 +189,14 @@ export default function VendorShell({ children }) {
     (kycData.verification_type === "nin_cac" && !kycData.cac_verified)
   );
 
+  // One-time welcome redirect — fires once per vendor after first approval
+  useEffect(() => {
+    if (!user?.id || pathname === "/vendor/welcome") return;
+    if (!localStorage.getItem(`cm_vendor_welcomed_${user.id}`)) {
+      router.push("/vendor/welcome");
+    }
+  }, [user?.id, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSignOut = async () => {
     await logoutAction();
     qc.invalidateQueries({ queryKey: ["auth-user"] });

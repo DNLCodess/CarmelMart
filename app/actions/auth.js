@@ -236,23 +236,26 @@ export async function signupAction({
     }
   }
 
-  // ── Vendor path: skip confirmation email, sign in immediately ────────────────
-  // Vendors have a multi-step KYC flow ahead. Auto-confirm their email server-side
-  // and establish a session now so every KYC step runs with normal auth. A welcome
-  // email is sent by completeVendorPaymentAction once they finish.
+  // ── Vendor path: auto-confirm + sign in immediately ─────────────────────────
+  // Vendors go straight to the KYC wizard. Auto-confirm their email server-side
+  // so signInWithPassword works, then establish a session now so every KYC server
+  // action runs with normal auth. A welcome email is sent by completeVendorPaymentAction.
   if (role === "vendor") {
+    let sessionEstablished = false;
     try {
-      // Confirm email via admin so signInWithPassword succeeds
       await admin.auth.admin.updateUserById(userId, { email_confirm: true });
-      // Sign in — SSR client writes the session into HttpOnly cookies
       const supabase = await createClient();
-      await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+      if (signInError) throw signInError;
+      sessionEstablished = true;
     } catch (err) {
       console.error("[signupAction] Vendor auto sign-in failed:", err?.message);
-      // Account exists; KYC resume flow handles the session-less case
     }
     revalidatePath("/", "layout");
-    return { error: null, userId, role: "vendor", requiresEmailVerification: false };
+    return { error: null, userId, role: "vendor", requiresEmailVerification: false, sessionEstablished };
   }
 
   // ── Customer path: send confirmation email ───────────────────────────────────

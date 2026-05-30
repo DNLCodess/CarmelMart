@@ -43,7 +43,7 @@ export async function saveVendorBusinessDetailsAction({
 
 /** Step 2 — persist chosen verification tier */
 export async function setVendorTierAction(type) {
-  if (!["nin", "nin_cac"].includes(type)) throw new Error("Invalid tier");
+  if (!["nin", "nin_cac", "free"].includes(type)) throw new Error("Invalid tier");
   const userId = await getAuthenticatedUserId();
   const admin = createAdminClient();
   const { error } = await admin
@@ -51,6 +51,17 @@ export async function setVendorTierAction(type) {
     .update({ verification_type: type })
     .eq("id", userId);
   if (error) throw new Error("Failed to save tier selection");
+}
+
+/** Free tier — complete registration without payment */
+export async function completeFreeTierRegistrationAction() {
+  const userId = await getAuthenticatedUserId();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("vendors")
+    .update({ payment_verified: true, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) throw new Error("Failed to complete registration");
 }
 
 /** Payment step — create a pending payment record before opening Flutterwave */

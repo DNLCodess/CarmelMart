@@ -25,25 +25,37 @@ import {
   createVendorPaymentRecordAction,
   updateVendorPaymentStatusAction,
   completeVendorPaymentAction,
+  completeFreeTierRegistrationAction,
 } from "@/app/actions/vendor";
 import toast from "react-hot-toast";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/button";
 import BankSelect from "@/components/ui/BankSelect";
 
+// Determine which step to start on based on previously saved DB state
+function computeInitialStep(r) {
+  if (!r?.business_name) return 1;
+  if (!r.verification_type) return 2;
+  if (!r.nin_verified) return 3;
+  if (r.verification_type === "free") return 3; // NIN is the final step for free tier
+  if (r.verification_type === "nin_cac" && !r.cac_verified) return 4;
+  return r.verification_type === "nin_cac" ? 5 : 4;
+}
+
 export default function VendorVerification({
   email,
   phone,
   referredBy,
+  resumeState = null, // vendor row fetched server-side; null for first-time flow
 }) {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [verificationType, setVerificationType] = useState(null);
-  const [businessName, setBusinessName] = useState("");
+  const [currentStep, setCurrentStep] = useState(() => computeInitialStep(resumeState));
+  const [verificationType, setVerificationType] = useState(resumeState?.verification_type ?? null);
+  const [businessName, setBusinessName] = useState(resumeState?.business_name ?? "");
   const [isSubmittingBusiness, setIsSubmittingBusiness] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState({
-    nin: { verified: false, loading: false },
-    cac: { verified: false, loading: false },
+    nin: { verified: resumeState?.nin_verified  ?? false, loading: false },
+    cac: { verified: resumeState?.cac_verified  ?? false, loading: false },
     payment: { verified: false, loading: false, processing: false },
   });
 
@@ -53,16 +65,20 @@ export default function VendorVerification({
     watch,
     setValue,
     formState: { errors },
-  } = useForm();
+  } = useForm({
+    defaultValues: {
+      phone:         resumeState?.phone              ?? phone ?? "",
+      businessName:  resumeState?.business_name      ?? "",
+      address:       resumeState?.address            ?? "",
+      accountNumber: resumeState?.bank_account_number ?? "",
+      bankCode:      resumeState?.bank_code          ?? "",
+      bankName:      resumeState?.bank_name          ?? "",
+    },
+  });
 
   const [verifiedAccountName, setVerifiedAccountName] = useState(null);
   const [bankVerifying, setBankVerifying]             = useState(false);
   const [bankVerifyError, setBankVerifyError]         = useState(null);
-
-  // Pre-fill phone from registration if provided
-  useEffect(() => {
-    if (phone) setValue("phone", phone);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const watchedAccountNumber = watch("accountNumber");
   const watchedBankCode      = watch("bankCode");
@@ -86,7 +102,7 @@ export default function VendorVerification({
     } else if (verificationType === "nin") {
       base.push({ id: 4, title: "Payment", icon: CreditCard });
     }
-    // No extra steps shown until the user picks a tier on step 2
+    // "free" tier: NIN is the last step — no payment
     return base;
   };
 
@@ -187,7 +203,18 @@ export default function VendorVerification({
         // vendors.nin_verified is written server-side inside /api/qoreid/verify-nin
         setVerificationStatus((prev) => ({ ...prev, nin: { verified: true, loading: false } }));
         toast.success("NIN verified successfully");
-        setTimeout(() => setCurrentStep(4), 1500);
+        if (verificationType === "free") {
+          setTimeout(async () => {
+            try {
+              await completeFreeTierRegistrationAction();
+              router.push("/vendor-pending");
+            } catch {
+              toast.error("Could not complete registration. Please try again.");
+            }
+          }, 1500);
+        } else {
+          setTimeout(() => setCurrentStep(4), 1500);
+        }
       } else {
         throw new Error(result.error || "Verification failed");
       }
@@ -541,85 +568,98 @@ export default function VendorVerification({
             <div className="space-y-4">
               <div className="text-center">
                 <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-1">
-                  Choose Your Verification Tier
+                  Choose Your Plan
                 </h2>
                 <p className="text-sm text-gray-500">
-                  Pick a verification level that suits your business
+                  Start free or unlock more with a one-time upgrade
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="flex flex-col gap-3">
+                {/* Free */}
+                <button
+                  onClick={() => handleVerificationChoice("free")}
+                  className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 hover:border-primary/40 hover:shadow-sm transition-all text-left flex items-center gap-4"
+                >
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+                    <Shield className="w-5 h-5 text-gray-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <h3 className="font-semibold text-gray-900">Free</h3>
+                      <span className="text-lg font-bold text-gray-700">₦0</span>
+                    </div>
+                    <p className="text-xs text-gray-500">NIN only · Get verified and start selling</p>
+                    <div className="hidden sm:flex gap-3 mt-2">
+                      {["Standard badge", "Unlimited listings", "Quick approval"].map((b) => (
+                        <span key={b} className="inline-flex items-center gap-1 text-xs text-gray-500">
+                          <Check className="w-3 h-3 text-gray-400 shrink-0" />{b}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
+                </button>
+
                 {/* Starter */}
                 <button
                   onClick={() => handleVerificationChoice("nin")}
-                  className="bg-white border border-gray-200 rounded-xl p-3.5 sm:p-5 hover:border-gray-300 hover:shadow-sm transition-all text-left flex flex-col justify-between"
+                  className="bg-white border-2 border-primary/30 rounded-xl p-4 sm:p-5 hover:border-primary hover:shadow-sm transition-all text-left flex items-center gap-4"
                 >
-                  <div>
-                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                        <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
-                      </div>
-                      <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Starter</h3>
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                    <Shield className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <h3 className="font-semibold text-gray-900">Starter</h3>
+                      <span className="text-lg font-bold text-gray-900">₦5,000</span>
+                      <span className="text-xs text-gray-400 font-normal">one-time</span>
                     </div>
-                    <p className="text-base sm:text-lg font-bold text-gray-800 mb-1">₦5,000</p>
-                    <p className="text-xs text-gray-400 hidden sm:block mb-3">NIN only — Individual sellers</p>
-                    <ul className="hidden sm:block text-sm text-gray-600 space-y-2">
-                      {["Quick verification", "Unlimited listings", "Verified badge"].map((b) => (
-                        <li key={b} className="flex items-center gap-2">
-                          <Check className="w-4 h-4 text-gray-500 shrink-0" />
-                          {b}
-                        </li>
+                    <p className="text-xs text-gray-500">NIN only · Verified badge + referral earnings</p>
+                    <div className="hidden sm:flex gap-3 mt-2">
+                      {["Verified badge", "Referral earnings", "Priority support"].map((b) => (
+                        <span key={b} className="inline-flex items-center gap-1 text-xs text-primary">
+                          <Check className="w-3 h-3 shrink-0" />{b}
+                        </span>
                       ))}
-                    </ul>
-                    <p className="text-xs text-gray-500 sm:hidden">NIN only</p>
+                    </div>
                   </div>
-                  <div className="mt-3 sm:mt-5 w-full flex items-center justify-center gap-1 px-2 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Select
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </div>
+                  <ArrowRight className="w-4 h-4 text-primary shrink-0" />
                 </button>
 
                 {/* Business */}
                 <button
                   onClick={() => handleVerificationChoice("nin_cac")}
-                  className="bg-white border-2 border-gray-800 rounded-xl p-3.5 sm:p-5 hover:shadow-md transition-all text-left flex flex-col justify-between relative"
+                  className="bg-gray-900 border-2 border-gray-900 rounded-xl p-4 sm:p-5 hover:bg-gray-800 transition-all text-left flex items-center gap-4 relative overflow-hidden"
                 >
-                  <span className="absolute top-2 right-2 text-[9px] sm:text-[10px] font-bold text-gray-800 uppercase bg-gray-100 px-1.5 py-0.5 rounded">
-                    Priority
+                  <span className="absolute top-2 right-2 text-[9px] font-bold text-gray-900 uppercase bg-white/90 px-1.5 py-0.5 rounded">
+                    Best
                   </span>
-                  <div>
-                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gray-800 rounded-lg flex items-center justify-center shrink-0">
-                        <Star className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                      </div>
-                      <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Business</h3>
+                  <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+                    <Star className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <h3 className="font-semibold text-white">Business</h3>
+                      <span className="text-lg font-bold text-white">₦10,000</span>
+                      <span className="text-xs text-white/50 font-normal">one-time</span>
                     </div>
-                    <p className="text-base sm:text-lg font-bold text-gray-800 mb-1">₦10,000</p>
-                    <p className="text-xs text-gray-400 hidden sm:block mb-3">NIN + CAC — Registered businesses</p>
-                    <ul className="hidden sm:block text-sm text-gray-600 space-y-2">
-                      {["All Starter benefits", "Enhanced credibility", "Priority visibility"].map((b) => (
-                        <li key={b} className="flex items-center gap-2">
-                          <Check className="w-4 h-4 text-gray-800 shrink-0" />
-                          {b}
-                        </li>
+                    <p className="text-xs text-white/60">NIN + CAC · Priority visibility + enhanced badge</p>
+                    <div className="hidden sm:flex gap-3 mt-2">
+                      {["CAC verified", "Priority search placement", "Enhanced badge"].map((b) => (
+                        <span key={b} className="inline-flex items-center gap-1 text-xs text-white/80">
+                          <Check className="w-3 h-3 shrink-0" />{b}
+                        </span>
                       ))}
-                    </ul>
-                    <p className="text-xs text-gray-500 sm:hidden">NIN + CAC</p>
+                    </div>
                   </div>
-                  <div className="mt-3 sm:mt-5 w-full flex items-center justify-center gap-1 px-2 py-2 bg-gray-800 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-700">
-                    Select
-                    <Star className="w-3.5 h-3.5" />
-                  </div>
+                  <ArrowRight className="w-4 h-4 text-white/70 shrink-0" />
                 </button>
               </div>
 
-              <div className="flex gap-3 border border-gray-200 bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
-                <AlertCircle className="w-5 h-5 text-gray-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-gray-900 mb-0.5">Why Business?</p>
-                  <p>Vendors with CAC verification get higher trust and better search visibility.</p>
-                </div>
-              </div>
+              <p className="text-xs text-center text-gray-400">
+                You can upgrade your plan anytime from your account settings.
+              </p>
             </div>
           )}
 
@@ -797,8 +837,8 @@ export default function VendorVerification({
             </div>
           )}
 
-          {/* Payment Step */}
-          {currentStep === paymentStep && (
+          {/* Payment Step — paid tiers only */}
+          {currentStep === paymentStep && verificationType !== "free" && (
             <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6">
               {verificationStatus.payment.processing ? (
                 <motion.div
@@ -842,17 +882,17 @@ export default function VendorVerification({
                 <div className="space-y-5">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                      Registration Fee
+                      {verificationType === "nin_cac" ? "Business Upgrade" : "Starter Upgrade"}
                     </h2>
                     <p className="text-sm text-gray-500">
-                      One-time payment to activate your vendor account
+                      Unlock {verificationType === "nin_cac" ? "priority placement and enhanced credibility" : "your verified badge and referral earnings"}
                     </p>
                   </div>
 
                   {/* Price */}
                   <div className="bg-gray-50 rounded-2xl border border-gray-200 p-6 text-center">
                     <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">
-                      One-time fee
+                      {verificationType === "nin_cac" ? "Business tier" : "Starter tier"}
                     </p>
                     <p className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">
                       ₦{verificationType === "nin_cac" ? "10,000" : "5,000"}

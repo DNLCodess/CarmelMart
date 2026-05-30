@@ -25,7 +25,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { signupAction } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 
-import VendorVerification from "@/components/shared/auth/VendorVerification";
 import MobileAuthHeader from "@/components/shared/auth/MobileAuthHeader";
 import { formatNigerianPhone } from "@/lib/utils";
 
@@ -101,7 +100,6 @@ const RoleCard = ({
   title,
   description,
   benefits,
-  fee,
   selected,
   onClick,
 }) => (
@@ -130,7 +128,6 @@ const RoleCard = ({
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2 mb-0.5">
           <h3 className="text-base font-bold text-gray-900">{title}</h3>
-          {fee && <span className="text-xs font-semibold text-gray-400 shrink-0">{fee}</span>}
         </div>
         <p className="text-xs text-gray-500 leading-snug">{description}</p>
       </div>
@@ -143,7 +140,6 @@ const RoleCard = ({
       </div>
       <div className="flex items-baseline gap-2 mb-2">
         <h3 className="text-xl font-bold text-gray-900">{title}</h3>
-        {fee && <span className="text-xs font-semibold text-gray-400">{fee}</span>}
       </div>
       <p className="text-gray-600 text-sm mb-4">{description}</p>
       <div className="space-y-2">
@@ -168,7 +164,6 @@ function RegisterPageContent() {
   const [selectedRole, setSelectedRole] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [vendorData, setVendorData] = useState(null);
   const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const [isValidatingReferral, setIsValidatingReferral] = useState(false);
   const [referralValid, setReferralValid] = useState(null);
@@ -289,7 +284,6 @@ function RegisterPageContent() {
       icon: Store,
       title: "Vendor",
       description: "Sell your products to thousands of buyers",
-      fee: "from ₦5,000",
       benefits: [
         "Reach active shoppers",
         "Easy inventory",
@@ -375,16 +369,16 @@ function RegisterPageContent() {
       }
 
       if (selectedRole === "vendor") {
-        // Vendor is now signed in server-side — sync client cache so auth context
-        // reflects the session immediately without a round-trip.
         await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
-        setVendorData({
-          email:     formData.email,
-          phone:     formData.phone || null,
-          referredBy: formData.referralCode?.trim().toUpperCase() || null,
-        });
-        setStep(3);
-        toast.success("Account created! Complete verification to activate your store.");
+        if (result.sessionEstablished) {
+          toast.success("Account created! Complete KYC to activate your store.");
+          router.push("/vendor-kyc");
+        } else {
+          // Auto sign-in failed (rare) — send them to login; requireVendor() will
+          // route them to /vendor-kyc automatically after they sign in.
+          toast.success("Account created! Sign in to continue KYC verification.");
+          router.push(`/login?from=${encodeURIComponent("/vendor-kyc")}`);
+        }
       } else {
         // Invalidate auth query (session may not exist yet if email confirmation required)
         await queryClient.invalidateQueries({ queryKey: ["auth-user"] });
@@ -541,11 +535,6 @@ function RegisterPageContent() {
                         ? "Fill in your details — KYC verification comes next"
                         : "Join CarmelMart and start shopping today"}
                     </p>
-                    {selectedRole === "vendor" && (
-                      <p className="text-xs text-gray-400 mt-1.5">
-                        One-time verification fee: <span className="font-semibold text-gray-600">₦5,000–₦10,000</span>
-                      </p>
-                    )}
                   </div>
 
                   {/* Google sign-up — customers only (vendors need phone/KYC) */}
@@ -750,21 +739,6 @@ function RegisterPageContent() {
                 </motion.div>
               )}
 
-              {/* Step 3 — Vendor KYC Verification */}
-              {step === 3 && vendorData && (
-                <motion.div
-                  key="verification"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  <VendorVerification
-                    email={vendorData.email}
-                    phone={vendorData.phone}
-                    referredBy={vendorData.referredBy}
-                  />
-                </motion.div>
-              )}
             </AnimatePresence>
           </div>
         </div>
