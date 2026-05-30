@@ -16,7 +16,7 @@ export async function POST(request) {
       );
     }
 
-    const res = await fetch("https://api.flutterwave.com/v3/resolve_account", {
+    const res = await fetch("https://api.flutterwave.com/v3/accounts/resolve", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
@@ -25,6 +25,17 @@ export async function POST(request) {
       body: JSON.stringify({ account_number, account_bank }),
       signal: AbortSignal.timeout(10_000),
     });
+
+    // Safely parse — Flutterwave occasionally returns plain-text errors
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("[verify-account] Non-JSON response from Flutterwave:", text);
+      return NextResponse.json(
+        { error: "Bank verification service returned an unexpected response. Please try again." },
+        { status: 502 }
+      );
+    }
 
     const data = await res.json();
 
