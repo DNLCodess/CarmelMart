@@ -150,27 +150,27 @@ export default function AdminVendorsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl flex-wrap">
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {STATUS_TABS.map((s) => (
             <button
               key={s}
               onClick={() => { setStatusFilter(s); setPage(1); }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors ${
-                statusFilter === s ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              className={`px-3.5 py-2 text-xs font-semibold rounded-xl capitalize whitespace-nowrap transition-colors shrink-0 ${
+                statusFilter === s ? "bg-primary text-white shadow-sm" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               {s}
             </button>
           ))}
         </div>
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {TIER_TABS.map(({ id, label }) => (
             <button
               key={id}
               onClick={() => { setTierFilter(id); setPage(1); }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                tierFilter === id ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              className={`px-3.5 py-2 text-xs font-semibold rounded-xl whitespace-nowrap transition-colors shrink-0 ${
+                tierFilter === id ? "bg-primary text-white shadow-sm" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               {label}
@@ -192,7 +192,91 @@ export default function AdminVendorsPage() {
             <p className="font-semibold text-gray-500 dark:text-gray-400">No vendors found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* ── Mobile card list (< md) ───────────────────────────────────── */}
+            <div className="block md:hidden divide-y divide-gray-50 dark:divide-gray-700">
+              {vendors.map((v) => (
+                <div key={v.id} className="p-4 space-y-3">
+                  {/* Row 1: store icon + name + tier badge + status badge */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0">
+                      <Store className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">{v.business_name}</p>
+                        <TierBadge tier={v.subscription_tier} />
+                      </div>
+                    </div>
+                    <StatusBadge status={v.verification_status} />
+                  </div>
+
+                  {/* Row 2: email + phone */}
+                  <div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{v.email ?? "—"}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{v.phone ?? "—"}</p>
+                  </div>
+
+                  {/* Row 3: NIN/CAC chips + joined date */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${v.nin_verified ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800" : "bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600"}`}>NIN</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${v.cac_verified ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800" : "bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600"}`}>CAC</span>
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      {new Date(v.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+
+                  {/* Row 4: action buttons */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link
+                      href={`/admin/vendors/${v.id}`}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> View
+                    </Link>
+                    {v.verification_status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => doAction({ vendorId: v.id, action: "approve" })}
+                          disabled={isPending}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Approve
+                        </button>
+                        <button
+                          onClick={() => handleAction(v.id, "reject")}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Reject
+                        </button>
+                      </>
+                    )}
+                    {v.verification_status === "verified" && (
+                      <button
+                        onClick={() => handleAction(v.id, "suspend")}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                      >
+                        <Ban className="w-3.5 h-3.5" /> Suspend
+                      </button>
+                    )}
+                    {v.verification_status === "suspended" && (
+                      <button
+                        onClick={() => doAction({ vendorId: v.id, action: "unsuspend" })}
+                        disabled={isPending}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" /> Reinstate
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Desktop table (md+) ──────────────────────────────────────── */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>
@@ -275,6 +359,7 @@ export default function AdminVendorsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {pages > 1 && (

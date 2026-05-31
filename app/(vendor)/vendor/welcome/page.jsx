@@ -11,7 +11,7 @@ import {
   ArrowRight,
   Store,
   Users,
-  Zap,
+  BadgeCheck,
   Check,
   TrendingUp,
   MessageCircle,
@@ -99,7 +99,7 @@ export default function VendorWelcomePage() {
           className="max-w-lg mx-auto"
         >
           <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-5">
-            <Zap className="w-8 h-8 text-white" strokeWidth={2.5} />
+            <BadgeCheck className="w-8 h-8 text-white" strokeWidth={2} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold mb-3">
             You&apos;re approved! Welcome to CarmelMart.

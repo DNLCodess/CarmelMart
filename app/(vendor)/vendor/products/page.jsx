@@ -147,13 +147,13 @@ export default function VendorProductsPage() {
           />
         </div>
         {/* Status filter */}
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl shrink-0">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 shrink-0">
           {["all", "active", "draft", "inactive"].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors ${
-                statusFilter === s ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              className={`px-3 py-1.5 text-xs font-semibold rounded-xl capitalize transition-colors shrink-0 ${
+                statusFilter === s ? "bg-primary text-white shadow-sm" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               {s} ({statusCounts[s]})
@@ -194,7 +194,86 @@ export default function VendorProductsPage() {
             </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* ── Mobile card list (< md) ───────────────────────────────────── */}
+            <div className="block md:hidden divide-y divide-gray-50 dark:divide-gray-700">
+              {filtered.map((p) => (
+                <div
+                  key={p.id}
+                  className={`p-4 space-y-3 relative ${selected.has(p.id) ? "bg-primary/5 dark:bg-primary/10" : ""}`}
+                >
+                  {/* Checkbox top-right */}
+                  <button
+                    onClick={() => toggleOne(p.id)}
+                    className="absolute top-3 right-3 text-gray-400 hover:text-primary transition-colors"
+                  >
+                    {selected.has(p.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
+                  </button>
+
+                  {/* Row 1: thumbnail + name + price */}
+                  <div className="flex items-center gap-3 pr-6">
+                    <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">
+                      {p.image ? (
+                        <Image src={p.image} alt={p.name} fill className="object-cover" sizes="44px" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="w-5 h-5 text-gray-300 dark:text-gray-500" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="flex-1 font-semibold text-gray-900 dark:text-gray-100 line-clamp-1 min-w-0">{p.name}</p>
+                    <p className="font-bold text-gray-900 dark:text-gray-100 shrink-0">₦{(p.sale_price ?? p.price).toLocaleString()}</p>
+                  </div>
+
+                  {/* Row 2: status badge + stock */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      {p.moderation_status === "pending" ? (
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">Pending Review</span>
+                      ) : p.moderation_status === "rejected" ? (
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">Rejected</span>
+                      ) : p.moderation_status === "flagged" ? (
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400">Flagged</span>
+                      ) : (
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+                          p.status === "active" ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                        }`}>
+                          {p.status === "active" ? "Live" : p.status}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`text-xs font-semibold ${p.stock === 0 ? "text-red-500" : p.stock < 5 ? "text-amber-600" : "text-gray-500 dark:text-gray-400"}`}>
+                      {p.stock} in stock
+                    </span>
+                  </div>
+
+                  {/* Row 3: action buttons */}
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/product/${p.id}`}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> View
+                    </Link>
+                    <Link
+                      href={`/vendor/products/${p.id}/edit`}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" /> Edit
+                    </Link>
+                    <button
+                      onClick={() => setDeleteTarget(p)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Desktop table (md+) ──────────────────────────────────────── */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>
@@ -308,6 +387,7 @@ export default function VendorProductsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

@@ -266,13 +266,13 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Role tabs */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl w-fit">
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
         {ROLE_TABS.map(({ value, label }) => (
           <button
             key={label}
             onClick={() => { setRoleFilter(value); setPage(1); }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              roleFilter === value ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            className={`px-3.5 py-2 text-xs font-semibold rounded-xl whitespace-nowrap transition-colors shrink-0 ${
+              roleFilter === value ? "bg-primary text-white shadow-sm" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
             }`}
           >
             {label}
@@ -293,7 +293,48 @@ export default function AdminUsersPage() {
             <p className="font-semibold text-gray-500 dark:text-gray-400">No users found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* ── Mobile card list (< md) ───────────────────────────────────── */}
+            <div className="block md:hidden divide-y divide-gray-50 dark:divide-gray-700">
+              {users.map((u) => (
+                <div key={u.id} className="p-4 space-y-3">
+                  {/* Row 1: avatar + email + role badge */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400">{(u.email?.[0] ?? "?").toUpperCase()}</span>
+                    </div>
+                    <Link
+                      href={`/admin/users/${u.id}`}
+                      className="flex-1 min-w-0 text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-primary transition-colors truncate"
+                    >
+                      {u.email}
+                    </Link>
+                    <RoleBadge role={u.role} />
+                  </div>
+
+                  {/* Row 2: phone + wallet balance */}
+                  <div className="flex items-center justify-between gap-2">
+                    {u.phone ? (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{u.phone}</p>
+                    ) : (
+                      <span />
+                    )}
+                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">₦{(u.wallet_balance || 0).toLocaleString()}</p>
+                  </div>
+
+                  {/* Row 3: status badge + actions menu */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <StatusBadge status={u.status} />
+                    </div>
+                    <ActionsMenu user={u} onAction={handleAction} onRecordPOD={setPodTarget} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Desktop table (md+) ──────────────────────────────────────── */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>
@@ -338,6 +379,7 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {pages > 1 && (
