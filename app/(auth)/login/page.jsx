@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, ShieldCheck, Store, Star } from "lucide-react";
 import MobileAuthHeader from "@/components/shared/auth/MobileAuthHeader";
 import Image from "next/image";
-import Script from "next/script";
+// import Script from "next/script"; // Turnstile disabled
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
@@ -88,10 +88,10 @@ function LoginContent() {
   const [unverifiedEmail, setUnverifiedEmail] = useState(null);
   const [resendLoading, setResendLoading]     = useState(false);
   const [resendSent, setResendSent]           = useState(false);
-  const tokenRef             = useRef(null); // pre-warmed Turnstile token
-  const widgetRef            = useRef(null); // login Turnstile widget ID
-  const turnstileWidgetIdRef = useRef(null); // guest widget ID
-  const TURNSTILE_SITE_KEY   = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  // const tokenRef             = useRef(null); // Turnstile disabled
+  // const widgetRef            = useRef(null); // Turnstile disabled
+  // const turnstileWidgetIdRef = useRef(null); // Turnstile disabled
+  // const TURNSTILE_SITE_KEY   = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const router       = useRouter();
   const searchParams = useSearchParams();
   const queryClient  = useQueryClient();
@@ -108,6 +108,7 @@ function LoginContent() {
     }
   }, [router, searchParams]);
 
+  /* Turnstile disabled
   const mountLoginTurnstile = () => {
     if (!TURNSTILE_SITE_KEY || typeof window?.turnstile === "undefined") return;
     if (widgetRef.current !== null) return;
@@ -125,9 +126,6 @@ function LoginContent() {
     window.turnstile.execute(widgetRef.current);
   };
 
-  // Poll for the SDK as soon as the component mounts — the Script onLoad fires after
-  // hydration, but the SDK may already be cached. Polling starts the challenge earlier
-  // so the token is more likely to be ready before the user clicks submit.
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) return;
     if (typeof window?.turnstile !== "undefined") { mountLoginTurnstile(); return; }
@@ -138,8 +136,8 @@ function LoginContent() {
       }
     }, 100);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  */
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -185,40 +183,7 @@ function LoginContent() {
 
   const handleGuestCheckout = () => {
     setGuestLoading(true);
-
-    // No Turnstile configured (local dev or key not set) — skip captcha
-    if (!TURNSTILE_SITE_KEY || typeof window.turnstile === "undefined") {
-      proceedAsGuest(null);
-      return;
-    }
-
-    // Reset any previous widget before re-executing
-    if (turnstileWidgetIdRef.current !== null) {
-      window.turnstile.reset(turnstileWidgetIdRef.current);
-      window.turnstile.execute(turnstileWidgetIdRef.current);
-      return;
-    }
-
-    // First click: render the invisible widget and immediately execute
-    turnstileWidgetIdRef.current = window.turnstile.render("#turnstile-guest-widget", {
-      sitekey: TURNSTILE_SITE_KEY,
-      size: "invisible",
-      callback: (token) => proceedAsGuest(token),
-      "error-callback": (code) => {
-        // code 110200 = domain not in widget's hostname list
-        const msg = code === 110200
-          ? "Security check failed: this domain isn't authorised in Cloudflare Turnstile."
-          : `Security check failed (${code}). Please try again.`;
-        toast.error(msg, { duration: 6000 });
-        setGuestLoading(false);
-      },
-      "expired-callback": () => {
-        toast("Security token expired — please try again.");
-        setGuestLoading(false);
-        turnstileWidgetIdRef.current = null;
-      },
-    });
-    window.turnstile.execute(turnstileWidgetIdRef.current);
+    proceedAsGuest(null);
   };
 
   const handleChange = (e) => {
@@ -253,32 +218,7 @@ function LoginContent() {
 
     setIsLoading(true);
     try {
-      // Use pre-warmed token if available — avoids blocking challenge at click time.
-      // Fall back to executing a fresh challenge if the token expired or wasn't ready.
-      let captchaToken = tokenRef.current;
-      tokenRef.current = null;
-
-      if (!captchaToken && TURNSTILE_SITE_KEY && typeof window?.turnstile !== "undefined") {
-        if (widgetRef.current !== null) {
-          try { window.turnstile.remove(widgetRef.current); } catch {}
-          widgetRef.current = null;
-        }
-        // Race the challenge against a 3-second timeout — if Cloudflare is slow,
-        // proceed without a token rather than blocking the user indefinitely.
-        captchaToken = await Promise.race([
-          new Promise((resolve, reject) => {
-            widgetRef.current = window.turnstile.render("#turnstile-login-widget", {
-              sitekey: TURNSTILE_SITE_KEY,
-              size: "invisible",
-              callback: resolve,
-              "error-callback": (code) => reject(new Error(`Security check failed (${code}). Please try again.`)),
-              "expired-callback": () => reject(new Error("Security token expired. Please try again.")),
-            });
-            window.turnstile.execute(widgetRef.current);
-          }),
-          new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
-        ]);
-      }
+      const captchaToken = null; // Turnstile disabled
 
       const result = await loginAction({ email: formData.email, password: formData.password, captchaToken });
 
@@ -289,10 +229,6 @@ function LoginContent() {
           return;
         }
         toast.error(result.error);
-        // Re-warm for the next attempt
-        if (widgetRef.current !== null) {
-          try { window.turnstile.reset(widgetRef.current); window.turnstile.execute(widgetRef.current); } catch {}
-        }
         return;
       }
 
@@ -325,13 +261,12 @@ function LoginContent() {
 
   return (
     <>
-    {TURNSTILE_SITE_KEY && (
-      <Script
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-        strategy="afterInteractive"
-        onLoad={mountLoginTurnstile}
-      />
-    )}
+    {/* Turnstile disabled
+    <Script
+      src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+      strategy="afterInteractive"
+    />
+    */}
     <div className="min-h-screen flex">
 
       {/* ── Left: Hero panel ── */}
@@ -538,9 +473,10 @@ function LoginContent() {
               </form>
             </motion.div>
 
-            {/* Hidden Turnstile widgets — rendered programmatically */}
+            {/* Turnstile widgets disabled
             <div id="turnstile-login-widget" className="hidden" />
             <div id="turnstile-guest-widget" className="hidden" />
+            */}
 
             {/* Guest checkout — only shown when redirected from /checkout */}
             {searchParams.get("from")?.startsWith("/checkout") && (

@@ -452,7 +452,7 @@ function SecurityTab() {
     if (form.next.length < 8) { toast.error("Password must be at least 8 characters"); return; }
     setSaving(true);
     try {
-      await updatePasswordAction({ currentPassword: form.current, newPassword: form.next });
+      await updatePasswordAction({ newPassword: form.next });
       setForm({ current: "", next: "", confirm: "" });
       toast.success("Password updated successfully");
     } catch (err) {

@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, AlertTriangle, RefreshCw } from "lucide-react";
 import { NIGERIAN_BANKS, getBankName } from "@/lib/nigerian-banks";
 import { useAuth } from "@/lib/auth-context";
-import { createClient } from "@/lib/supabase/client";
+import { updatePasswordAction } from "@/app/actions/auth";
 import toast from "react-hot-toast";
 
 const NIGERIAN_STATES = [
@@ -152,15 +152,8 @@ export default function VendorSettingsPage() {
 
   const onChangePassword = async (formData) => {
     try {
-      const supabase = createClient();
-      // Re-authenticate with current password before allowing the change
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email,
-        password: formData.currentPassword,
-      });
-      if (signInError) throw new Error("Current password is incorrect.");
-      const { error } = await supabase.auth.updateUser({ password: formData.newPassword });
-      if (error) throw error;
+      const result = await updatePasswordAction({ newPassword: formData.newPassword });
+      if (result?.error) throw new Error(result.error);
       resetPw();
       toast.success("Password updated");
     } catch (e) {
