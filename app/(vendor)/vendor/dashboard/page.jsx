@@ -4,8 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import {
   DollarSign, ShoppingCart, Package, Users,
   ArrowUp, ArrowDown, AlertCircle, Clock, Truck,
-  CheckCircle, XCircle, RefreshCw, ListTodo, ChevronRight,
+  CheckCircle, XCircle, RefreshCw, ListTodo, ChevronRight, MessageCircle,
 } from "lucide-react";
+
+const WHATSAPP_GROUP = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -285,6 +287,23 @@ export default function VendorOverviewPage() {
           </Link>
         ))}
       </div>
+
+      {/* WhatsApp community */}
+      <a
+        href={WHATSAPP_GROUP}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-4 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors group"
+      >
+        <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center shrink-0">
+          <MessageCircle className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-green-900 dark:text-green-300 text-sm">Join our vendor WhatsApp group</p>
+          <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">Get tips, announcements, and direct support from our team.</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-green-600 dark:text-green-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+      </a>
     </div>
   );
 }

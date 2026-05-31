@@ -3,7 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Clock, Mail, CheckCircle2, LogOut, ArrowRight } from "lucide-react";
+import { Clock, Mail, CheckCircle2, LogOut, ArrowRight, MessageCircle } from "lucide-react";
+
+const WHATSAPP_GROUP = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7";
 import { logoutAction } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
 
@@ -54,13 +56,23 @@ export default function VendorPendingPage() {
             ))}
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 text-sm text-gray-500 mb-6">
+          <div className="flex items-center justify-center gap-1.5 text-sm text-gray-500 mb-4">
             <Mail className="w-4 h-4" />
             Questions? Email{" "}
             <a href="mailto:support@carmelmart.com" className="text-primary font-semibold hover:underline">
               support@carmelmart.com
             </a>
           </div>
+
+          <a
+            href={WHATSAPP_GROUP}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2.5 w-full py-3 px-4 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold text-sm transition-colors mb-6"
+          >
+            <MessageCircle className="w-4 h-4" />
+            Join our vendor WhatsApp group
+          </a>
 
           <div className="border-t border-gray-100 pt-4 mt-2 space-y-3">
             <p className="text-xs text-gray-400 text-center">

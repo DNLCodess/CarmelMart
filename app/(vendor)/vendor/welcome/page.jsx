@@ -14,8 +14,11 @@ import {
   Zap,
   Check,
   TrendingUp,
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+
+const WHATSAPP_GROUP = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7";
 
 const HOW_IT_WORKS = [
   {
@@ -152,7 +155,7 @@ export default function VendorWelcomePage() {
               "CarmelMart handles payments — you never touch cash from online orders.",
               "Your wallet balance updates after each confirmed delivery.",
               "Withdraw to your bank account anytime, minimum ₦500.",
-              "Our team is here on WhatsApp if you ever need help.",
+              "Our team is here on WhatsApp if you ever need help — join our vendor group.",
             ].map((fact) => (
               <div key={fact} className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" strokeWidth={2.5} />
@@ -161,6 +164,27 @@ export default function VendorWelcomePage() {
             ))}
           </div>
         </motion.section>
+
+        {/* WhatsApp community */}
+        <motion.a
+          href={WHATSAPP_GROUP}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={markWelcomed}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="flex items-center gap-4 bg-green-50 border border-green-200 rounded-2xl p-4 hover:bg-green-100 transition-colors group"
+        >
+          <div className="w-11 h-11 rounded-xl bg-green-500 flex items-center justify-center shrink-0">
+            <MessageCircle className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-green-900 text-sm">Join our vendor WhatsApp group</p>
+            <p className="text-xs text-green-700 mt-0.5">Get tips, updates, and support from the team and fellow vendors.</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-green-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+        </motion.a>
 
         {/* First moves */}
         <section>
