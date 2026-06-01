@@ -133,16 +133,9 @@ export async function PATCH(request, { params }) {
       console.error("[rider/status] customer notification failed (non-fatal):", err.message);
     }
 
-    // Credit vendor wallets on delivery (card-paid orders + POD where rider collected cash)
-    if (newStatus === "delivered" && (order.payment_status === "paid" || order.payment_method === "pod")) {
+    // Credit vendor wallets on delivery
+    if (newStatus === "delivered" && order.payment_status === "paid") {
       try {
-        // POD: rider just collected cash — record payment as received
-        if (order.payment_method === "pod") {
-          await admin.from("orders")
-            .update({ payment_status: "paid", updated_at: now })
-            .eq("id", orderId);
-        }
-
         const { data: items } = await admin
           .from("order_items")
           .select("vendor_id, total, product_id")

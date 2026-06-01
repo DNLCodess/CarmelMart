@@ -2,18 +2,20 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, Heart, ShoppingCart, User, TrendingUp, RotateCcw,
-  BadgeCheck, ArrowRight, LogOut, Download,
+  X, Heart, ShoppingCart, User, TrendingUp, Package,
+  BadgeCheck, ArrowRight, LogOut, Download, Settings,
+  Bike, LayoutDashboard, Store, Wallet, ShieldCheck,
+  Users, Tag, ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { SuggestionsDropdown } from "./SearchBar";
-import { Search, Tag } from "lucide-react";
-import { AnimatePresence as AP } from "framer-motion";
+import { Search } from "lucide-react";
 import {
   ShoppingBag, Shirt, Home as HomeIcon, Wrench, Music,
 } from "lucide-react";
+import { usePWAInstall } from "@/lib/pwa-install-context";
 
 const SLUG_ICON = {
   consumables:         ShoppingBag,
@@ -22,32 +24,99 @@ const SLUG_ICON = {
   "electronics-tools": Wrench,
   "leisure-lifestyle": Music,
 };
-import { usePWAInstall } from "@/lib/pwa-install-context";
 
+// ── Tile ──────────────────────────────────────────────────────────────────────
+function Tile({ label, sub, href, icon: Icon, badge = 0, onClick, fullWidth = false }) {
+  const inner = (
+    <motion.div
+      whileTap={{ scale: 0.97 }}
+      className={`flex flex-col items-center gap-2 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 hover:border-primary/30 hover:bg-primary/5 transition-all ${fullWidth ? "flex-row justify-start gap-3 px-4" : ""}`}
+    >
+      <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
+        <Icon className="w-5 h-5 text-primary" />
+        {badge > 0 && (
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </div>
+      <div className={fullWidth ? "text-left" : "text-center"}>
+        <p className="text-sm font-semibold text-gray-900 leading-none">{label}</p>
+        {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+      </div>
+    </motion.div>
+  );
+
+  if (onClick) {
+    return <button className={fullWidth ? "w-full" : ""} onClick={onClick}>{inner}</button>;
+  }
+  return <Link href={href} className={fullWidth ? "w-full" : ""}>{inner}</Link>;
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+function SectionDivider({ label }) {
+  return (
+    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <div className="h-px flex-1 bg-gray-100" />
+      <span>{label}</span>
+      <div className="h-px flex-1 bg-gray-100" />
+    </h3>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function MobileDrawer({
   isOpen, onClose,
   // auth
-  isAuthenticated, initials, displayName, displayRole,
+  isAuthenticated, isCustomer, isVendor, isRider, isAdmin,
+  initials, displayName, displayRole,
   accountLinks, onSignOut,
   // cart / wishlist counts
   cartCount, wishlistCount,
-  // categories (parent category objects from DB)
+  // categories
   categories,
-  // search
+  // search props
   searchQuery, setSearchQuery,
   showSuggestions, setShowSuggestions,
   activeIndex, setActiveIndex,
   debouncedQuery, liveResults, liveLoading, filteredSuggestions,
   recentSearches, clearRecentSearches,
+  searchCategories,
   onSearchSubmit, onSuggestionClick, onProductClick, onSubmitAll, onSearchKeyDown,
 }) {
   const router = useRouter();
   const { canInstall, isIOS, triggerInstall } = usePWAInstall() ?? {};
 
-  const handleCategoryClick = (href) => {
-    onClose();
-    router.push(href);
-  };
+  const isGuest = !isAuthenticated;
+  const isShopper = isGuest || isCustomer;
+
+  const close = (href) => { onClose(); if (href) router.push(href); };
+
+  // ── Role-aware quick tiles ────────────────────────────────────────────────
+  const tiles = (() => {
+    if (isAdmin) return [
+      { label: "Admin Panel",  sub: "Platform overview",    href: "/admin/dashboard",  icon: LayoutDashboard },
+      { label: "Users",        sub: "Manage accounts",      href: "/admin/users",       icon: Users           },
+      { label: "Orders",       sub: "All platform orders",  href: "/admin/orders",      icon: ClipboardList   },
+      { label: "Vendors",      sub: "Vendor management",    href: "/admin/vendors",     icon: Store           },
+    ];
+    if (isRider) return [
+      { label: "My Deliveries", sub: "Active & recent",     href: "/rider/orders",      icon: Bike,    fullWidth: true },
+    ];
+    if (isVendor) return [
+      { label: "Dashboard",    sub: "Store overview",       href: "/vendor/dashboard",  icon: TrendingUp      },
+      { label: "Products",     sub: "Manage listings",      href: "/vendor/products",   icon: Store           },
+      { label: "Orders",       sub: "Incoming orders",      href: "/vendor/orders",     icon: Package         },
+      { label: "Wallet",       sub: "Earnings & payouts",   href: "/vendor/wallet",     icon: Wallet          },
+    ];
+    // customer or guest
+    return [
+      { label: "Wishlist",  sub: `${wishlistCount} saved`, href: "/wishlist",                                      icon: Heart,        badge: wishlistCount },
+      { label: "Cart",      sub: `${cartCount} items`,     href: "/cart",                                           icon: ShoppingCart, badge: cartCount     },
+      { label: "My Orders", sub: "Track & returns",        href: isAuthenticated ? "/orders" : "/login",            icon: Package                            },
+      ...(isAuthenticated ? [{ label: "My Account", sub: "Profile & settings", href: "/my-account", icon: User }] : []),
+    ];
+  })();
 
   return (
     <AnimatePresence>
@@ -115,14 +184,10 @@ export default function MobileDrawer({
                     </div>
                     <div className="flex gap-2">
                       <Link href="/login" className="flex-1" onClick={onClose}>
-                        <button className="w-full bg-white text-primary py-2 rounded-xl text-sm font-bold">
-                          Sign In
-                        </button>
+                        <button className="w-full bg-white text-primary py-2 rounded-xl text-sm font-bold">Sign In</button>
                       </Link>
                       <Link href="/register" className="flex-1" onClick={onClose}>
-                        <button className="w-full border-2 border-white text-white py-2 rounded-xl text-sm font-bold">
-                          Register
-                        </button>
+                        <button className="w-full border-2 border-white text-white py-2 rounded-xl text-sm font-bold">Register</button>
                       </Link>
                     </div>
                   </>
@@ -135,37 +200,10 @@ export default function MobileDrawer({
             <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-5">
 
               {/* Quick-action tiles */}
-              <div className="grid grid-cols-2 gap-2.5">
-                {[
-                  { label: "Wishlist",   sub: `${wishlistCount} saved`,   href: "/wishlist",         icon: Heart,        badge: 0         },
-                  { label: "Cart",       sub: `${cartCount} items`,       href: "/cart",             icon: ShoppingCart, badge: cartCount },
-                  ...(isAuthenticated ? [{ label: "My Account", sub: "Profile & orders", href: "/my-account",       icon: User,       badge: 0 }] : []),
-                  ...(isAuthenticated ? [{ label: "Dashboard",  sub: "Manage your store", href: "/vendor/dashboard", icon: TrendingUp, badge: 0 }] : []),
-                  { label: "Orders",    sub: "Track & returns",           href: isAuthenticated ? "/my-account" : "/login", icon: RotateCcw, badge: 0 },
-                ].map((tile) => {
-                  const Icon = tile.icon;
-                  return (
-                    <Link key={tile.href} href={tile.href} onClick={onClose}>
-                      <motion.div
-                        whileTap={{ scale: 0.97 }}
-                        className="flex flex-col items-center gap-2 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 hover:border-primary/30 hover:bg-primary/5 transition-all"
-                      >
-                        <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                          <Icon className="w-5 h-5 text-primary" />
-                          {tile.badge > 0 && (
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                              {tile.badge > 9 ? "9+" : tile.badge}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-semibold text-gray-900 leading-none">{tile.label}</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">{tile.sub}</p>
-                        </div>
-                      </motion.div>
-                    </Link>
-                  );
-                })}
+              <div className={isRider ? "flex flex-col gap-2.5" : "grid grid-cols-2 gap-2.5"}>
+                {tiles.map((tile) => (
+                  <Tile key={tile.href} {...tile} onClick={() => close(tile.href)} fullWidth={tile.fullWidth} />
+                ))}
               </div>
 
               {/* Install app card */}
@@ -188,42 +226,76 @@ export default function MobileDrawer({
                 </motion.button>
               )}
 
-              {/* Category grid */}
-              <div>
-                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <div className="h-px flex-1 bg-gray-100" />
-                  <span>Shop by Category</span>
-                  <div className="h-px flex-1 bg-gray-100" />
-                </h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {(categories ?? []).map((cat) => {
-                    const Icon = SLUG_ICON[cat.slug] ?? Tag;
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => handleCategoryClick(`/shop?category=${cat.slug}`)}
-                        className="w-full"
-                      >
-                        <motion.div
-                          whileTap={{ scale: 0.97 }}
-                          className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 transition-all"
-                        >
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white shadow-sm">
-                            <Icon className="w-4.5 h-4.5 text-primary" />
-                          </div>
-                          <span className="text-[11px] font-semibold text-center leading-tight text-gray-800">
-                            {cat.name}
-                          </span>
-                        </motion.div>
+              {/* Search — shoppers only */}
+              {isShopper && (
+                <div className="relative">
+                  <form onSubmit={onSearchSubmit}>
+                    <div className="flex items-stretch h-11 rounded-xl overflow-hidden border-2 border-gray-200 focus-within:border-accent transition-colors">
+                      <input
+                        type="search"
+                        value={searchQuery}
+                        onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => { setShowSuggestions(false); setActiveIndex(-1); }, 150)}
+                        onKeyDown={onSearchKeyDown}
+                        placeholder="Search products…"
+                        className="flex-1 min-w-0 px-4 bg-white outline-none text-sm placeholder:text-gray-400 text-gray-900"
+                        autoComplete="off"
+                      />
+                      <button type="submit" className="flex items-center justify-center bg-accent hover:bg-accent-dark text-white px-4 transition-colors shrink-0" aria-label="Search">
+                        <Search className="w-4 h-4" />
                       </button>
-                    );
-                  })}
+                    </div>
+                    <AnimatePresence>
+                      {showSuggestions && (
+                        <SuggestionsDropdown
+                          searchQuery={searchQuery}
+                          debouncedQuery={debouncedQuery}
+                          liveResults={liveResults}
+                          liveLoading={liveLoading}
+                          filteredSuggestions={filteredSuggestions}
+                          recentSearches={recentSearches}
+                          clearRecentSearches={clearRecentSearches}
+                          activeIndex={activeIndex}
+                          onSuggestionClick={onSuggestionClick}
+                          onProductClick={onProductClick}
+                          onSubmitAll={onSubmitAll}
+                        />
+                      )}
+                    </AnimatePresence>
+                  </form>
                 </div>
-              </div>
+              )}
+
+              {/* Category grid — shoppers only */}
+              {isShopper && (categories ?? []).length > 0 && (
+                <div>
+                  <SectionDivider label="Shop by Category" />
+                  <div className="grid grid-cols-3 gap-2">
+                    {categories.map((cat) => {
+                      const Icon = SLUG_ICON[cat.slug] ?? Tag;
+                      return (
+                        <button key={cat.id} className="w-full" onClick={() => close(`/shop?category=${cat.slug}`)}>
+                          <motion.div
+                            whileTap={{ scale: 0.97 }}
+                            className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 transition-all"
+                          >
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white shadow-sm">
+                              <Icon className="w-4.5 h-4.5 text-primary" />
+                            </div>
+                            <span className="text-[11px] font-semibold text-center leading-tight text-gray-800">{cat.name}</span>
+                          </motion.div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Account links */}
               {isAuthenticated && (
                 <div className="border-t border-gray-100 pt-1 space-y-0.5">
+                  <SectionDivider label="Account" />
                   {accountLinks.map(({ label, href, icon: Icon }) => (
                     <Link key={href} href={href} onClick={onClose}>
                       <motion.div
@@ -245,8 +317,8 @@ export default function MobileDrawer({
                 </div>
               )}
 
-              {/* Vendor CTA (guest) */}
-              {!isAuthenticated && (
+              {/* Vendor CTA — guests only */}
+              {isGuest && (
                 <div className="border-t border-gray-100 pt-4">
                   <Link href="/register?as=vendor" onClick={onClose}>
                     <div className="flex items-center justify-between p-4 rounded-2xl bg-primary/5 border border-primary/15">

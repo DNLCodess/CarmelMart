@@ -223,36 +223,15 @@ export async function POST(request) {
     const { promoId, discount } = await calculatePromoDiscount(admin, user.id, promo_id, subtotal);
     const discountedSubtotal = Math.max(0, subtotal - discount);
     const total = discountedSubtotal + deliveryFee;
-    const isPod = payment_method === "pod";
-    const requiredPodDeposit = isPod && discountedSubtotal > 10_000
-      ? Math.ceil(discountedSubtotal * 0.1)
-      : 0;
-    const amountDueNow = isPod ? requiredPodDeposit + deliveryFee : total;
-    const requiresGatewayPayment = amountDueNow > 0 && (!isPod || requiredPodDeposit > 0 || deliveryFee > 0);
 
-    let paymentStatus = isPod ? "pending" : "paid";
-    let orderStatus = isPod ? "pending" : "confirmed";
-    let verifiedTransaction = null;
+    const verification = await verifyFlutterwaveTransaction(
+      payment_transaction_id,
+      total,
+      payment_ref,
+      delivery_address?.email ?? user.email,
+    );
 
-    if (requiresGatewayPayment) {
-      const verification = await verifyFlutterwaveTransaction(
-        payment_transaction_id,
-        amountDueNow,
-        payment_ref,
-        delivery_address?.email ?? user.email,
-      );
-
-      if (!verification.ok) return jsonError(verification.error, 400);
-
-      verifiedTransaction = verification.data;
-      // "deposit_paid" is not a valid payment_status value per DB constraint.
-      // POD deposit paid is tracked via pod_deposit column; status stays "pending"
-      // until full delivery payment is confirmed.
-      paymentStatus = isPod ? "pending" : "paid";
-      orderStatus = isPod ? "pending" : "confirmed";
-    } else if (!isPod) {
-      return jsonError("Online payment is required for this order.");
-    }
+    if (!verification.ok) return jsonError(verification.error, 400);
 
     const { data: orderId, error: createErr } = await admin.rpc("create_customer_order_atomic", {
       p_customer_id: user.id,
@@ -261,14 +240,14 @@ export async function POST(request) {
         ...(delivery_address ?? {}),
         delivery_fee: deliveryFee,
       },
-      p_payment_method: isPod ? "pod" : "card",
-      p_payment_status: paymentStatus,
-      p_payment_ref: payment_ref ?? verifiedTransaction?.tx_ref ?? null,
-      p_pod_deposit: requiredPodDeposit,
+      p_payment_method: "card",
+      p_payment_status: "paid",
+      p_payment_ref: payment_ref ?? verification.data?.tx_ref ?? null,
+      p_pod_deposit: 0,
       p_discount: discount,
       p_promo_id: promoId,
       p_total: total,
-      p_order_status: orderStatus,
+      p_order_status: "confirmed",
     });
 
     if (createErr) throw createErr;
@@ -280,7 +259,7 @@ export async function POST(request) {
         items: orderItems.map((item) => ({ ...item, productId: item.product_id })),
         delivery_address,
         delivery_fee: deliveryFee,
-        payment_method: isPod ? "pod" : "card",
+        payment_method: "card",
         discount,
         total,
       },
@@ -303,7 +282,7 @@ export async function POST(request) {
         if (vendorUser.email) {
           sendVendorNewOrder({
             to: vendorUser.email,
-            order: { id: orderId, delivery_address, payment_method: isPod ? "pod" : "card" },
+            order: { id: orderId, delivery_address, payment_method: "card" },
             vendorItems: vendorGroups[vendorUser.id],
           });
         }

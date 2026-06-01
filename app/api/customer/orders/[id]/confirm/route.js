@@ -46,16 +46,9 @@ export async function POST(request, { params }) {
 
     if (updateErr) throw updateErr;
 
-    // ── Credit vendor wallets (same logic as rider delivery route) ────────────
-    if (order.payment_status === "paid" || order.payment_method === "pod") {
+    // ── Credit vendor wallets ─────────────────────────────────────────────────
+    if (order.payment_status === "paid") {
       try {
-        // POD: customer just confirmed receipt — record payment as received
-        if (order.payment_method === "pod") {
-          await admin.from("orders")
-            .update({ payment_status: "paid", updated_at: now })
-            .eq("id", id);
-        }
-
         const { data: items } = await admin
           .from("order_items")
           .select("vendor_id, total, product_id")

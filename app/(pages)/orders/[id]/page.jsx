@@ -475,12 +475,7 @@ export default function OrderDetailPage() {
                   {canCancel && (
                     <button
                       onClick={() => {
-                        const refund =
-                          order?.payment_status === "paid"
-                            ? order.total
-                            : order?.payment_method === "pod"
-                            ? (order.pod_deposit ?? 0) + (order?.address?.delivery_fee ?? 0)
-                            : 0;
+                        const refund = order?.payment_status === "paid" ? order.total : 0;
                         const msg = refund > 0
                           ? `Cancel this order? ₦${refund.toLocaleString()} will be refunded to your wallet.`
                           : "Are you sure you want to cancel this order?";
@@ -626,21 +621,12 @@ export default function OrderDetailPage() {
                     <span>Delivery</span>
                     <span className="font-medium text-gray-900">₦{deliveryFee.toLocaleString()}</span>
                   </div>
-                  {order.pod_deposit > 0 && (
-                    <div className="flex justify-between text-amber-700">
-                      <span>POD Deposit Paid</span>
-                      <span className="font-medium">₦{order.pod_deposit.toLocaleString()}</span>
-                    </div>
-                  )}
                   <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-base text-gray-900">
                     <span>Total</span>
                     <span className="text-primary">₦{total.toLocaleString()}</span>
                   </div>
                   <p className="text-xs text-gray-500 pt-1">
-                    {order.payment_method === "pod"
-                      ? "Pay on Delivery"
-                      : `Paid via ${order.payment_method === "bank_transfer" ? "Bank Transfer" : "Card / Online"}`
-                    }
+                    {`Paid via ${order.payment_method === "bank_transfer" ? "Bank Transfer" : "Card / Online"}`}
                     {order.payment_status === "paid" && (
                       <span className="ml-1.5 text-green-600 font-semibold">✓ Confirmed</span>
                     )}

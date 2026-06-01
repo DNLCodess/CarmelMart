@@ -138,9 +138,7 @@ export async function PATCH(request, { params }) {
     // in multi-vendor orders where vendor A cannot trigger credits for vendors B/C.
     if (status === "delivered") {
       try {
-        const shouldCredit =
-          currentOrder.payment_status === "paid" ||
-          currentOrder.payment_method === "pod";
+        const shouldCredit = currentOrder.payment_status === "paid";
 
         if (shouldCredit) {
           // Only this vendor's items, not all vendors in the order

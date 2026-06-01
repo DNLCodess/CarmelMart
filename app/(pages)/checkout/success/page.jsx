@@ -11,7 +11,6 @@ import { useAuth } from "@/lib/auth-context";
 function SuccessContent() {
   const searchParams = useSearchParams();
   const { isGuest } = useAuth();
-  const isPOD    = searchParams.get("pod")      === "1";
   const orderId  = searchParams.get("order_id") ?? null;
 
   return (
@@ -32,21 +31,12 @@ function SuccessContent() {
       </motion.div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-2">
-        {isPOD ? "Order Placed!" : "Payment Successful!"}
+        Payment Successful!
       </h1>
 
       <p className="text-gray-600 mb-6">
-        {isPOD
-          ? "Your Pay on Delivery order has been confirmed. Our vendor will contact you before delivery."
-          : "Your payment was received and your order is being processed."}
+        Your payment was received and your order is being processed.
       </p>
-
-      {isPOD && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
-          <p className="font-semibold mb-1">Reminder</p>
-          <p>Please have the remaining balance ready when your order arrives. Keep your phone reachable.</p>
-        </div>
-      )}
 
       <div className="bg-gray-50 rounded-2xl p-5 mb-8 space-y-2 text-sm text-left">
         <div className="flex items-center gap-2 text-gray-700">

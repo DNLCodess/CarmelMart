@@ -5,8 +5,7 @@ import { sendOrderCancelledCustomer, sendVendorOrderCancelled } from "@/lib/emai
 
 // POST /api/customer/orders/[id]/cancel
 // Customer cancels an order (only allowed before shipment).
-// If the customer had already paid (card or POD deposit), the amount is credited
-// instantly to their CarmelMart wallet.
+// If the customer had already paid, the amount is credited to their CarmelMart wallet.
 export async function POST(request, { params }) {
   try {
     const supabase = await createClient();
@@ -21,7 +20,7 @@ export async function POST(request, { params }) {
     // Fetch all fields needed for refund calculation
     const { data: order, error: fetchErr } = await admin
       .from("orders")
-      .select("id, status, payment_status, payment_method, customer_id, total, pod_deposit, delivery_address")
+      .select("id, status, payment_status, payment_method, customer_id, total, delivery_address")
       .eq("id", id)
       .eq("customer_id", user.id)
       .single();
@@ -39,25 +38,8 @@ export async function POST(request, { params }) {
       );
     }
 
-    // ── Determine refund amount ───────────────────────────────────────────────
     // Refund goes to the customer's CarmelMart wallet (instant; no Flutterwave roundtrip).
-    //
-    //   payment_status = "paid"    → customer paid full order total (card)
-    //   payment_method = "pod"     → payment_status is always "pending" for POD orders;
-    //                                check pod_deposit + delivery_fee for what was paid upfront
-    let refundAmount = 0;
-
-    if (order.payment_status === "paid") {
-      // Card-paid order: refund the full order total
-      refundAmount = order.total;
-    } else if (order.payment_method === "pod") {
-      // POD orders: payment_status stays "pending" regardless of whether a deposit was
-      // collected ("deposit_paid" is not a valid DB status — see order creation route).
-      // Refund whatever was actually paid: deposit (if any) + delivery fee (if any).
-      const deliveryFee = order.delivery_address?.delivery_fee ?? 0;
-      refundAmount = (order.pod_deposit ?? 0) + deliveryFee;
-    }
-    // refundAmount = 0 for any other case (nothing was paid)
+    const refundAmount = order.payment_status === "paid" ? order.total : 0;
 
     const now = new Date().toISOString();
     const shortId = `#CM-${id.slice(0, 8).toUpperCase()}`;
@@ -95,7 +77,7 @@ export async function POST(request, { params }) {
 
       if (walletErr) {
         // Log for admin to manually credit — order is cancelled but payment_status
-        // stays "paid" (or "pending" for POD with pod_deposit > 0) so it's clear a refund is still owed.
+        // payment_status stays "paid" so it's clear a refund is still owed.
         console.error(`[cancel] wallet credit failed for order ${id}:`, walletErr.message);
       } else {
         // Mark refunded only after the credit actually lands

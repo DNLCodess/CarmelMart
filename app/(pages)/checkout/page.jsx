@@ -15,7 +15,6 @@ import {
   User,
   Home,
   Landmark,
-  Banknote,
   Tag,
   X,
   Mail,
@@ -41,7 +40,6 @@ const DELIVERY_FALLBACK = [
 
 const PAYMENT_METHODS = [
   { id: "flutterwave", label: "Card / Bank Transfer / USSD", icon: CreditCard, sub: "Powered by Flutterwave" },
-  { id: "pod",         label: "Pay on Delivery (POD)",        icon: Banknote,    sub: "10% deposit required for orders above ₦10,000" },
 ];
 
 const STEPS_PHYSICAL = ["Address", "Delivery", "Payment", "Review"];
@@ -210,19 +208,11 @@ export default function CheckoutPage() {
     ];
   }, [zoneData]);
 
-  // Guests and digital-only orders cannot use POD
-  const availablePayments = (isGuest || isAllDigital)
-    ? PAYMENT_METHODS.filter((m) => m.id !== "pod")
-    : PAYMENT_METHODS;
-
-  // Digital orders have no delivery fee and cannot use POD
   const deliveryFee = isAllDigital ? 0 : (DELIVERY_OPTIONS.find((o) => o.id === delivery)?.fee ?? 1500);
   const discount = appliedPromo?.discount ?? 0;
   const discountedSubtotal = Math.max(0, total - discount);
-  const requiresPODDeposit = !isAllDigital && payment === "pod" && discountedSubtotal > 10000;
-  const podDeposit = requiresPODDeposit ? Math.ceil(discountedSubtotal * 0.1) : 0;
   const grandTotal = discountedSubtotal + deliveryFee;
-  const amountDue = payment === "pod" ? podDeposit + deliveryFee : grandTotal;
+  const amountDue = grandTotal;
 
   const applyPromo = async () => {
     if (!promoInput.trim()) return;
@@ -289,7 +279,7 @@ export default function CheckoutPage() {
   };
 
   // ── Order creation ────────────────────────────────────────────────────────────
-  const createOrder = async ({ paymentRef, paymentTransactionId, podDeposit = 0 }) => {
+  const createOrder = async ({ paymentRef, paymentTransactionId }) => {
     const res = await fetch("/api/customer/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -323,11 +313,10 @@ export default function CheckoutPage() {
           delivery_fee:           deliveryFee,
         },
         is_all_digital: isAllDigital,
-        payment_method: payment === "pod" ? "pod" : "card",
+        payment_method: "card",
         payment_ref:    paymentRef ?? null,
         payment_transaction_id: paymentTransactionId ?? null,
         promo_id:       appliedPromo?.promoId ?? null,
-        pod_deposit:    podDeposit,
       }),
     });
     const data = await res.json();
@@ -378,9 +367,8 @@ export default function CheckoutPage() {
         email:                 address.email,
       },
       is_all_digital: isAllDigital,
-      payment_method: payment === "pod" ? "pod" : "card",
+      payment_method: "card",
       promo_id:       appliedPromo?.promoId ?? null,
-      pod_deposit:    requiresPODDeposit ? podDeposit : 0,
     };
 
     try {
@@ -406,7 +394,7 @@ export default function CheckoutPage() {
       },
       customizations: {
         title: "CarmelMart",
-        description: `Order payment${requiresPODDeposit ? " (10% POD deposit)" : ""}`,
+        description: "Order payment",
         logo: `${window.location.origin}/logo-black.png`,
       },
       callback: async (response) => {
@@ -438,7 +426,6 @@ export default function CheckoutPage() {
             const orderId = await createOrder({
               paymentRef: txRef,
               paymentTransactionId: response.transaction_id,
-              podDeposit: requiresPODDeposit ? podDeposit : 0,
             });
             // Clear the pending recovery record — order was created successfully
             localStorage.removeItem(PENDING_CHECKOUT_KEY);
@@ -459,22 +446,10 @@ export default function CheckoutPage() {
     });
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = () => {
     setLoading(true);
-    if (payment === "flutterwave" || amountDue > 0) {
-      initiateFlutterwave();
-      // loading is reset in onclose / callback — do not call setLoading(false) here
-      return;
-    }
-    // Zero-due POD orders can be created directly.
-    try {
-      const orderId = await createOrder({ paymentRef: null, paymentTransactionId: null, podDeposit: 0 });
-      clearCart();
-      router.push(`/checkout/success?order_id=${orderId}&pod=1`);
-    } catch (err) {
-      toast.error(err.message || "Could not place order. Please try again.");
-      setLoading(false);
-    }
+    initiateFlutterwave();
+    // loading is reset in onclose / callback — do not call setLoading(false) here
   };
 
   if (items.length === 0) {
@@ -726,7 +701,7 @@ export default function CheckoutPage() {
                   <h2 className="font-bold text-gray-900 flex items-center gap-2">
                     <CreditCard className="w-5 h-5 text-primary" /> Payment Method
                   </h2>
-                  {availablePayments.map((m) => (
+                  {PAYMENT_METHODS.map((m) => (
                     <label key={m.id} className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${
                       payment === m.id ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"
                     }`}>
@@ -739,12 +714,6 @@ export default function CheckoutPage() {
                     </label>
                   ))}
 
-                  {requiresPODDeposit && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-                      <p className="font-semibold mb-1">POD Deposit Required</p>
-                      <p>A refundable 10% deposit of <strong>₦{podDeposit.toLocaleString()}</strong> is required now via Flutterwave. The remaining <strong>₦{(discountedSubtotal - podDeposit).toLocaleString()}</strong> is paid on delivery.</p>
-                    </div>
-                  )}
                 </motion.div>
               )}
 
@@ -832,7 +801,7 @@ export default function CheckoutPage() {
                   disabled={loading}
                   className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-full bg-linear-to-r from-primary to-primary-dark text-white font-semibold hover:shadow-xl hover:shadow-primary/25 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                 >
-                  {loading ? "Processing..." : payment === "pod" && requiresPODDeposit ? `Pay ₦${amountDue.toLocaleString()} Deposit` : `Pay ₦${amountDue.toLocaleString()}`}
+                  {loading ? "Processing..." : `Pay ₦${amountDue.toLocaleString()}`}
                 </button>
               )}
             </div>
@@ -901,19 +870,10 @@ export default function CheckoutPage() {
                   <span>Delivery</span>
                   <span className="font-medium text-gray-900">₦{deliveryFee.toLocaleString()}</span>
                 </div>
-                {requiresPODDeposit && (
-                  <div className="flex justify-between text-amber-700">
-                    <span>POD deposit (10%)</span>
-                    <span className="font-medium">₦{podDeposit.toLocaleString()}</span>
-                  </div>
-                )}
                 <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-base text-gray-900">
                   <span>Total</span>
                   <span className="text-primary">₦{grandTotal.toLocaleString()}</span>
                 </div>
-                {requiresPODDeposit && (
-                  <p className="text-xs text-gray-500">Due now: <strong>₦{amountDue.toLocaleString()}</strong></p>
-                )}
               </div>
 
               {/* Trust badges */}

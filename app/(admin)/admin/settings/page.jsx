@@ -13,8 +13,6 @@ async function fetchSettings() {
 const SETTING_META = {
   platform_fee_percent:              { label: "Platform Fee",                description: "Percentage of each order total taken as the platform fee", suffix: "%", type: "number", max: 100 },
   referral_reward_ngn:               { label: "Referral Reward",             description: "NGN credited to referrer when a referred user completes vendor registration", prefix: "₦", type: "number" },
-  pod_deposit_percent:               { label: "POD Deposit",                 description: "Deposit percentage required for pay-on-delivery orders above the threshold", suffix: "%", type: "number", max: 100 },
-  pod_deposit_threshold:             { label: "POD Deposit Threshold",       description: "Minimum order total (NGN) that requires a POD deposit", prefix: "₦", type: "number" },
   min_withdrawal_ngn:                { label: "Min. Vendor Withdrawal",      description: "Minimum amount a vendor can withdraw from their wallet", prefix: "₦", type: "number" },
   subscription_premium_price_monthly:{ label: "Premium Plan (Monthly)",      description: "Monthly subscription price for the Premium vendor tier (NGN)", prefix: "₦", type: "number" },
   subscription_vip_price_monthly:    { label: "VIP Plan (Monthly)",          description: "Monthly subscription price for the VIP vendor tier (NGN)", prefix: "₦", type: "number" },
@@ -24,8 +22,6 @@ const SETTING_META = {
 const SETTING_ORDER = [
   "platform_fee_percent",
   "referral_reward_ngn",
-  "pod_deposit_percent",
-  "pod_deposit_threshold",
   "min_withdrawal_ngn",
   "subscription_premium_price_monthly",
   "subscription_vip_price_monthly",

@@ -25,7 +25,7 @@ const STEPS = [
     step: "03",
     icon: CreditCard,
     title: "Pay Securely",
-    description: "Pay once with card, bank transfer, USSD, or Pay on Delivery. Protected by Flutterwave and our 100% buyer guarantee.",
+    description: "Pay securely with card, bank transfer, or USSD. Protected by Flutterwave and our 100% buyer guarantee.",
     color: "bg-green-50 text-green-600",
     border: "border-green-100",
   },

@@ -18,7 +18,7 @@ const FAQ_SECTIONS = [
     faqs: [
       {
         q: "How do I place an order?",
-        a: "Browse products, add items to your cart, then proceed to checkout. You'll enter your delivery address (including a landmark for easy delivery), choose a delivery method, and pay securely via Flutterwave or Pay on Delivery.",
+        a: "Browse products, add items to your cart, then proceed to checkout. You'll enter your delivery address (including a landmark for easy delivery), choose a delivery method, and pay securely via Flutterwave.",
       },
       {
         q: "Can I order from multiple vendors in one checkout?",
@@ -46,11 +46,7 @@ const FAQ_SECTIONS = [
     faqs: [
       {
         q: "What payment methods are accepted?",
-        a: "We accept debit/credit cards (Visa, Mastercard, Verve), bank transfers, USSD, and Pay on Delivery (POD) for eligible orders — all processed securely via Flutterwave.",
-      },
-      {
-        q: "Is Pay on Delivery available?",
-        a: "Yes! POD is available for most orders. For orders above ₦10,000, a 10% deposit is required at checkout to confirm your order. This helps reduce order fraud and keeps our vendors protected.",
+        a: "We accept debit/credit cards (Visa, Mastercard, Verve), bank transfers, and USSD — all processed securely via Flutterwave.",
       },
       {
         q: "Is my payment information secure?",

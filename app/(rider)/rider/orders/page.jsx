@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package, MapPin, Phone, User, Check, Loader2,
-  X, RefreshCw, Bike, AlertTriangle, AlertCircle,
+  X, RefreshCw, Bike, AlertCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -72,7 +72,6 @@ function OrderSheet({ order, onClose, onStatusUpdate, updating }) {
   const addr       = order.delivery_address ?? {};
   const nextStatus = STATUS_NEXT[order.status];
   const isTerminal = ["delivered", "cancelled", "refunded"].includes(order.status);
-  const isPOD      = order.payment_method === "pod";
   const isBusy     = updating === order.id;
 
   return (
@@ -118,27 +117,12 @@ function OrderSheet({ order, onClose, onStatusUpdate, updating }) {
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {/* POD warning — critical info first */}
-          {isPOD && (
-            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl px-4 py-3.5">
-              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-extrabold text-amber-800 dark:text-amber-300">Collect Cash on Delivery</p>
-                <p className="text-lg font-extrabold text-amber-700 dark:text-amber-400 mt-0.5">
-                  ₦{(order.total ?? 0).toLocaleString("en-NG")}
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Customer + Call button */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Customer</p>
               <p className="font-bold text-gray-900 dark:text-gray-100 text-base">{order.customer.name}</p>
-              {!isPOD && (
-                <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-0.5">✓ Paid online · ₦{(order.total ?? 0).toLocaleString("en-NG")}</p>
-              )}
+              <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-0.5">✓ Paid online · ₦{(order.total ?? 0).toLocaleString("en-NG")}</p>
             </div>
             {order.customer.phone && (
               <a
@@ -217,9 +201,8 @@ function TaskCard({ order, onOpen, onStatusUpdate, updating }) {
   const addr       = order.delivery_address ?? {};
   const nextStatus = STATUS_NEXT[order.status];
   const isTerminal = ["delivered", "cancelled", "refunded"].includes(order.status);
-  const isBusy     = updating === order.id;
-  const isPOD      = order.payment_method === "pod";
-  const isShipped  = order.status === "shipped";
+  const isBusy    = updating === order.id;
+  const isShipped = order.status === "shipped";
 
   return (
     <div
@@ -270,17 +253,11 @@ function TaskCard({ order, onOpen, onStatusUpdate, updating }) {
           </div>
         </div>
 
-        {/* Amount + POD */}
+        {/* Amount */}
         <div className="flex items-center justify-between">
           <p className="font-extrabold text-gray-900 dark:text-gray-100">
             ₦{(order.total ?? 0).toLocaleString("en-NG")}
           </p>
-          {isPOD && (
-            <span className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-2.5 py-1 rounded-xl">
-              <AlertTriangle className="w-3 h-3" />
-              Collect Cash
-            </span>
-          )}
         </div>
       </button>
 

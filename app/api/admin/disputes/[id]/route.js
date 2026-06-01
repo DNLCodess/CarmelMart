@@ -51,7 +51,7 @@ export async function PATCH(request, { params }) {
       if (dispute?.order_id) {
         const { data: order } = await ctx.admin
           .from("orders")
-          .select("id, customer_id, total, status, payment_status, payment_method, pod_deposit, delivery_address")
+          .select("id, customer_id, total, status, payment_status, payment_method")
           .eq("id", dispute.order_id)
           .single();
 
@@ -61,14 +61,8 @@ export async function PATCH(request, { params }) {
             .update({ status: "refunded" })
             .eq("id", dispute.order_id);
 
-          // Credit wallet for card-paid orders (full total) or POD orders with an upfront
-          // deposit (deposit + delivery fee actually charged). Pure POD with no deposit = ₦0 refund.
-          const isCardPaid   = order.payment_status === "paid";
-          const isPodDeposit = order.payment_method === "pod" && (order.pod_deposit ?? 0) > 0;
-          if ((isCardPaid || isPodDeposit) && order.customer_id) {
-            const refundAmount = isCardPaid
-              ? order.total
-              : (order.pod_deposit ?? 0) + (order.delivery_address?.delivery_fee ?? 0);
+          if (order.payment_status === "paid" && order.customer_id) {
+            const refundAmount = order.total;
             if (refundAmount > 0) {
               await ctx.admin.rpc("increment_wallet", {
                 p_user_id: order.customer_id,

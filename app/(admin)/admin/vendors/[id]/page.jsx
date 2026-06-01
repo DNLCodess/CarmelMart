@@ -142,12 +142,6 @@ export default function AdminVendorDetailPage({ params }) {
                   : <span className="flex items-center gap-1 text-xs font-bold text-gray-400 dark:text-gray-500"><Clock className="w-4 h-4" /> Pending</span>}
               </div>
             ))}
-            {vendor.user.podBlacklisted && (
-              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3">
-                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
-                <p className="text-xs text-red-700 dark:text-red-400 font-semibold">POD Blacklisted — {vendor.user.podRefusedCount} refusals</p>
-              </div>
-            )}
           </div>
         </div>
 

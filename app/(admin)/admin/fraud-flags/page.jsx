@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Flag, ShieldAlert, AlertTriangle, XCircle, CheckCircle,
+  Flag, XCircle, CheckCircle,
   ShoppingBag, Users, RefreshCw, CreditCard,
 } from "lucide-react";
 import Link from "next/link";
@@ -86,11 +86,10 @@ export default function FraudFlagsPage() {
 
   const flaggedOrders   = data?.flaggedOrders                    ?? [];
   const flaggedUsers    = data?.flaggedUsers                     ?? [];
-  const podRisks        = data?.autoRisks?.podBlacklisted        ?? [];
   const failRisks       = data?.autoRisks?.highFailPayments      ?? [];
 
   const totalFlagged = flaggedOrders.length + flaggedUsers.length;
-  const totalRisks   = podRisks.length + failRisks.length;
+  const totalRisks   = failRisks.length;
 
   const { mutate: submitFlag, isPending: flagging } = useMutation({
     mutationFn: async (body) => {
@@ -127,11 +126,10 @@ export default function FraudFlagsPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
           { label: "Flagged Orders",  value: flaggedOrders.length,  icon: ShoppingBag, color: "bg-red-500"    },
           { label: "Flagged Users",   value: flaggedUsers.length,   icon: Users,       color: "bg-red-600"    },
-          { label: "POD Blacklisted", value: podRisks.length,       icon: ShieldAlert, color: "bg-amber-500"  },
           { label: "High Fail Rate",  value: failRisks.length,      icon: CreditCard,  color: "bg-orange-500" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 px-5 py-4 flex items-center gap-3">
@@ -249,38 +247,6 @@ export default function FraudFlagsPage() {
         </div>
       ) : (
         <div className="space-y-5">
-          {/* POD blacklisted */}
-          <SectionCard
-            title="POD Blacklisted Users"
-            icon={ShieldAlert}
-            iconColor="bg-amber-500"
-            count={podRisks.length}
-            countColor="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-            empty={podRisks.length === 0 ? "No POD-blacklisted users outside manual flags" : null}
-          >
-            <div className="divide-y divide-gray-50 dark:divide-gray-700">
-              {podRisks.map((u) => (
-                <div key={u.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{u.name || "—"}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{u.email} {u.phone && `· ${u.phone}`}</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">{u.refusals} POD refusals</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Link href="/admin/pod-blacklist" className="text-xs font-semibold text-primary hover:underline">View</Link>
-                    <button
-                      onClick={() => setFlagModal({ type: "user", id: u.id, label: u.name || u.email })}
-                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                    >
-                      <Flag className="w-3 h-3" /> Flag
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
           {/* High failed payments */}
           <SectionCard
             title="High Payment Failure Rate"
@@ -318,7 +284,7 @@ export default function FraudFlagsPage() {
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-5 py-6 text-center">
               <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">No auto-detected risks</p>
-              <p className="text-xs text-green-600 dark:text-green-500 mt-1">No POD blacklists or high payment failure rates detected.</p>
+              <p className="text-xs text-green-600 dark:text-green-500 mt-1">No high payment failure rates detected.</p>
             </div>
           )}
         </div>

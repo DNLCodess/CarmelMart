@@ -120,7 +120,7 @@ export async function POST(request) {
     }
 
     // ── 3. Re-validate and price items server-side ────────────────────────────
-    const { items, delivery_address, payment_method, promo_id } = payload;
+    const { items, delivery_address, promo_id } = payload;
     if (!items?.length) return NextResponse.json({ error: "No items in payload." }, { status: 400 });
 
     const normalizedItems = items.map((item) => ({
@@ -162,7 +162,6 @@ export async function POST(request) {
 
     const subtotal    = orderItems.reduce((sum, i) => sum + i.total, 0);
     const deliveryFee = toPositiveInt(delivery_address?.delivery_fee, 0);
-    const isPod       = payment_method === "pod";
 
     // Best-effort promo re-validation — if the promo expired between checkout
     // and recovery, proceed without the discount rather than blocking the order.
@@ -187,35 +186,28 @@ export async function POST(request) {
 
     const discountedSubtotal = Math.max(0, subtotal - discount);
     const total              = discountedSubtotal + deliveryFee;
-    const requiredPodDeposit = isPod && discountedSubtotal > 10_000
-      ? Math.ceil(discountedSubtotal * 0.1)
-      : 0;
-    const amountDueNow = isPod ? requiredPodDeposit + deliveryFee : total;
 
     // ── 4. Amount integrity ───────────────────────────────────────────────────
-    if (Number(tx.charged_amount ?? tx.amount) < amountDueNow) {
+    if (Number(tx.charged_amount ?? tx.amount) < total) {
       return NextResponse.json(
         { error: "Verified payment amount is less than the order total. Please contact support." },
         { status: 400 },
       );
     }
 
-    const paymentStatus = isPod ? "pending" : "paid";
-    const orderStatus   = isPod ? "pending" : "confirmed";
-
     // ── 5. Create the order ───────────────────────────────────────────────────
     const { data: orderId, error: createErr } = await admin.rpc("create_customer_order_atomic", {
       p_customer_id:      user.id,
       p_items:            orderItems,
       p_delivery_address: { ...(delivery_address ?? {}), delivery_fee: deliveryFee },
-      p_payment_method:   isPod ? "pod" : "card",
-      p_payment_status:   paymentStatus,
+      p_payment_method:   "card",
+      p_payment_status:   "paid",
       p_payment_ref:      txRef,
-      p_pod_deposit:      requiredPodDeposit,
+      p_pod_deposit:      0,
       p_discount:         discount,
       p_promo_id:         promoId,
       p_total:            total,
-      p_order_status:     orderStatus,
+      p_order_status:     "confirmed",
     });
 
     if (createErr) throw createErr;
@@ -228,7 +220,7 @@ export async function POST(request) {
         items:          orderItems.map((item) => ({ ...item, productId: item.product_id })),
         delivery_address,
         delivery_fee:   deliveryFee,
-        payment_method: isPod ? "pod" : "card",
+        payment_method: "card",
         discount,
         total,
       },
@@ -246,7 +238,7 @@ export async function POST(request) {
         if (vendorUser.email) {
           sendVendorNewOrder({
             to:          vendorUser.email,
-            order:       { id: orderId, delivery_address, payment_method: isPod ? "pod" : "card" },
+            order:       { id: orderId, delivery_address, payment_method: "card" },
             vendorItems: vendorGroups[vendorUser.id],
           });
         }

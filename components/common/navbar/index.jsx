@@ -16,6 +16,7 @@ import {
   TrendingUp,
   ChevronDown,
   Download,
+  Bike,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -73,6 +74,7 @@ export default function Navbar() {
     isVendor,
     isCustomer,
     isAdmin,
+    isRider,
   } = useAuth();
   const { canInstall, isIOS, triggerInstall } = usePWAInstall() ?? {};
 
@@ -103,18 +105,15 @@ export default function Navbar() {
           ? [{ label: "My Account", href: "/my-account", icon: User }]
           : []),
         ...(isVendor
-          ? [
-              {
-                label: "Vendor Dashboard",
-                href: "/vendor/dashboard",
-                icon: TrendingUp,
-              },
-            ]
+          ? [{ label: "Vendor Dashboard", href: "/vendor/dashboard", icon: TrendingUp }]
+          : []),
+        ...(isRider
+          ? [{ label: "Rider Portal", href: "/rider/orders", icon: Bike }]
           : []),
         ...(isAdmin
           ? [{ label: "Admin Panel", href: "/admin/dashboard", icon: Settings }]
           : []),
-        ...(isAdmin
+        ...(isAdmin || isRider
           ? []
           : [{ label: "My Orders", href: "/orders", icon: Package }]),
         { label: "Settings", href: "/settings", icon: Settings },
@@ -558,7 +557,7 @@ export default function Navbar() {
         </div>
 
         {/* Mobile full-width search row — shopping pages only */}
-        <div className={`sm:hidden px-3 pb-3 ${!isShoppingPage ? "hidden" : ""}`}>
+        <div className={`sm:hidden px-3 pb-3 ${isShoppingPage ? "" : "hidden"}`}>
           <form onSubmit={handleSearchSubmit} className="relative">
             <div className="flex items-stretch h-11 rounded-xl overflow-hidden border-2 border-gray-200 focus-within:border-accent transition-colors">
               <input
@@ -610,6 +609,10 @@ export default function Navbar() {
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         isAuthenticated={isAuthenticated}
+        isCustomer={isCustomer}
+        isVendor={isVendor}
+        isRider={isRider}
+        isAdmin={isAdmin}
         initials={initials}
         displayName={displayName}
         displayRole={displayRole}
