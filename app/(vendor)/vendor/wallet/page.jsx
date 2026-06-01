@@ -160,7 +160,7 @@ export default function VendorWalletPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 min={5000}
-                max={balance}
+                max={balance > 0 ? balance : undefined}
                 step="any"
                 placeholder="50000"
                 required

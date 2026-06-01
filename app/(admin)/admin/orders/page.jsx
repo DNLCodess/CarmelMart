@@ -56,7 +56,7 @@ function RefundModal({ order, onClose, onConfirm, saving }) {
         </p>
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Amount (₦)</label>
-          <input type="number" min="1" max={order.total} value={amount} onChange={(e) => setAmount(e.target.value)}
+          <input type="number" min="1" max={order.total > 0 ? order.total : undefined} value={amount} onChange={(e) => setAmount(e.target.value)}
             className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100" />
         </div>
         <div>
