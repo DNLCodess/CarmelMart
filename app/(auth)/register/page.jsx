@@ -728,15 +728,44 @@ function RegisterPageContent() {
   );
 }
 
+function RegisterSkeleton() {
+  return (
+    <div className="min-h-screen flex bg-white">
+      {/* Desktop: left banner */}
+      <div className="hidden lg:block lg:w-[45%] bg-primary/10 animate-pulse" />
+
+      {/* Right: form area */}
+      <div className="flex-1 flex flex-col bg-white lg:bg-gray-50">
+        {/* Mobile header */}
+        <div className="lg:hidden bg-primary px-6 pt-10 pb-8 text-center overflow-hidden">
+          <div className="w-28 h-8 bg-white/30 rounded-lg mx-auto animate-pulse" />
+          <div className="w-44 h-3 bg-white/20 rounded-full mx-auto mt-3 animate-pulse" />
+        </div>
+
+        <div className="flex-1 flex items-start sm:items-center justify-center px-4 lg:px-12 py-6 sm:py-10">
+          <div className="w-full max-w-5xl">
+            <div className="bg-white/90 rounded-3xl shadow-lg border border-gray-100 p-4 sm:p-6 lg:p-10 space-y-6">
+              {/* Step heading */}
+              <div className="space-y-2 text-center">
+                <div className="h-7 bg-gray-200 rounded-xl w-48 mx-auto animate-pulse" />
+                <div className="h-4 bg-gray-100 rounded-full w-64 mx-auto animate-pulse" />
+              </div>
+              {/* Role cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
+                <div className="h-24 md:h-40 bg-gray-100 rounded-2xl animate-pulse" />
+                <div className="h-24 md:h-40 bg-gray-100 rounded-2xl animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-gray-50 via-white to-gray-100">
-          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={<RegisterSkeleton />}>
       <RegisterPageContent />
     </Suspense>
   );

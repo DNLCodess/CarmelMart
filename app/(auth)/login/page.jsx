@@ -522,13 +522,61 @@ function LoginContent() {
   );
 }
 
+function LoginSkeleton() {
+  return (
+    <div className="min-h-screen flex bg-white">
+      {/* Desktop: left hero panel */}
+      <div className="hidden lg:block lg:w-[52%] xl:w-[55%] bg-primary/10 animate-pulse" />
+
+      {/* Right: form area */}
+      <div className="flex-1 flex flex-col bg-white lg:bg-gray-50">
+        {/* Mobile header */}
+        <div className="lg:hidden bg-primary px-6 pt-10 pb-8 text-center overflow-hidden">
+          <div className="w-28 h-8 bg-white/30 rounded-lg mx-auto animate-pulse" />
+          <div className="w-36 h-3 bg-white/20 rounded-full mx-auto mt-3 animate-pulse" />
+        </div>
+
+        <div className="flex-1 flex items-start lg:items-center justify-center px-5 py-6 sm:py-10 sm:px-10">
+          <div className="w-full max-w-[420px] space-y-5">
+            {/* Heading */}
+            <div className="hidden lg:block space-y-2 mb-8">
+              <div className="h-8 bg-gray-200 rounded-xl w-28 animate-pulse" />
+              <div className="h-4 bg-gray-100 rounded-full w-52 animate-pulse" />
+            </div>
+
+            {/* Form card */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-5">
+              {/* Google button */}
+              <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+              {/* Divider */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-100" />
+                <div className="w-28 h-3 bg-gray-100 rounded-full animate-pulse" />
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+              {/* Email */}
+              <div className="space-y-2">
+                <div className="h-3.5 bg-gray-200 rounded w-24 animate-pulse" />
+                <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+              </div>
+              {/* Password */}
+              <div className="space-y-2">
+                <div className="h-3.5 bg-gray-200 rounded w-20 animate-pulse" />
+                <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+              </div>
+              {/* Submit */}
+              <div className="h-11 bg-primary/20 rounded-xl animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-9 h-9 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      </div>
-    }>
+    <Suspense fallback={<LoginSkeleton />}>
       <LoginContent />
     </Suspense>
   );
