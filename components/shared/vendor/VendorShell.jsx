@@ -189,9 +189,15 @@ export default function VendorShell({ children }) {
     (kycData.verification_type === "nin_cac" && !kycData.cac_verified)
   );
 
-  // One-time welcome redirect — fires once per vendor after first approval
+  // One-time welcome redirect — fires once per vendor after first approval.
+  // Mark as welcomed the moment they land on the welcome page so any subsequent
+  // navigation (sidebar, bottom tabs, back button) works without being redirected back.
   useEffect(() => {
-    if (!user?.id || pathname === "/vendor/welcome") return;
+    if (!user?.id) return;
+    if (pathname === "/vendor/welcome") {
+      localStorage.setItem(`cm_vendor_welcomed_${user.id}`, "1");
+      return;
+    }
     if (!localStorage.getItem(`cm_vendor_welcomed_${user.id}`)) {
       router.push("/vendor/welcome");
     }

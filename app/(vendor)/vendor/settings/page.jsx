@@ -44,6 +44,74 @@ async function saveSettings(data) {
   return d;
 }
 
+// Isolated so that watch() only re-renders this component, not the whole page
+function PasswordSection() {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { isSubmitting, errors },
+  } = useForm();
+
+  const onSubmit = async (formData) => {
+    try {
+      const result = await updatePasswordAction({ newPassword: formData.newPassword });
+      if (result?.error) throw new Error(result.error);
+      reset();
+      toast.success("Password updated");
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
+  return (
+    <Section title="Security">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Current Password</label>
+          <input
+            {...register("currentPassword", { required: "Current password is required" })}
+            type="password"
+            autoComplete="current-password"
+            placeholder="Enter your current password"
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">New Password</label>
+          <input
+            {...register("newPassword", { required: "New password is required", minLength: { value: 8, message: "Min 8 characters" } })}
+            type="password"
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Confirm New Password</label>
+          <input
+            {...register("confirmPassword", {
+              required: "Please confirm your password",
+              validate: (v) => v === watch("newPassword") || "Passwords do not match",
+            })}
+            type="password"
+            autoComplete="new-password"
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex items-center gap-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-bold px-6 py-2.5 rounded-full hover:opacity-90 disabled:opacity-60 transition-opacity"
+        >
+          {isSubmitting ? "Updating…" : "Update Password"}
+        </button>
+      </form>
+    </Section>
+  );
+}
+
 export default function VendorSettingsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -141,25 +209,7 @@ export default function VendorSettingsPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  // ── Password change ────────────────────────────────────────────────────────
-  const {
-    register: regPw,
-    handleSubmit: handlePw,
-    watch: watchPw,
-    reset: resetPw,
-    formState: { isSubmitting: pwSubmitting },
-  } = useForm();
-
-  const onChangePassword = async (formData) => {
-    try {
-      const result = await updatePasswordAction({ newPassword: formData.newPassword });
-      if (result?.error) throw new Error(result.error);
-      resetPw();
-      toast.success("Password updated");
-    } catch (e) {
-      toast.error(e.message);
-    }
-  };
+  // Password change is handled by the isolated <PasswordSection /> component below
 
   if (isLoading) {
     return (
@@ -354,50 +404,7 @@ export default function VendorSettingsPage() {
         </div>
       </Section>
 
-      {/* Security */}
-      <Section title="Security">
-        <form onSubmit={handlePw(onChangePassword)} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Current Password</label>
-            <input
-              {...regPw("currentPassword", { required: "Current password is required" })}
-              type="password"
-              autoComplete="current-password"
-              placeholder="Enter your current password"
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">New Password</label>
-            <input
-              {...regPw("newPassword", { required: "New password is required", minLength: { value: 8, message: "Min 8 characters" } })}
-              type="password"
-              autoComplete="new-password"
-              placeholder="At least 8 characters"
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Confirm New Password</label>
-            <input
-              {...regPw("confirmPassword", {
-                required: "Please confirm your password",
-                validate: (v) => v === watchPw("newPassword") || "Passwords do not match",
-              })}
-              type="password"
-              autoComplete="new-password"
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={pwSubmitting}
-            className="flex items-center gap-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-bold px-6 py-2.5 rounded-full hover:opacity-90 disabled:opacity-60 transition-opacity"
-          >
-            {pwSubmitting ? "Updating…" : "Update Password"}
-          </button>
-        </form>
-      </Section>
+      <PasswordSection />
 
       {/* Danger zone */}
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 space-y-4">
