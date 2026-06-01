@@ -66,8 +66,8 @@ export async function middleware(request) {
     return redirect("/login", pathname);
   }
 
-  // Authenticated user hitting /login → redirect away
-  if (user && pathname === "/login") {
+  // Authenticated user hitting /login or /register → redirect away
+  if (user && (pathname === "/login" || pathname === "/register")) {
     const from = request.nextUrl.searchParams.get("from");
     // Reject protocol-relative URLs like //evil.com that start with / but aren't safe paths
     const safePath = from && from.startsWith("/") && !from.startsWith("//") ? from : "/";
