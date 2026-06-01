@@ -159,13 +159,13 @@ export default function RiderShell({ children }) {
             >
               {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <Link
+            {/* <Link
               href="/"
               className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
               title="View store"
             >
               <Store className="w-4 h-4" />
-            </Link>
+            </Link> */}
             <button
               onClick={handleSignOut}
               className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors lg:hidden"
