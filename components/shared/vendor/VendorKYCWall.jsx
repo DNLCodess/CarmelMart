@@ -7,6 +7,7 @@ import {
   Shield, AlertCircle, CheckCircle2, Building2, Lock,
 } from "lucide-react";
 import { qoreIdHelpers } from "@/lib/qoreId";
+import { completeFreeTierRegistrationAction } from "@/app/actions/vendor";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/button";
 import toast from "react-hot-toast";
@@ -35,6 +36,13 @@ export default function VendorKYCWall({ kycData }) {
         reset();
         setStep("cac");
       } else {
+        if (kycData.verification_type === "free") {
+          try {
+            await completeFreeTierRegistrationAction();
+          } catch {
+            // non-fatal — dashboard unlocks via nin_verified regardless
+          }
+        }
         await qc.invalidateQueries({ queryKey: ["vendor-kyc-status"] });
       }
     } catch (err) {
