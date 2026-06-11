@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
-const WHATSAPP_GROUP = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7";
+const WHATSAPP_GROUP =
+  "https://chat.whatsapp.com/ENs2ZmlNiix1PE65V4e3jF?mode=gi_t";
 
 const HOW_IT_WORKS = [
   {
@@ -90,7 +91,9 @@ export default function VendorWelcomePage() {
       {/* Hero */}
       <div
         className="px-4 py-10 sm:py-14 text-center text-white"
-        style={{ background: "linear-gradient(135deg, #560238 0%, #8b0356 100%)" }}
+        style={{
+          background: "linear-gradient(135deg, #560238 0%, #8b0356 100%)",
+        }}
       >
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
@@ -105,18 +108,20 @@ export default function VendorWelcomePage() {
             You&apos;re approved! Welcome to CarmelMart.
           </h1>
           <p className="text-white/75 text-sm sm:text-base leading-relaxed">
-            Your store is live. Here&apos;s everything you need to know to start making money today.
+            Your store is live. Here&apos;s everything you need to know to start
+            making money today.
           </p>
         </motion.div>
       </div>
 
       <div className="max-w-xl mx-auto px-4 space-y-8 mt-8">
-
         {/* How you make money */}
         <section>
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-bold text-gray-900">How you make money</h2>
+            <h2 className="text-base font-bold text-gray-900">
+              How you make money
+            </h2>
           </div>
           <div className="space-y-3">
             {HOW_IT_WORKS.map(({ icon: Icon, title, desc, color, num }, i) => (
@@ -127,12 +132,18 @@ export default function VendorWelcomePage() {
                 transition={{ delay: i * 0.1 + 0.15 }}
                 className="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-4 shadow-sm"
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${color}`}
+                >
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm mb-1">{title}</p>
-                  <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
+                  <p className="font-semibold text-gray-900 text-sm mb-1">
+                    {title}
+                  </p>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    {desc}
+                  </p>
                 </div>
                 <span className="text-3xl font-black text-gray-100 shrink-0 leading-none mt-0.5">
                   {num}
@@ -158,7 +169,10 @@ export default function VendorWelcomePage() {
               "Our team is here on WhatsApp if you ever need help — join our vendor group.",
             ].map((fact) => (
               <div key={fact} className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" strokeWidth={2.5} />
+                <Check
+                  className="w-4 h-4 text-primary shrink-0 mt-0.5"
+                  strokeWidth={2.5}
+                />
                 <p className="text-xs text-gray-700 leading-relaxed">{fact}</p>
               </div>
             ))}
@@ -180,15 +194,21 @@ export default function VendorWelcomePage() {
             <MessageCircle className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-green-900 text-sm">Join our vendor WhatsApp group</p>
-            <p className="text-xs text-green-700 mt-0.5">Get tips, updates, and support from the team and fellow vendors.</p>
+            <p className="font-semibold text-green-900 text-sm">
+              Join our vendor WhatsApp group
+            </p>
+            <p className="text-xs text-green-700 mt-0.5">
+              Get tips, updates, and support from the team and fellow vendors.
+            </p>
           </div>
           <ArrowRight className="w-4 h-4 text-green-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
         </motion.a>
 
         {/* First moves */}
         <section>
-          <h2 className="text-base font-bold text-gray-900 mb-4">Your first 3 moves</h2>
+          <h2 className="text-base font-bold text-gray-900 mb-4">
+            Your first 3 moves
+          </h2>
           <div className="space-y-2.5">
             {FIRST_MOVES.map(({ icon: Icon, label, desc, href, cta }, i) => (
               <motion.div
@@ -206,7 +226,9 @@ export default function VendorWelcomePage() {
                     <Icon className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">{label}</p>
+                    <p className="font-semibold text-gray-900 text-sm">
+                      {label}
+                    </p>
                     <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
                   </div>
                   <span className="text-xs font-semibold text-primary group-hover:underline shrink-0">
@@ -228,7 +250,9 @@ export default function VendorWelcomePage() {
             onClick={handleGetStarted}
             disabled={leaving}
             className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-semibold text-base text-white transition-colors disabled:opacity-70"
-            style={{ background: "linear-gradient(135deg, #560238 0%, #8b0356 100%)" }}
+            style={{
+              background: "linear-gradient(135deg, #560238 0%, #8b0356 100%)",
+            }}
           >
             {leaving ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -241,13 +265,16 @@ export default function VendorWelcomePage() {
           </button>
           <p className="text-center text-xs text-gray-400 mt-3">
             You can come back to this guide anytime from{" "}
-            <Link href="/vendor/welcome" onClick={markWelcomed} className="text-primary hover:underline">
+            <Link
+              href="/vendor/welcome"
+              onClick={markWelcomed}
+              className="text-primary hover:underline"
+            >
               vendor settings
             </Link>
             .
           </p>
         </motion.div>
-
       </div>
     </div>
   );

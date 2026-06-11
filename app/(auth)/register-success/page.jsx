@@ -38,7 +38,8 @@ function VendorSuccessContent() {
   const fee = REGISTRATION_FEES[verificationType] ?? REGISTRATION_FEES.nin;
   const amount = `₦${fee.toLocaleString()}`;
 
-  const whatsappLink = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7?mode=gi_t";
+  const whatsappLink =
+    "https://chat.whatsapp.com/ENs2ZmlNiix1PE65V4e3jF?mode=gi_t";
 
   const benefits = isPremium
     ? [
@@ -66,7 +67,13 @@ function VendorSuccessContent() {
           {/* Logo */}
           <div className="flex justify-center mb-8">
             <Link href="/">
-              <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
+              <Image
+                src="/logo-black.png"
+                alt="CarmelMart"
+                width={130}
+                height={40}
+                className="object-contain"
+              />
             </Link>
           </div>
           {/* Success Icon */}
@@ -261,7 +268,11 @@ function VendorSuccessContent() {
                 development, and receive early access to new features via our
                 WhatsApp community.
               </p>
-              <Link href={whatsappLink} target="_blank" rel="noopener noreferrer">
+              <Link
+                href={whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Button
                   variant="primary"
                   size="lg"

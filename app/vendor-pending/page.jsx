@@ -3,9 +3,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Clock, Mail, CheckCircle2, LogOut, ArrowRight, MessageCircle } from "lucide-react";
+import {
+  Clock,
+  Mail,
+  CheckCircle2,
+  LogOut,
+  ArrowRight,
+  MessageCircle,
+} from "lucide-react";
 
-const WHATSAPP_GROUP = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7";
+const WHATSAPP_GROUP =
+  "https://chat.whatsapp.com/ENs2ZmlNiix1PE65V4e3jF?mode=gi_t";
 import { logoutAction } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
 
@@ -22,7 +30,13 @@ export default function VendorPendingPage() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link href="/">
-            <Image src="/logo-black.png" alt="CarmelMart" width={130} height={40} className="object-contain" />
+            <Image
+              src="/logo-black.png"
+              alt="CarmelMart"
+              width={130}
+              height={40}
+              className="object-contain"
+            />
           </Link>
         </div>
 
@@ -36,14 +50,19 @@ export default function VendorPendingPage() {
             <Clock className="w-8 h-8 text-amber-600" strokeWidth={2} />
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Account Under Review</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Account Under Review
+          </h1>
           <p className="text-gray-500 leading-relaxed mb-6">
-            Your vendor application has been received. Our team is reviewing your KYC
-            documents and will notify you by email once your account is approved.
+            Your vendor application has been received. Our team is reviewing
+            your KYC documents and will notify you by email once your account is
+            approved.
           </p>
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left mb-6 space-y-3">
-            <p className="text-sm font-semibold text-amber-900">What happens next?</p>
+            <p className="text-sm font-semibold text-amber-900">
+              What happens next?
+            </p>
             {[
               "Our team reviews your NIN and CAC verification",
               "You receive an approval or feedback email within 1–2 business days",
@@ -59,7 +78,10 @@ export default function VendorPendingPage() {
           <div className="flex items-center justify-center gap-1.5 text-sm text-gray-500 mb-4">
             <Mail className="w-4 h-4" />
             Questions? Email{" "}
-            <a href="mailto:support@carmelmart.com" className="text-primary font-semibold hover:underline">
+            <a
+              href="mailto:support@carmelmart.com"
+              className="text-primary font-semibold hover:underline"
+            >
               support@carmelmart.com
             </a>
           </div>
@@ -77,7 +99,10 @@ export default function VendorPendingPage() {
           <div className="border-t border-gray-100 pt-4 mt-2 space-y-3">
             <p className="text-xs text-gray-400 text-center">
               Haven&apos;t finished your KYC yet?{" "}
-              <Link href="/vendor-kyc" className="text-primary font-semibold hover:underline inline-flex items-center gap-1">
+              <Link
+                href="/vendor-kyc"
+                className="text-primary font-semibold hover:underline inline-flex items-center gap-1"
+              >
                 Resume registration <ArrowRight className="w-3 h-3" />
               </Link>
             </p>

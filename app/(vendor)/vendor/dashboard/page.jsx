@@ -2,14 +2,33 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  DollarSign, ShoppingCart, Package, Users,
-  ArrowUp, ArrowDown, AlertCircle, Clock, Truck,
-  CheckCircle, XCircle, RefreshCw, ListTodo, ChevronRight, MessageCircle,
+  DollarSign,
+  ShoppingCart,
+  Package,
+  Users,
+  ArrowUp,
+  ArrowDown,
+  AlertCircle,
+  Clock,
+  Truck,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  ListTodo,
+  ChevronRight,
+  MessageCircle,
 } from "lucide-react";
 
-const WHATSAPP_GROUP = "https://chat.whatsapp.com/BoKY0NNh9zHKhmt5kudZO7";
+const WHATSAPP_GROUP =
+  "https://chat.whatsapp.com/ENs2ZmlNiix1PE65V4e3jF?mode=gi_t";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from "recharts";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,17 +41,34 @@ async function fetchVendorStats() {
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  pending:    { label: "Pending",    cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"   },
-  processing: { label: "Processing", cls: "bg-blue-50  text-blue-700  border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"    },
-  shipped:    { label: "Shipped",    cls: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800" },
-  delivered:  { label: "Delivered",  cls: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"   },
-  cancelled:  { label: "Cancelled",  cls: "bg-red-50   text-red-700   border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"     },
+  pending: {
+    label: "Pending",
+    cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+  },
+  processing: {
+    label: "Processing",
+    cls: "bg-blue-50  text-blue-700  border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+  },
+  shipped: {
+    label: "Shipped",
+    cls: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800",
+  },
+  delivered: {
+    label: "Delivered",
+    cls: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
+  },
+  cancelled: {
+    label: "Cancelled",
+    cls: "bg-red-50   text-red-700   border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+  },
 };
 
 function StatusBadge({ status }) {
   const cfg = STATUS_CFG[status] ?? STATUS_CFG.pending;
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${cfg.cls}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${cfg.cls}`}
+    >
       {cfg.label}
     </span>
   );
@@ -42,20 +78,36 @@ function StatusBadge({ status }) {
 function StatCard({ label, value, sub, icon: Icon, color, trend, trendValue }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 flex items-start gap-4">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+      <div
+        className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}
+      >
         <Icon className="w-5 h-5 text-white" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5 leading-none">{value}</p>
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          {label}
+        </p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5 leading-none">
+          {value}
+        </p>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           {trendValue && (
-            <span className={`inline-flex items-center gap-0.5 text-xs font-bold ${trend === "up" ? "text-green-600" : "text-red-500"}`}>
-              {trend === "up" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+            <span
+              className={`inline-flex items-center gap-0.5 text-xs font-bold ${trend === "up" ? "text-green-600" : "text-red-500"}`}
+            >
+              {trend === "up" ? (
+                <ArrowUp className="w-3 h-3" />
+              ) : (
+                <ArrowDown className="w-3 h-3" />
+              )}
               {trendValue}
             </span>
           )}
-          {sub && <span className="text-xs text-gray-400 dark:text-gray-500">{sub}</span>}
+          {sub && (
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              {sub}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -63,9 +115,12 @@ function StatCard({ label, value, sub, icon: Icon, color, trend, trendValue }) {
 }
 
 const EMPTY_CHART = [
-  { day: "Mon", revenue: 0 }, { day: "Tue", revenue: 0 },
-  { day: "Wed", revenue: 0 }, { day: "Thu", revenue: 0 },
-  { day: "Fri", revenue: 0 }, { day: "Sat", revenue: 0 },
+  { day: "Mon", revenue: 0 },
+  { day: "Tue", revenue: 0 },
+  { day: "Wed", revenue: 0 },
+  { day: "Thu", revenue: 0 },
+  { day: "Fri", revenue: 0 },
+  { day: "Sat", revenue: 0 },
   { day: "Sun", revenue: 0 },
 ];
 
@@ -77,11 +132,11 @@ export default function VendorOverviewPage() {
     retry: false,
   });
 
-  const stats        = statsData?.stats        ?? {};
+  const stats = statsData?.stats ?? {};
   const revenueChart = statsData?.revenue_chart ?? EMPTY_CHART;
   const recentOrders = statsData?.recent_orders ?? [];
-  const topProducts  = statsData?.top_products  ?? [];
-  const todos        = statsData?.todos         ?? [];
+  const topProducts = statsData?.top_products ?? [];
+  const todos = statsData?.todos ?? [];
 
   return (
     <div className="space-y-6">
@@ -89,25 +144,29 @@ export default function VendorOverviewPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Revenue (30d)"
-          value={`₦${((stats.revenue || 0)).toLocaleString()}`}
-          icon={DollarSign} color="bg-primary"
+          value={`₦${(stats.revenue || 0).toLocaleString()}`}
+          icon={DollarSign}
+          color="bg-primary"
           sub="last 30 days"
         />
         <StatCard
           label="Total Orders"
           value={(stats.orders || 0).toLocaleString()}
-          icon={ShoppingCart} color="bg-blue-500"
+          icon={ShoppingCart}
+          color="bg-blue-500"
           sub={`${stats.pending_orders || 0} pending`}
         />
         <StatCard
           label="Products Live"
           value={(stats.products || 0).toLocaleString()}
-          icon={Package} color="bg-emerald-500"
+          icon={Package}
+          color="bg-emerald-500"
         />
         <StatCard
           label="Wallet Balance"
-          value={`₦${((stats.wallet_balance || 0)).toLocaleString()}`}
-          icon={Users} color="bg-violet-500"
+          value={`₦${(stats.wallet_balance || 0).toLocaleString()}`}
+          icon={Users}
+          color="bg-violet-500"
           sub="available balance"
         />
       </div>
@@ -117,12 +176,19 @@ export default function VendorOverviewPage() {
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-400">Action Required</p>
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-400">
+              Action Required
+            </p>
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              You have <strong>{stats.pending_orders}</strong> pending {stats.pending_orders === 1 ? "order" : "orders"} waiting to be confirmed.
+              You have <strong>{stats.pending_orders}</strong> pending{" "}
+              {stats.pending_orders === 1 ? "order" : "orders"} waiting to be
+              confirmed.
             </p>
           </div>
-          <Link href="/vendor/orders" className="text-xs font-bold text-amber-800 dark:text-amber-400 underline shrink-0">
+          <Link
+            href="/vendor/orders"
+            className="text-xs font-bold text-amber-800 dark:text-amber-400 underline shrink-0"
+          >
             View orders
           </Link>
         </div>
@@ -133,7 +199,9 @@ export default function VendorOverviewPage() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2.5">
             <ListTodo className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 text-sm">Action Required ({todos.length})</h3>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 text-sm">
+              Action Required ({todos.length})
+            </h3>
           </div>
           <div className="divide-y divide-gray-50 dark:divide-gray-700">
             {todos.map((todo) => (
@@ -142,10 +210,18 @@ export default function VendorOverviewPage() {
                 href={todo.href}
                 className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               >
-                <span className={`w-2 h-2 rounded-full shrink-0 ${
-                  todo.urgency === "high" ? "bg-red-500" : todo.urgency === "medium" ? "bg-amber-500" : "bg-blue-400"
-                }`} />
-                <p className="flex-1 text-sm text-gray-700 dark:text-gray-300">{todo.label}</p>
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    todo.urgency === "high"
+                      ? "bg-red-500"
+                      : todo.urgency === "medium"
+                        ? "bg-amber-500"
+                        : "bg-blue-400"
+                  }`}
+                />
+                <p className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+                  {todo.label}
+                </p>
                 <ChevronRight className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" />
               </Link>
             ))}
@@ -157,8 +233,12 @@ export default function VendorOverviewPage() {
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-gray-100">Revenue This Week</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Daily revenue for the last 7 days</p>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">
+              Revenue This Week
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Daily revenue for the last 7 days
+            </p>
           </div>
           <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
             Last 7 days
@@ -166,18 +246,44 @@ export default function VendorOverviewPage() {
         </div>
         <div className="h-52">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={revenueChart} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+            <AreaChart
+              data={revenueChart}
+              margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
+            >
               <defs>
                 <linearGradient id="vendorRevGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#560238" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#560238" stopOpacity={0}    />
+                  <stop offset="5%" stopColor="#560238" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#560238" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v) => [`₦${v.toLocaleString()}`, "Revenue"]} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
-              <Area type="monotone" dataKey="revenue" stroke="#560238" strokeWidth={2} fill="url(#vendorRevGrad)" />
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 12, fill: "#6b7280" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 12, fill: "#6b7280" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                formatter={(v) => [`₦${v.toLocaleString()}`, "Revenue"]}
+                contentStyle={{
+                  borderRadius: 12,
+                  border: "1px solid #e5e7eb",
+                  fontSize: 12,
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="#560238"
+                strokeWidth={2}
+                fill="url(#vendorRevGrad)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -188,8 +294,13 @@ export default function VendorOverviewPage() {
         {/* Recent orders */}
         <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100">Recent Orders</h3>
-            <Link href="/vendor/orders" className="text-xs text-primary font-semibold hover:underline">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">
+              Recent Orders
+            </h3>
+            <Link
+              href="/vendor/orders"
+              className="text-xs text-primary font-semibold hover:underline"
+            >
               View all
             </Link>
           </div>
@@ -200,7 +311,9 @@ export default function VendorOverviewPage() {
           ) : recentOrders.length === 0 ? (
             <div className="text-center py-8">
               <ShoppingCart className="w-8 h-8 text-gray-200 dark:text-gray-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">No orders yet</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No orders yet
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -214,11 +327,17 @@ export default function VendorOverviewPage() {
                     <Package className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">#CM-{order.id?.slice(0, 8).toUpperCase()}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{order.customer}</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      #CM-{order.id?.slice(0, 8).toUpperCase()}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {order.customer}
+                    </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">₦{(order.amount || 0).toLocaleString()}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                      ₦{(order.amount || 0).toLocaleString()}
+                    </p>
                     <StatusBadge status={order.status} />
                   </div>
                 </Link>
@@ -230,8 +349,13 @@ export default function VendorOverviewPage() {
         {/* Top products */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100">Top Products</h3>
-            <Link href="/vendor/products" className="text-xs text-primary font-semibold hover:underline">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">
+              Top Products
+            </h3>
+            <Link
+              href="/vendor/products"
+              className="text-xs text-primary font-semibold hover:underline"
+            >
               All products
             </Link>
           </div>
@@ -242,16 +366,26 @@ export default function VendorOverviewPage() {
           ) : topProducts.length === 0 ? (
             <div className="text-center py-8">
               <Package className="w-8 h-8 text-gray-200 dark:text-gray-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">No sales yet</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No sales yet
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
               {topProducts.map((p, i) => (
                 <div key={p.id ?? i} className="flex items-center gap-3">
-                  <span className="w-5 text-xs font-bold text-gray-400 dark:text-gray-500 shrink-0">{i + 1}</span>
+                  <span className="w-5 text-xs font-bold text-gray-400 dark:text-gray-500 shrink-0">
+                    {i + 1}
+                  </span>
                   {p.image ? (
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">
-                      <Image src={p.image} alt={p.name} fill className="object-cover" sizes="40px" />
+                      <Image
+                        src={p.image}
+                        alt={p.name}
+                        fill
+                        className="object-cover"
+                        sizes="40px"
+                      />
                     </div>
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 shrink-0 flex items-center justify-center">
@@ -259,10 +393,16 @@ export default function VendorOverviewPage() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">{p.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{p.sold} sold</p>
+                    <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">
+                      {p.name}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {p.sold} sold
+                    </p>
                   </div>
-                  <p className="text-xs font-bold text-primary shrink-0">₦{(p.revenue || 0).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-primary shrink-0">
+                    ₦{(p.revenue || 0).toLocaleString()}
+                  </p>
                 </div>
               ))}
             </div>
@@ -273,10 +413,26 @@ export default function VendorOverviewPage() {
       {/* Quick actions */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { href: "/vendor/products/new",  label: "Add Product",    color: "bg-primary text-white" },
-          { href: "/vendor/orders",         label: "Manage Orders",  color: "bg-blue-600 text-white"          },
-          { href: "/vendor/wallet",          label: "Withdraw Funds", color: "bg-emerald-600 text-white"       },
-          { href: "/vendor/analytics",       label: "View Analytics", color: "bg-violet-600 text-white"        },
+          {
+            href: "/vendor/products/new",
+            label: "Add Product",
+            color: "bg-primary text-white",
+          },
+          {
+            href: "/vendor/orders",
+            label: "Manage Orders",
+            color: "bg-blue-600 text-white",
+          },
+          {
+            href: "/vendor/wallet",
+            label: "Withdraw Funds",
+            color: "bg-emerald-600 text-white",
+          },
+          {
+            href: "/vendor/analytics",
+            label: "View Analytics",
+            color: "bg-violet-600 text-white",
+          },
         ].map(({ href, label, color }) => (
           <Link
             key={href}
@@ -299,8 +455,12 @@ export default function VendorOverviewPage() {
           <MessageCircle className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-green-900 dark:text-green-300 text-sm">Join our vendor WhatsApp group</p>
-          <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">Get tips, announcements, and direct support from our team.</p>
+          <p className="font-semibold text-green-900 dark:text-green-300 text-sm">
+            Join our vendor WhatsApp group
+          </p>
+          <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">
+            Get tips, announcements, and direct support from our team.
+          </p>
         </div>
         <ChevronRight className="w-4 h-4 text-green-600 dark:text-green-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
       </a>
