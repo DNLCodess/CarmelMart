@@ -679,7 +679,9 @@ export default function VendorVerification({
                   <p className="text-sm text-gray-500">
                     {verificationType === "nin_cac"
                       ? "Proceeding to CAC verification..."
-                      : "Proceeding to payment..."}
+                      : verificationType === "free"
+                        ? "Completing registration..."
+                        : "Proceeding to payment..."}
                   </p>
                 </motion.div>
               ) : (

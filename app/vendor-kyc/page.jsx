@@ -20,8 +20,9 @@ export default async function VendorKycPage() {
     admin.from("users").select("phone").eq("id", user.id).single(),
   ]);
 
-  // Payment already done — go to the "under review" waiting room
+  // Payment done or free tier with NIN verified — go to the "under review" waiting room
   if (vendor?.payment_verified) redirect("/vendor-pending");
+  if (vendor?.verification_type === "free" && vendor?.nin_verified) redirect("/vendor-pending");
 
   return (
     <KycResumeClient
