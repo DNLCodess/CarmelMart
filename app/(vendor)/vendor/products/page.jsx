@@ -66,7 +66,7 @@ export default function VendorProductsPage() {
       setBulkMenuOpen(false);
       qc.invalidateQueries({ queryKey: ["vendor-products"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to update products. Please try again."),
   });
 
   const { mutate: deleteProduct, isPending: deleting } = useMutation({
@@ -77,11 +77,11 @@ export default function VendorProductsPage() {
       return d;
     },
     onSuccess: () => {
-      toast.success("Product deleted");
+      toast.success("Product deleted.");
       qc.invalidateQueries({ queryKey: ["vendor-products"] });
       setDeleteTarget(null);
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to delete product. Please try again."),
   });
 
   const statusCounts = useMemo(() => ({

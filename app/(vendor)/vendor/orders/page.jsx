@@ -110,7 +110,7 @@ export default function VendorOrdersPage() {
       qc.invalidateQueries({ queryKey: ["vendor-orders"] });
       qc.invalidateQueries({ queryKey: ["vendor-stats"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to update order status. Please try again."),
   });
 
   const counts = useMemo(() => {

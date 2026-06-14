@@ -98,7 +98,7 @@ export default function VendorOrderDetailPage() {
       setShowTrackingInput(false);
       setTrackingNumber("");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to update order status. Please try again."),
   });
 
   if (isLoading) {

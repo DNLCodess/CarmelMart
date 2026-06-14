@@ -61,7 +61,7 @@ function PasswordSection() {
       reset();
       toast.success("Password updated");
     } catch (e) {
-      toast.error(e.message);
+      toast.error(e.message || "Failed to update password. Please try again.");
     }
   };
 
@@ -147,7 +147,7 @@ export default function VendorSettingsPage() {
       toast.success("Shop settings saved");
       qc.invalidateQueries({ queryKey: ["vendor-settings"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to save shop settings. Please try again."),
   });
 
   // ── Bank account form ──────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ export default function VendorSettingsPage() {
       toast.success("Bank details updated");
       qc.invalidateQueries({ queryKey: ["vendor-settings"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to save bank details. Please try again."),
   });
 
   // ── Vacation mode ──────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ export default function VendorSettingsPage() {
       toast.success(v ? "Vacation mode enabled — your products are hidden" : "Vacation mode disabled");
       qc.invalidateQueries({ queryKey: ["vendor-settings"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to update vacation mode. Please try again."),
   });
 
   // ── Notification preferences ──────────────────────────────────────────────
@@ -206,7 +206,7 @@ export default function VendorSettingsPage() {
 
   const { mutate: saveNotifPrefs } = useMutation({
     mutationFn: (prefs) => saveSettings({ notification_preferences: prefs }),
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to save notification preferences. Please try again."),
   });
 
   // Password change is handled by the isolated <PasswordSection /> component below

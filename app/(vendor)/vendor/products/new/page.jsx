@@ -5,7 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { useCategories } from "@/lib/useCategories";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Save, AlertCircle, RotateCcw, Clock, Upload, X, BookOpen, Music, Film, Gamepad2 } from "lucide-react";
+import { ChevronLeft, Save, AlertCircle, RotateCcw, Clock, Upload, X, BookOpen, Package, Download, Layers, Info } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import ProductImageUploader from "@/components/shared/vendor/ProductImageUploader";
@@ -98,8 +98,8 @@ export default function NewProductPage() {
     media_language:     "English",
     media_format:       "",
     media_genre:        [],
-    is_digital:         false,
-    digital_price:      "",
+    delivery_type:      "physical", // "physical" | "digital" | "both"
+    digital_price:      "",         // only used when delivery_type === "both"
   });
   const [digitalFile,        setDigitalFile]        = useState(null); // { name, path, size }
   const [digitalUploading,   setDigitalUploading]   = useState(false);
@@ -220,7 +220,7 @@ export default function NewProductPage() {
       setDigitalFile({ name: file.name, path: d.path, size: d.size });
       toast.success("File uploaded");
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || "File upload failed. Please try again.");
     } finally {
       setDigitalUploading(false);
     }
@@ -241,7 +241,9 @@ export default function NewProductPage() {
   // ── Submit ─────────────────────────────────────────────────────────────────
   const { mutate: createProduct } = useMutation({
     mutationFn: async (data) => {
-      if (isMediaCategory && mediaFields.is_digital && !digitalFile) {
+      const isDigital     = isMediaCategory && mediaFields.delivery_type !== "physical";
+      const isDigitalOnly = isMediaCategory && mediaFields.delivery_type === "digital";
+      if (isDigital && !digitalFile) {
         throw new Error("Please upload a digital file for this product");
       }
       const r = await fetch("/api/vendor/products", {
@@ -252,7 +254,7 @@ export default function NewProductPage() {
           description: data.description,
           price:       Number(data.price),
           sale_price:  data.sale_price ? Number(data.sale_price) : null,
-          stock:       Number(data.stock),
+          stock:       Number(data.stock ?? 0),
           category_id: data.category_id || null,
           status:      data.status,
           images,
@@ -273,10 +275,12 @@ export default function NewProductPage() {
             media_language:      mediaFields.media_language || "English",
             media_format:        mediaFields.media_format || null,
             media_genre:         mediaFields.media_genre.length ? mediaFields.media_genre : null,
-            is_digital:          mediaFields.is_digital,
-            digital_file_path:   mediaFields.is_digital ? (digitalFile?.path ?? null) : null,
-            digital_price:       mediaFields.is_digital && mediaFields.digital_price ? Number(mediaFields.digital_price) : null,
-            digital_file_size:   mediaFields.is_digital ? (digitalFile?.size ?? null) : null,
+            is_digital:          isDigital,
+            digital_only:        isDigitalOnly,
+            digital_file_path:   isDigital ? (digitalFile?.path ?? null) : null,
+            digital_price:       mediaFields.delivery_type === "both" && mediaFields.digital_price
+                                   ? Number(mediaFields.digital_price) : null,
+            digital_file_size:   isDigital ? (digitalFile?.size ?? null) : null,
           }),
         }),
       });
@@ -286,13 +290,15 @@ export default function NewProductPage() {
     },
     onSuccess: () => {
       localStorage.removeItem(DRAFT_KEY);
-      toast.success("Product created successfully!");
+      toast.success("Product created! It will go live once reviewed by admin.");
       router.push("/vendor/products");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to create product. Please try again."),
   });
 
   const onSubmit = (data) => createProduct(data);
+
+  const isDigitalOnly = isMediaCategory && mediaFields.delivery_type === "digital";
 
   const discount = salePrice && price && Number(salePrice) > 0 && Number(salePrice) < Number(price)
     ? Math.round(((Number(price) - Number(salePrice)) / Number(price)) * 100)
@@ -407,7 +413,7 @@ export default function NewProductPage() {
           <div className="grid sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Price (₦) <span className="text-red-500">*</span>
+                {isDigitalOnly ? "Digital Price (₦)" : "Price (₦)"} <span className="text-red-500">*</span>
               </label>
               <input
                 {...register("price", {
@@ -420,48 +426,63 @@ export default function NewProductPage() {
               <FieldError error={errors.price} />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Sale Price (₦) <span className="text-gray-400 dark:text-gray-500 font-normal">optional</span>
-              </label>
-              <input
-                {...register("sale_price", {
-                  validate: (v) => {
-                    if (!v) return true;
-                    if (Number(v) >= Number(price)) return "Sale price must be less than the regular price";
-                    return true;
-                  },
-                })}
-                type="number" min="0" step="any" placeholder="4500"
-                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-              />
-              <FieldError error={errors.sale_price} />
-              {discount && (
-                <p className="mt-1.5 text-xs text-green-600 dark:text-green-400 font-semibold">{discount}% off</p>
-              )}
-            </div>
+            {!isDigitalOnly && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Sale Price (₦) <span className="text-gray-400 dark:text-gray-500 font-normal">optional</span>
+                </label>
+                <input
+                  {...register("sale_price", {
+                    validate: (v) => {
+                      if (!v) return true;
+                      if (Number(v) >= Number(price)) return "Sale price must be less than the regular price";
+                      return true;
+                    },
+                  })}
+                  type="number" min="0" step="any" placeholder="4500"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+                />
+                <FieldError error={errors.sale_price} />
+                {discount && (
+                  <p className="mt-1.5 text-xs text-green-600 dark:text-green-400 font-semibold">{discount}% off</p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Stock Quantity</label>
-              <input
-                {...register("stock", { min: { value: 0, message: "Stock cannot be negative" } })}
-                type="number" min="0" placeholder="100"
-                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-              />
-              <FieldError error={errors.stock} />
-            </div>
+            {isDigitalOnly ? (
+              <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                <Download className="w-4 h-4 text-blue-500 shrink-0" />
+                <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                  Stock is managed automatically — digital products have unlimited availability.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Stock Quantity</label>
+                <input
+                  {...register("stock", { min: { value: 0, message: "Stock cannot be negative" } })}
+                  type="number" min="0" placeholder="100"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+                />
+                <FieldError error={errors.stock} />
+              </div>
+            )}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Status</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Visibility</label>
               <select
                 {...register("status")}
                 className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
               >
-                <option value="inactive">Submit for review — requires admin approval to go live</option>
+                <option value="inactive">Submit for review</option>
                 <option value="draft">Save as draft — hidden from store</option>
               </select>
+              <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 flex items-start gap-1">
+                <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                Submitting for review places this product in the admin queue. An admin will review and approve it before it appears in the store — you'll be notified when it goes live. Choose Draft to save without publishing.
+              </p>
             </div>
           </div>
         </div>
@@ -551,6 +572,38 @@ export default function NewProductPage() {
             <div className="flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-primary shrink-0" />
               <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Books & Media Details</h2>
+            </div>
+
+            {/* ── Delivery type selector ── */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                How will customers receive this product? <span className="text-red-500">*</span>
+              </label>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {[
+                  { value: "physical", Icon: Package,  title: "Physical copy",       desc: "Ships as a package — book, CD, DVD, etc." },
+                  { value: "digital",  Icon: Download,  title: "Digital download",    desc: "Instant download only — eBook, MP3, PDF, etc." },
+                  { value: "both",     Icon: Layers,    title: "Physical + Digital",  desc: "Buyers choose: ship the item or download instantly." },
+                ].map(({ value, Icon, title, desc }) => {
+                  const active = mediaFields.delivery_type === value;
+                  return (
+                    <button
+                      type="button"
+                      key={value}
+                      onClick={() => { setMedia("delivery_type", value); if (value === "physical") { setDigitalFile(null); } }}
+                      className={`flex flex-col items-start gap-1.5 p-4 rounded-xl border-2 text-left transition-all ${
+                        active
+                          ? "border-primary bg-primary/5 dark:bg-primary/10"
+                          : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 ${active ? "text-primary" : "text-gray-400"}`} />
+                      <p className={`text-sm font-bold ${active ? "text-primary" : "text-gray-800 dark:text-gray-200"}`}>{title}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">{desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
@@ -666,27 +719,14 @@ export default function NewProductPage() {
               </div>
             </div>
 
-            {/* Digital toggle + file upload */}
-            <div className="pt-2 border-t border-gray-100 dark:border-gray-700 space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div
-                  onClick={() => setMedia("is_digital", !mediaFields.is_digital)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${mediaFields.is_digital ? "bg-primary" : "bg-gray-200 dark:bg-gray-600"}`}
-                >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${mediaFields.is_digital ? "translate-x-5" : ""}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Also available as digital download</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Buyers who want instant access pay the digital price; physical copies ship normally</p>
-                </div>
-              </label>
-
-              {mediaFields.is_digital && (
-                <div className="space-y-4">
-                  {/* Digital price */}
+            {/* Digital file upload — shown for "digital" and "both" modes */}
+            {mediaFields.delivery_type !== "physical" && (
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                {/* Separate digital price — only for "both" mode */}
+                {mediaFields.delivery_type === "both" && (
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      Digital Price (₦) <span className="text-red-500">*</span>
+                      Digital Download Price (₦) <span className="text-gray-400 font-normal">optional</span>
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">₦</span>
@@ -695,17 +735,17 @@ export default function NewProductPage() {
                         min="1"
                         value={mediaFields.digital_price}
                         onChange={(e) => setMedia("digital_price", e.target.value)}
-                        placeholder="0"
-                        className="w-full pl-8 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        placeholder="Leave blank to use the same price as physical"
+                        className="w-full pl-8 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">Set a separate price for the downloadable version. Leave blank if same as physical price.</p>
                   </div>
+                )}
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Digital File <span className="text-red-500">*</span>
-                    </label>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Upload Digital File <span className="text-red-500">*</span>
+                  </label>
                   {digitalFile ? (
                     <div className="flex items-center gap-3 px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
                       <Upload className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
@@ -728,23 +768,22 @@ export default function NewProductPage() {
                       </button>
                     </div>
                   ) : (
-                    <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${digitalUploading ? "opacity-60 pointer-events-none" : "border-gray-200 dark:border-gray-600 hover:border-primary/50"}`}>
+                    <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-8 cursor-pointer transition-colors ${digitalUploading ? "opacity-60 pointer-events-none" : "border-gray-200 dark:border-gray-600 hover:border-primary/50 hover:bg-primary/5"}`}>
                       <input type="file" className="hidden" onChange={handleDigitalFileChange} accept=".pdf,.epub,.mobi,.mp3,.mp4,.ogg,.wav,.mkv,.zip" />
                       {digitalUploading ? (
-                        <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <span className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <Upload className="w-6 h-6 text-gray-400" />
+                        <Upload className="w-8 h-8 text-gray-400" />
                       )}
                       <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                        {digitalUploading ? "Uploading…" : "Click to upload file"}
+                        {digitalUploading ? "Uploading…" : "Click to upload your file"}
                       </p>
                       <p className="text-xs text-gray-400">PDF, EPUB, MOBI, MP3, MP4, ZIP — max 200 MB</p>
                     </label>
                   )}
-                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 

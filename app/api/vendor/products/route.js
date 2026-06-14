@@ -118,8 +118,10 @@ export async function POST(request) {
       // Books & Media fields
       media_author, media_isbn, media_publisher, media_publish_date,
       media_edition, media_pages, media_language, media_format, media_genre,
-      is_digital, digital_file_path, digital_price, digital_file_size,
+      is_digital, digital_only, digital_file_path, digital_price, digital_file_size,
     } = body;
+
+    const isDigitalOnly = !!digital_only;
 
     // Enforce digital product limit when creating a digital product
     if (is_digital) {
@@ -168,7 +170,7 @@ export async function POST(request) {
         description:        description?.trim() ?? null,
         price:              Number(price),
         sale_price:         sale_price ? Number(sale_price) : null,
-        stock:              Number(stock ?? 0),
+        stock:              isDigitalOnly ? 9999 : Number(stock ?? 0),
         category_id:        category_id || null,
         status:             "inactive",
         moderation_status:  "pending",
@@ -186,8 +188,10 @@ export async function POST(request) {
         media_format:       VALID_FORMATS.includes(media_format) ? media_format : null,
         media_genre:        Array.isArray(media_genre) && media_genre.length ? media_genre : null,
         is_digital:         !!is_digital,
+        digital_only:       isDigitalOnly,
         digital_file_path:  is_digital ? (digital_file_path || null) : null,
-        digital_price:      is_digital && digital_price ? Number(digital_price) : null,
+        // digital_only products price their download via the main price field; no separate digital_price
+        digital_price:      is_digital && !isDigitalOnly && digital_price ? Number(digital_price) : null,
         digital_file_size:  is_digital && digital_file_size ? Number(digital_file_size) : null,
         created_at:         new Date().toISOString(),
         updated_at:         new Date().toISOString(),

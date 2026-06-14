@@ -511,7 +511,7 @@ export default function VendorSubscriptionPage() {
       toast.success(res.message ?? "Subscription cancelled.");
       qc.invalidateQueries({ queryKey: ["vendor-subscription"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to cancel subscription. Please contact support."),
   });
 
   const handleUpgrade = async (tier, billingCycle) => {

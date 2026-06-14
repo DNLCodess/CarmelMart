@@ -52,7 +52,7 @@ export default function VendorWalletPage() {
       setShowWithdraw(false);
       setAmount("");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Withdrawal request failed. Please try again."),
   });
 
   const handleWithdraw = (e) => {

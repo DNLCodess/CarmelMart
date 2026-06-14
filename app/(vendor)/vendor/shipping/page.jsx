@@ -102,7 +102,7 @@ export default function VendorShippingPage() {
       toast.success("Shipping zone saved");
       qc.invalidateQueries({ queryKey: ["vendor-shipping"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to save shipping zone. Please try again."),
   });
 
   const deleteMutation = useMutation({
@@ -117,10 +117,10 @@ export default function VendorShippingPage() {
         return d;
       }),
     onSuccess: () => {
-      toast.success("Zone removed");
+      toast.success("Shipping zone removed");
       qc.invalidateQueries({ queryKey: ["vendor-shipping"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to remove shipping zone. Please try again."),
   });
 
   return (

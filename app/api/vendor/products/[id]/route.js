@@ -19,11 +19,12 @@ export async function GET(request, { params }) {
     const admin = createAdminClient();
     const { data: product, error } = await admin
       .from("products")
-      .select(`id, name, slug, description, price, sale_price, stock, images, status, attributes,
+      .select(`id, name, slug, description, price, sale_price, stock, images, status,
+        condition, moderation_status, moderation_reason, attributes,
         category_id, categories(id, name, slug, template),
         media_author, media_isbn, media_publisher, media_publish_date, media_edition,
         media_pages, media_language, media_format, media_genre,
-        is_digital, digital_price, digital_file_path, digital_file_size`)
+        is_digital, digital_only, digital_price, digital_file_path, digital_file_size`)
       .eq("id", id)
       .eq("vendor_id", user.id)
       .single();
@@ -43,25 +44,53 @@ export async function PATCH(request, { params }) {
     const body = await request.json();
     const admin = createAdminClient();
 
+    // Fetch current product to check approval status before validating the incoming status
+    const { data: existing } = await admin
+      .from("products")
+      .select("moderation_status, status")
+      .eq("id", id)
+      .eq("vendor_id", user.id)
+      .single();
 
-    // Vendors may only move products to draft/inactive — "active" requires admin approval.
+    const isAlreadyApproved = existing?.moderation_status === "approved";
+    const needsReReview     = ["rejected", "flagged"].includes(existing?.moderation_status);
+
+    // Already-approved products may stay "active" when edited — no re-review needed.
+    // Vendors can also demote to "draft" to hide the product temporarily.
     const VENDOR_ALLOWED_STATUSES = ["draft", "inactive"];
     if (body.status !== undefined && !VENDOR_ALLOWED_STATUSES.includes(body.status)) {
-      return NextResponse.json({ error: "Vendors cannot set product status to 'active'. Submit for admin review." }, { status: 403 });
+      if (!(body.status === "active" && isAlreadyApproved)) {
+        return NextResponse.json(
+          { error: "Products must be submitted for admin review before going live." },
+          { status: 403 }
+        );
+      }
     }
+
+    const isDigital     = body.is_digital ?? false;
+    const isDigitalOnly = body.digital_only ?? false;
 
     const update = {
       name:        body.name,
       description: body.description,
       price:       body.price,
       sale_price:  body.sale_price ?? null,
-      stock:       body.stock,
+      // Digital-only products have unlimited stock — managed automatically
+      stock:       isDigitalOnly ? 9999 : body.stock,
       category_id: body.category_id,
       images:      body.images ?? [],
       attributes:  body.attributes && typeof body.attributes === "object" ? body.attributes : {},
       updated_at:  new Date().toISOString(),
     };
     if (body.status !== undefined) update.status = body.status;
+
+    // If the vendor is re-saving a rejected or flagged product, move it back into the
+    // review queue automatically so the admin sees it again.
+    if (needsReReview) {
+      update.moderation_status = "pending";
+      update.moderation_reason = null;
+      update.status            = "inactive"; // override any status sent by the client
+    }
 
     // Books & Media fields — only written when the caller sends them
     if (body.is_media_category) {
@@ -75,10 +104,11 @@ export async function PATCH(request, { params }) {
         media_language:     body.media_language ?? "English",
         media_format:       body.media_format ?? null,
         media_genre:        body.media_genre ?? null,
-        is_digital:         body.is_digital ?? false,
-        digital_price:      body.is_digital && body.digital_price ? Number(body.digital_price) : null,
-        digital_file_path:  body.is_digital ? (body.digital_file_path ?? null) : null,
-        digital_file_size:  body.is_digital ? (body.digital_file_size ?? null) : null,
+        is_digital:         isDigital,
+        digital_only:       isDigitalOnly,
+        digital_price:      isDigital && !isDigitalOnly && body.digital_price ? Number(body.digital_price) : null,
+        digital_file_path:  isDigital ? (body.digital_file_path ?? null) : null,
+        digital_file_size:  isDigital ? (body.digital_file_size ?? null) : null,
       });
     }
 

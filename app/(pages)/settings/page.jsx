@@ -103,7 +103,7 @@ function ProfileTab({ user }) {
                 toast.success("Photo updated");
                 qc.invalidateQueries({ queryKey: ["auth-user"] });
               } catch (err) {
-                toast.error(err.message);
+                toast.error(err.message || "Failed to update photo. Please try again.");
               } finally {
                 setAvatarUploading(false);
               }

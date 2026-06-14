@@ -67,7 +67,7 @@ export default function SingleImageUpload({
       URL.revokeObjectURL(localUrl);
       setPreview(value); // revert to original
       setStatus("error");
-      toast.error(err.message);
+      toast.error(err.message || "Image upload failed. Please try again.");
     }
   };
 

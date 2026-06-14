@@ -118,7 +118,7 @@ function RiderReviewForm({ orderId, onSubmitted }) {
       toast.success("Thank you for your review!");
       onSubmitted();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to submit review. Please try again."),
   });
 
   const BoolButton = ({ value, current, onSelect, label }) => (
@@ -294,7 +294,7 @@ export default function OrderDetailPage() {
       qc.invalidateQueries({ queryKey: ["customer-order", id] });
       qc.invalidateQueries({ queryKey: ["my-orders"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Could not confirm receipt. Please try again."),
   });
 
   // ── Cancel order mutation ────────────────────────────────────────────────────
@@ -319,7 +319,7 @@ export default function OrderDetailPage() {
       qc.invalidateQueries({ queryKey: ["customer-order", id] });
       qc.invalidateQueries({ queryKey: ["my-orders"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Could not cancel order. Please try again or contact support."),
   });
 
   const copyOrderId = () => {

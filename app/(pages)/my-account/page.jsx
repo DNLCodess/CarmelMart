@@ -71,7 +71,7 @@ function ProfileTab({ profile }) {
       toast.success("Profile updated");
       qc.invalidateQueries({ queryKey: ["customer-profile"] });
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to update profile. Please try again."),
   });
 
   return (
@@ -110,7 +110,7 @@ function ProfileTab({ profile }) {
                   toast.success("Photo updated");
                   qc.invalidateQueries({ queryKey: ["customer-profile"] });
                 } catch (err) {
-                  toast.error(err.message);
+                  toast.error(err.message || "Failed to update photo. Please try again.");
                 } finally {
                   setAvatarUploading(false);
                 }
@@ -325,7 +325,7 @@ function AddressesTab({ profile }) {
       setShowForm(false);
       reset();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.message || "Failed to save address. Please try again."),
   });
 
   const handleAdd = (data) => {
