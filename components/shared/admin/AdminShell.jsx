@@ -31,6 +31,7 @@ import {
   Image,
   Flag,
   Mail,
+  Inbox,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { logoutAction } from "@/app/actions/auth";
@@ -55,6 +56,7 @@ const NAV_ITEMS = [
   { href: "/admin/fraud-flags", label: "Fraud Flags", icon: Flag },
   { href: "/admin/hero-banners", label: "Hero Banners", icon: Image },
   { href: "/admin/bulk-mail", label: "Bulk Mail", icon: Mail },
+  { href: "/admin/support", label: "Support Inbox", icon: Inbox },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/kyc", label: "KYC Reviews", icon: Shield },
   { href: "/admin/settings", label: "Settings", icon: Settings },
