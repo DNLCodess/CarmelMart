@@ -64,7 +64,7 @@ export default function AdminFinancialsPage() {
               key={value}
               onClick={() => setRange(value)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                range === value ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                range === value ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
               }`}
             >
               {label}
@@ -130,38 +130,62 @@ export default function AdminFinancialsPage() {
         ) : txns.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-gray-400 dark:text-gray-500">No transactions in this period</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">User</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Description</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">Reference</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {txns.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
-                    <td className="px-5 py-3">
-                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate max-w-[140px]">{t.userEmail}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">{t.userRole}</p>
-                    </td>
-                    <td className="px-5 py-3 text-xs text-gray-600 dark:text-gray-400 max-w-[200px] truncate">{t.description}</td>
-                    <td className="px-5 py-3 font-mono text-xs text-gray-400 dark:text-gray-500 hidden sm:table-cell">{t.reference ?? "—"}</td>
-                    <td className="px-5 py-3 text-right font-semibold">
-                      <span className={`flex items-center justify-end gap-0.5 text-sm ${t.type === "credit" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                        {t.type === "credit" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                        ₦{t.amount.toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right text-xs text-gray-400 dark:text-gray-500 hidden md:table-cell">{t.date}</td>
+          <>
+            {/* Mobile card list */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {txns.map((t) => (
+                <div key={t.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{t.userEmail}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate capitalize">{t.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <span className={`flex items-center gap-0.5 text-sm font-bold ${t.type === "credit" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                      {t.type === "credit" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                      ₦{t.amount.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{t.date}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">User</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Description</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reference</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {txns.map((t) => (
+                    <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
+                      <td className="px-5 py-3">
+                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate max-w-[140px]">{t.userEmail}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">{t.userRole}</p>
+                      </td>
+                      <td className="px-5 py-3 text-xs text-gray-600 dark:text-gray-400 max-w-[200px] truncate">{t.description}</td>
+                      <td className="px-5 py-3 font-mono text-xs text-gray-400 dark:text-gray-500">{t.reference ?? "—"}</td>
+                      <td className="px-5 py-3 text-right font-semibold">
+                        <span className={`flex items-center justify-end gap-0.5 text-sm ${t.type === "credit" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                          {t.type === "credit" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                          ₦{t.amount.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right text-xs text-gray-400 dark:text-gray-500">{t.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

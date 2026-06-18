@@ -212,55 +212,52 @@ export default function AdminUsersPage() {
           </div>
         ) : (
           <>
-            {/* ── Mobile card list (< md) ───────────────────────────────────── */}
-            <div className="block md:hidden divide-y divide-gray-50 dark:divide-gray-700">
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
               {users.map((u) => (
-                <div key={u.id} className="p-4 space-y-3">
-                  {/* Row 1: avatar + email + role badge */}
+                <div key={u.id} className="p-4">
+                  {/* Top: avatar + email + role badge */}
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
                       <span className="text-xs font-bold text-gray-500 dark:text-gray-400">{(u.email?.[0] ?? "?").toUpperCase()}</span>
                     </div>
-                    <Link
-                      href={`/admin/users/${u.id}`}
-                      className="flex-1 min-w-0 text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-primary transition-colors truncate"
-                    >
-                      {u.email}
-                    </Link>
-                    <RoleBadge role={u.role} />
-                  </div>
-
-                  {/* Row 2: phone + wallet balance */}
-                  <div className="flex items-center justify-between gap-2">
-                    {u.phone ? (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{u.phone}</p>
-                    ) : (
-                      <span />
-                    )}
-                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">₦{(u.wallet_balance || 0).toLocaleString()}</p>
-                  </div>
-
-                  {/* Row 3: status badge + actions menu */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <StatusBadge status={u.status} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <Link
+                          href={`/admin/users/${u.id}`}
+                          className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate hover:underline"
+                        >
+                          {u.email}
+                        </Link>
+                        <RoleBadge role={u.role} />
+                      </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                        {u.phone ?? "No phone"} · {new Date(u.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
                     </div>
-                    <ActionsMenu user={u} onAction={handleAction}  />
+                  </div>
+                  {/* Bottom: status + wallet + actions */}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={u.status} />
+                      <p className="text-xs text-gray-500 dark:text-gray-400">₦{(u.wallet_balance || 0).toLocaleString()}</p>
+                    </div>
+                    <ActionsMenu user={u} onAction={handleAction} />
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* ── Desktop table (md+) ──────────────────────────────────────── */}
-          <div className="hidden md:block overflow-x-auto">
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">User</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Phone</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Phone</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Role</th>
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Wallet</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Joined</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Joined</th>
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
@@ -273,7 +270,7 @@ export default function AdminUsersPage() {
                           <span className="text-xs font-bold text-gray-500 dark:text-gray-400">{(u.email?.[0] ?? "?").toUpperCase()}</span>
                         </div>
                         <div>
-                          <Link href={`/admin/users/${u.id}`} className="font-medium text-gray-900 dark:text-gray-100 hover:text-primary transition-colors">
+                          <Link href={`/admin/users/${u.id}`} className="font-medium text-gray-900 dark:text-gray-100 hover:underline">
                             {u.email}
                           </Link>
                           <div className="flex items-center gap-1.5 mt-0.5">
@@ -283,14 +280,14 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-gray-600 dark:text-gray-400 hidden md:table-cell">{u.phone ?? "—"}</td>
+                    <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{u.phone ?? "—"}</td>
                     <td className="px-5 py-4"><RoleBadge role={u.role} /></td>
                     <td className="px-5 py-4 text-right font-semibold text-gray-900 dark:text-gray-100">₦{(u.wallet_balance || 0).toLocaleString()}</td>
-                    <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400 hidden lg:table-cell">
+                    <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400">
                       {new Date(u.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <ActionsMenu user={u} onAction={handleAction}  />
+                      <ActionsMenu user={u} onAction={handleAction} />
                     </td>
                   </tr>
                 ))}

@@ -296,63 +296,114 @@ function CategoryProducts({ categoryId, onDelete }) {
   }
 
   return (
-    <table className="w-full text-sm">
-      <thead className="border-b border-gray-100 dark:border-gray-700">
-        <tr>
-          <th className="pl-14 pr-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Product</th>
-          <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide hidden md:table-cell">Vendor</th>
-          <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Price</th>
-          <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide hidden sm:table-cell">Status</th>
-          <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Actions</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+    <>
+      {/* Mobile product cards (indented) */}
+      <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
         {products.map((p) => (
-          <tr key={p.id} className="hover:bg-white dark:hover:bg-gray-800/60 transition-colors">
-            <td className="pl-14 pr-5 py-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
-                  {p.image ? (
-                    <Image src={p.image} alt={p.name} fill className="object-cover" sizes="36px" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-                    </div>
-                  )}
+          <div key={p.id} className="pl-10 pr-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
+                {p.image ? (
+                  <Image src={p.image} alt={p.name} fill className="object-cover" sizes="32px" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Package className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm line-clamp-1">{p.name}</p>
+                  <ModBadge status={p.moderationStatus} />
                 </div>
-                <span className="font-medium text-gray-800 dark:text-gray-200 line-clamp-1 max-w-[180px]">{p.name}</span>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  {p.vendorName && <span>{p.vendorName} · </span>}
+                  {p.salePrice
+                    ? <span>₦{p.salePrice.toLocaleString()} <span className="line-through">₦{p.price.toLocaleString()}</span></span>
+                    : <span>₦{(p.price || 0).toLocaleString()}</span>}
+                </p>
               </div>
-            </td>
-            <td className="px-5 py-3 hidden md:table-cell text-xs text-gray-500 dark:text-gray-400">{p.vendorName}</td>
-            <td className="px-5 py-3 text-right text-xs font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-              {p.salePrice ? (
-                <span>₦{p.salePrice.toLocaleString()}<span className="line-through text-gray-400 ml-1">₦{p.price.toLocaleString()}</span></span>
-              ) : (
-                `₦${(p.price || 0).toLocaleString()}`
-              )}
-            </td>
-            <td className="px-5 py-3 hidden sm:table-cell"><ModBadge status={p.moderationStatus} /></td>
-            <td className="px-5 py-3 text-right">
-              <div className="flex items-center justify-end gap-0.5">
-                <Link href={`/admin/products?search=${encodeURIComponent(p.name)}`} title="Edit / moderate on products page" className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                  <Pencil className="w-3.5 h-3.5" />
-                </Link>
-                <Link href={`/product/${p.id}`} target="_blank" title="View on storefront" className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
-                <button
-                  onClick={() => onDelete({ id: p.id, name: p.name, categoryId })}
-                  title="Delete product"
-                  className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </td>
-          </tr>
+            </div>
+            <div className="flex items-center justify-end mt-2 gap-0.5">
+              <Link href={`/admin/products?search=${encodeURIComponent(p.name)}`} title="Edit / moderate on products page" className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                <Pencil className="w-3.5 h-3.5" />
+              </Link>
+              <Link href={`/product/${p.id}`} target="_blank" title="View on storefront" className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                onClick={() => onDelete({ id: p.id, name: p.name, categoryId })}
+                title="Delete product"
+                className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
         ))}
-      </tbody>
-    </table>
+      </div>
+
+      {/* Desktop product table */}
+      <div className="hidden lg:block">
+        <table className="w-full text-sm">
+          <thead className="border-b border-gray-100 dark:border-gray-700">
+            <tr>
+              <th className="pl-14 pr-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Product</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Vendor</th>
+              <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Price</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Status</th>
+              <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+            {products.map((p) => (
+              <tr key={p.id} className="hover:bg-white dark:hover:bg-gray-800/60 transition-colors">
+                <td className="pl-14 pr-5 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
+                      {p.image ? (
+                        <Image src={p.image} alt={p.name} fill className="object-cover" sizes="36px" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="font-medium text-gray-800 dark:text-gray-200 line-clamp-1 max-w-[180px]">{p.name}</span>
+                  </div>
+                </td>
+                <td className="px-5 py-3 text-xs text-gray-500 dark:text-gray-400">{p.vendorName}</td>
+                <td className="px-5 py-3 text-right text-xs font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                  {p.salePrice ? (
+                    <span>₦{p.salePrice.toLocaleString()}<span className="line-through text-gray-400 ml-1">₦{p.price.toLocaleString()}</span></span>
+                  ) : (
+                    `₦${(p.price || 0).toLocaleString()}`
+                  )}
+                </td>
+                <td className="px-5 py-3"><ModBadge status={p.moderationStatus} /></td>
+                <td className="px-5 py-3 text-right">
+                  <div className="flex items-center justify-end gap-0.5">
+                    <Link href={`/admin/products?search=${encodeURIComponent(p.name)}`} title="Edit / moderate on products page" className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Link>
+                    <Link href={`/product/${p.id}`} target="_blank" title="View on storefront" className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+                    <button
+                      onClick={() => onDelete({ id: p.id, name: p.name, categoryId })}
+                      title="Delete product"
+                      className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -572,87 +623,245 @@ export default function AdminCategoriesPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Category</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">Slug</th>
-                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Products</th>
-                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {parents.map((parent) => {
-                  const subs       = subsByParent[parent.id] ?? [];
-                  const isExpanded = expandedId === parent.id;
+          <>
+            {/* Mobile card list */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {parents.map((parent) => {
+                const subs       = subsByParent[parent.id] ?? [];
+                const isExpanded = expandedId === parent.id;
 
-                  return (
-                    <Fragment key={parent.id}>
-                      {/* Parent row */}
-                      <CategoryRow
-                        c={parent}
-                        isExpanded={isExpanded}
-                        depth={0}
-                        onToggle={toggleExpand}
-                        onEdit={(c) => openModal({ category: c })}
-                        onDelete={setDelCat}
-                        onAddSub={(c) => openModal({ defaultParentId: c.id })}
-                      />
+                return (
+                  <Fragment key={parent.id}>
+                    {/* Parent card */}
+                    <div className="p-4">
+                      <div className="flex items-center gap-3">
+                        {parent.image ? (
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
+                            <Image src={parent.image} alt={parent.name} fill className="object-cover" sizes="40px" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                            <Folder className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{parent.name}</p>
+                          </div>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Added {parent.createdAt}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleExpand(parent.id)}
+                            disabled={parent.productCount === 0}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                              isExpanded
+                                ? "bg-primary/10 text-primary dark:text-white dark:bg-primary/20"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                            } ${parent.productCount === 0 ? "opacity-50 cursor-default pointer-events-none" : "cursor-pointer"}`}
+                          >
+                            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                            {parent.productCount} products
+                          </button>
+                          {subs.length > 0 && (
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{subs.length} sub{subs.length !== 1 ? "s" : ""}</span>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => openModal({ defaultParentId: parent.id })}
+                            title="Add subcategory"
+                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => openModal({ category: parent })}
+                            title="Edit"
+                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDelCat(parent)}
+                            title="Delete"
+                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
 
-                      {/* Expanded product rows for parent */}
+                      {/* Expanded products on mobile */}
                       {isExpanded && (
-                        <tr className="bg-gray-50/50 dark:bg-gray-900/20">
-                          <td colSpan={4} className="p-0">
-                            <CategoryProducts categoryId={parent.id} onDelete={setDelProduct} />
-                          </td>
-                        </tr>
+                        <div className="mt-3 bg-gray-50 dark:bg-gray-900/20 rounded-xl overflow-hidden">
+                          <CategoryProducts categoryId={parent.id} onDelete={setDelProduct} />
+                        </div>
                       )}
 
-                      {/* Subcategory rows */}
+                      {/* Subcategory cards */}
                       {subs.map((sub) => {
                         const isSubExpanded = expandedId === sub.id;
                         return (
                           <Fragment key={sub.id}>
-                            <CategoryRow
-                              c={sub}
-                              isExpanded={isSubExpanded}
-                              depth={1}
-                              onToggle={toggleExpand}
-                              onEdit={(c) => openModal({ category: c })}
-                              onDelete={setDelCat}
-                              onAddSub={() => {}}
-                            />
-                            {isSubExpanded && (
-                              <tr className="bg-gray-50/50 dark:bg-gray-900/20">
-                                <td colSpan={4} className="p-0">
+                            <div className="mt-3 ml-4 pl-3 border-l-2 border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center gap-2.5">
+                                {sub.image ? (
+                                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
+                                    <Image src={sub.image} alt={sub.name} fill className="object-cover" sizes="32px" />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                                    <Tag className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-xs">{sub.name}</p>
+                                  <p className="text-xs text-gray-400 dark:text-gray-500">Subcategory</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between mt-2">
+                                <button
+                                  onClick={() => toggleExpand(sub.id)}
+                                  disabled={sub.productCount === 0}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold transition-colors ${
+                                    isSubExpanded
+                                      ? "bg-primary/10 text-primary dark:text-white dark:bg-primary/20"
+                                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                                  } ${sub.productCount === 0 ? "opacity-50 cursor-default pointer-events-none" : "cursor-pointer"}`}
+                                >
+                                  {isSubExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                  {sub.productCount}
+                                </button>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => openModal({ category: sub })}
+                                    title="Edit"
+                                    className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setDelCat(sub)}
+                                    title="Delete"
+                                    className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                              {isSubExpanded && (
+                                <div className="mt-2 bg-gray-50 dark:bg-gray-900/20 rounded-xl overflow-hidden">
                                   <CategoryProducts categoryId={sub.id} onDelete={setDelProduct} />
-                                </td>
-                              </tr>
-                            )}
+                                </div>
+                              )}
+                            </div>
                           </Fragment>
                         );
                       })}
 
-                      {/* "Add subcategory" hint row when parent has no subs */}
+                      {/* Add subcategory hint on mobile */}
                       {subs.length === 0 && (
-                        <tr className="bg-gray-50/20 dark:bg-gray-900/5">
-                          <td colSpan={4} className="pl-16 pr-5 py-2.5">
-                            <button
-                              onClick={() => openModal({ defaultParentId: parent.id })}
-                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors"
-                            >
-                              <Plus className="w-3.5 h-3.5" /> Add subcategory
-                            </button>
-                          </td>
-                        </tr>
+                        <div className="mt-2 ml-4 pl-3 border-l-2 border-gray-100 dark:border-gray-700">
+                          <button
+                            onClick={() => openModal({ defaultParentId: parent.id })}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:underline transition-colors py-1"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add subcategory
+                          </button>
+                        </div>
                       )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </Fragment>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Category</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Slug</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Products</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {parents.map((parent) => {
+                    const subs       = subsByParent[parent.id] ?? [];
+                    const isExpanded = expandedId === parent.id;
+
+                    return (
+                      <Fragment key={parent.id}>
+                        {/* Parent row */}
+                        <CategoryRow
+                          c={parent}
+                          isExpanded={isExpanded}
+                          depth={0}
+                          onToggle={toggleExpand}
+                          onEdit={(c) => openModal({ category: c })}
+                          onDelete={setDelCat}
+                          onAddSub={(c) => openModal({ defaultParentId: c.id })}
+                        />
+
+                        {/* Expanded product rows for parent */}
+                        {isExpanded && (
+                          <tr className="bg-gray-50/50 dark:bg-gray-900/20">
+                            <td colSpan={4} className="p-0">
+                              <CategoryProducts categoryId={parent.id} onDelete={setDelProduct} />
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* Subcategory rows */}
+                        {subs.map((sub) => {
+                          const isSubExpanded = expandedId === sub.id;
+                          return (
+                            <Fragment key={sub.id}>
+                              <CategoryRow
+                                c={sub}
+                                isExpanded={isSubExpanded}
+                                depth={1}
+                                onToggle={toggleExpand}
+                                onEdit={(c) => openModal({ category: c })}
+                                onDelete={setDelCat}
+                                onAddSub={() => {}}
+                              />
+                              {isSubExpanded && (
+                                <tr className="bg-gray-50/50 dark:bg-gray-900/20">
+                                  <td colSpan={4} className="p-0">
+                                    <CategoryProducts categoryId={sub.id} onDelete={setDelProduct} />
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+
+                        {/* "Add subcategory" hint row when parent has no subs */}
+                        {subs.length === 0 && (
+                          <tr className="bg-gray-50/20 dark:bg-gray-900/5">
+                            <td colSpan={4} className="pl-16 pr-5 py-2.5">
+                              <button
+                                onClick={() => openModal({ defaultParentId: parent.id })}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:underline transition-colors"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> Add subcategory
+                              </button>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

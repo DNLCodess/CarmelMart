@@ -116,6 +116,116 @@ const MOD_TABS = [
   { value: "featured", label: "Featured" },
 ];
 
+function ActionButtons({ p, onAction, onDelete, isPending }) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onAction(p.id, p.featured ? "unfeature" : "feature")}
+        disabled={isPending}
+        title={p.featured ? "Remove from featured" : "Feature on homepage"}
+        className={`p-2 rounded-lg transition-colors ${p.featured ? "text-amber-500 bg-amber-50 dark:bg-amber-900/20" : "text-gray-400 dark:text-gray-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20"}`}
+      >
+        <Star className={`w-4 h-4 ${p.featured ? "fill-amber-400" : ""}`} />
+      </button>
+      {p.moderationStatus !== "approved" && (
+        <button
+          onClick={() => onAction(p.id, "approve")}
+          disabled={isPending}
+          title="Approve"
+          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+        >
+          <CheckCircle className="w-4 h-4" />
+        </button>
+      )}
+      {p.moderationStatus !== "rejected" && (
+        <button
+          onClick={() => onAction(p.id, "reject")}
+          disabled={isPending}
+          title="Reject"
+          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        >
+          <XCircle className="w-4 h-4" />
+        </button>
+      )}
+      {p.moderationStatus !== "flagged" ? (
+        <button
+          onClick={() => onAction(p.id, "flag")}
+          disabled={isPending}
+          title="Flag for review"
+          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+        >
+          <Flag className="w-4 h-4" />
+        </button>
+      ) : (
+        <button
+          onClick={() => onAction(p.id, "unflag")}
+          disabled={isPending}
+          title="Remove flag"
+          className="p-2 rounded-lg text-orange-500 hover:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <Flag className="w-4 h-4" />
+        </button>
+      )}
+      <button
+        onClick={() => onDelete({ id: p.id, name: p.name })}
+        title="Delete product"
+        className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+function ProductCard({ p, onAction, onDelete, isPending }) {
+  return (
+    <div className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+      <div className="flex gap-3">
+        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
+          {p.image ? (
+            <Image src={p.image} alt={p.name} fill className="object-cover" sizes="64px" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageIcon className="w-5 h-5 text-gray-300 dark:text-gray-600" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2 mb-0.5">
+            <Link
+              href={`/product/${p.id}`}
+              target="_blank"
+              className="font-semibold text-gray-900 dark:text-gray-100 text-sm line-clamp-1 hover:underline"
+            >
+              {p.name}
+            </Link>
+            <ModBadge status={p.moderationStatus} />
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500">{p.category} · Added {p.createdAt}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{p.vendorName}</p>
+          {p.moderationReason && (
+            <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">Reason: {p.moderationReason}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+        <div>
+          <span className="font-bold text-gray-900 dark:text-gray-100 text-sm">
+            ₦{(p.salePrice ?? p.price ?? 0).toLocaleString()}
+          </span>
+          {p.salePrice && (
+            <span className="text-xs line-through text-gray-400 dark:text-gray-500 ml-1.5">
+              ₦{p.price.toLocaleString()}
+            </span>
+          )}
+        </div>
+        <ActionButtons p={p} onAction={onAction} onDelete={onDelete} isPending={isPending} />
+      </div>
+    </div>
+  );
+}
+
 export default function AdminProductsPage() {
   const qc = useQueryClient();
   const urlParams = useSearchParams();
@@ -212,13 +322,15 @@ export default function AdminProductsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl w-fit flex-wrap">
+      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit flex-wrap">
         {MOD_TABS.map(({ value, label }) => (
           <button
             key={label}
             onClick={() => { setModFilter(value); setPage(1); }}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              modFilter === value ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              modFilter === value
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             }`}
           >
             {label}
@@ -226,7 +338,7 @@ export default function AdminProductsPage() {
         ))}
       </div>
 
-      {/* Table */}
+      {/* Product list */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center">
@@ -239,136 +351,104 @@ export default function AdminProductsPage() {
             <p className="font-semibold text-gray-500 dark:text-gray-400">No products found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Product</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Vendor</th>
-                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Price</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
-                          {p.image ? (
-                            <Image src={p.image} alt={p.name} fill className="object-cover" sizes="48px" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <ImageIcon className="w-5 h-5 text-gray-300 dark:text-gray-600" />
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <Link
-                            href={`/product/${p.id}`}
-                            target="_blank"
-                            className="font-semibold text-gray-900 dark:text-gray-100 hover:text-primary transition-colors line-clamp-1"
-                          >
-                            {p.name}
-                          </Link>
-                          <p className="text-xs text-gray-400 dark:text-gray-500">{p.category} · Added {p.createdAt}</p>
-                          {p.moderationReason && (
-                            <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">Reason: {p.moderationReason}</p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 hidden md:table-cell">
-                      <p className="text-sm text-gray-700 dark:text-gray-300">{p.vendorName}</p>
-                    </td>
-                    <td className="px-5 py-4 text-right font-semibold text-gray-900 dark:text-gray-100">
-                      {p.salePrice ? (
-                        <div>
-                          <p>₦{p.salePrice.toLocaleString()}</p>
-                          <p className="text-xs line-through text-gray-400">₦{p.price.toLocaleString()}</p>
-                        </div>
-                      ) : (
-                        `₦${(p.price || 0).toLocaleString()}`
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
-                      <ModBadge status={p.moderationStatus} />
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* Feature / Unfeature */}
-                        <button
-                          onClick={() => handleAction(p.id, p.featured ? "unfeature" : "feature")}
-                          disabled={mutation.isPending}
-                          title={p.featured ? "Remove from featured" : "Feature on homepage"}
-                          className={`p-2 rounded-lg transition-colors ${p.featured ? "text-amber-500 hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700" : "text-gray-400 dark:text-gray-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20"}`}
-                        >
-                          <Star className={`w-4 h-4 ${p.featured ? "fill-amber-400" : ""}`} />
-                        </button>
-                        {p.moderationStatus !== "approved" && (
-                          <button
-                            onClick={() => handleAction(p.id, "approve")}
-                            disabled={mutation.isPending}
-                            title="Approve"
-                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                        {p.moderationStatus !== "rejected" && (
-                          <button
-                            onClick={() => handleAction(p.id, "reject")}
-                            disabled={mutation.isPending}
-                            title="Reject"
-                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                        {p.moderationStatus !== "flagged" ? (
-                          <button
-                            onClick={() => handleAction(p.id, "flag")}
-                            disabled={mutation.isPending}
-                            title="Flag for review"
-                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
-                          >
-                            <Flag className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleAction(p.id, "unflag")}
-                            disabled={mutation.isPending}
-                            title="Remove flag"
-                            className="p-2 rounded-lg text-orange-500 hover:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            <Flag className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setDelProduct({ id: p.id, name: p.name })}
-                          title="Delete product"
-                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+          <>
+            {/* Mobile card list — hidden on lg+ */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {products.map((p) => (
+                <ProductCard
+                  key={p.id}
+                  p={p}
+                  onAction={handleAction}
+                  onDelete={setDelProduct}
+                  isPending={mutation.isPending}
+                />
+              ))}
+            </div>
+
+            {/* Desktop table — hidden below lg */}
+            <div className="hidden lg:block">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Product</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Vendor</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Price</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {products.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
+                            {p.image ? (
+                              <Image src={p.image} alt={p.name} fill className="object-cover" sizes="48px" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <ImageIcon className="w-5 h-5 text-gray-300 dark:text-gray-600" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <Link
+                              href={`/product/${p.id}`}
+                              target="_blank"
+                              className="font-semibold text-gray-900 dark:text-gray-100 hover:underline line-clamp-1"
+                            >
+                              {p.name}
+                            </Link>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">{p.category} · Added {p.createdAt}</p>
+                            {p.moderationReason && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">Reason: {p.moderationReason}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-sm text-gray-700 dark:text-gray-300">{p.vendorName}</p>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">
+                          ₦{(p.salePrice ?? p.price ?? 0).toLocaleString()}
+                        </span>
+                        {p.salePrice && (
+                          <p className="text-xs line-through text-gray-400 dark:text-gray-500">₦{p.price.toLocaleString()}</p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <ModBadge status={p.moderationStatus} />
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <ActionButtons p={p} onAction={handleAction} onDelete={setDelProduct} isPending={mutation.isPending} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {pages > 1 && (
           <div className="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 dark:border-gray-700">
             <p className="text-xs text-gray-500 dark:text-gray-400">Page {page} of {pages}</p>
-            <div className="flex gap-1">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">Prev</button>
-              <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages}
-                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">Next</button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+              >
+                Prev
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                disabled={page === pages}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+              >
+                Next
+              </button>
             </div>
           </div>
         )}

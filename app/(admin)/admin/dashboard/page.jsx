@@ -16,6 +16,12 @@ async function fetchStats() {
   return r.json();
 }
 
+function fmtNaira(n) {
+  if (n >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `₦${(n / 1_000).toFixed(1)}k`;
+  return `₦${(n || 0).toLocaleString()}`;
+}
+
 const ORDER_PIE_FALLBACK = [
   { name: "Delivered", value: 58, color: "#10b981" },
   { name: "Pending",   value: 21, color: "#f59e0b" },
@@ -35,26 +41,43 @@ const STATUS_COLOR = {
 
 function StatCard({ label, value, sub, icon: Icon, color, trend, trendValue, alert, href }) {
   const card = (
-    <div className={`bg-white dark:bg-gray-800 rounded-2xl border p-5 flex items-start gap-4 transition-shadow hover:shadow-md ${alert ? "border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-900/10" : "border-gray-100 dark:border-gray-700"}`}>
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5 leading-none">{value}</p>
-        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-          {trendValue && (
-            <span className={`inline-flex items-center gap-0.5 text-xs font-bold ${trend === "up" ? "text-green-600" : "text-red-500"}`}>
-              {trend === "up" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-              {trendValue}
-            </span>
-          )}
-          {sub && <span className="text-xs text-gray-400 dark:text-gray-500">{sub}</span>}
+    <div className={`group relative bg-white dark:bg-gray-800 rounded-2xl border p-5 transition-all duration-200 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/30 hover:-translate-y-0.5 ${
+      alert
+        ? "border-amber-200 dark:border-amber-700/60"
+        : "border-gray-100 dark:border-gray-700/60"
+    }`}>
+      {/* Top row: icon + trend/alert */}
+      <div className="flex items-start justify-between mb-5">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${color}`}>
+          <Icon className="w-[22px] h-[22px] text-white" />
         </div>
+
+        {trendValue ? (
+          <span className={`inline-flex items-center gap-0.5 text-xs font-bold px-2.5 py-1 rounded-xl ${
+            trend === "up"
+              ? "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+              : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+          }`}>
+            {trend === "up" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+            {trendValue}
+          </span>
+        ) : alert ? (
+          <span className="relative flex h-2.5 w-2.5 mt-1">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
+          </span>
+        ) : null}
       </div>
+
+      {/* Label + value + sub */}
+      <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">{label}</p>
+      <p className="text-[1.875rem] font-black text-gray-900 dark:text-gray-50 leading-none tracking-tight">{value}</p>
+      {sub && (
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2.5">{sub}</p>
+      )}
     </div>
   );
-  return href ? <Link href={href}>{card}</Link> : card;
+  return href ? <Link href={href} className="block">{card}</Link> : card;
 }
 
 export default function AdminDashboardPage() {
@@ -76,15 +99,15 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Primary KPIs */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="GMV (30d)"       value={`₦${((s.gmv || 0) / 1000000).toFixed(1)}M`}          icon={DollarSign}   color="bg-primary"     trend="up"  trendValue="+18.2%"                     sub="gross revenue"      />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Sales (30d)" value={fmtNaira(s.gmv || 0)}                                   icon={DollarSign}   color="bg-primary"                                                     sub="from paid orders"   />
         <StatCard label="Total Users"     value={(s.total_users || 0).toLocaleString()}                  icon={Users}        color="bg-blue-500"    trend="up"  trendValue={`+${s.new_users_30d || 0}`} sub="new this month"     href="/admin/users"  />
         <StatCard label="Active Vendors"  value={(s.vendors || 0).toLocaleString()}                      icon={Store}        color="bg-violet-500"  sub={`${s.pending_kyc || 0} pending KYC`}  alert={(s.pending_kyc || 0) > 0}  href="/admin/kyc"    />
         <StatCard label="Total Orders"    value={(s.orders || 0).toLocaleString()}                       icon={ShoppingCart} color="bg-emerald-500" sub={`${s.pending_orders || 0} pending`}    href="/admin/orders" />
       </div>
 
       {/* Secondary KPIs */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Live Products"  value={(s.products || 0).toLocaleString()}      icon={Package}      color="bg-orange-500" />
         <StatCard label="Pending KYC"   value={(s.pending_kyc || 0).toLocaleString()}    icon={Shield}       color="bg-amber-500"  alert={(s.pending_kyc || 0) > 0}  href="/admin/kyc"    />
         <StatCard label="Open Disputes" value={(s.open_disputes || 0).toLocaleString()}  icon={AlertCircle}  color="bg-red-500"    alert={(s.open_disputes || 0) > 0} />
@@ -126,8 +149,8 @@ export default function AdminDashboardPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${(v / 1000000).toFixed(1)}M`} />
-                <Tooltip formatter={(v) => [`₦${v.toLocaleString()}`, "Revenue"]} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} tickFormatter={fmtNaira} />
+                <Tooltip formatter={(v) => [fmtNaira(v), "Revenue"]} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
                 <Area type="monotone" dataKey="revenue" stroke="#560238" strokeWidth={2.5} fill="url(#adminRevGrad)" />
               </AreaChart>
             </ResponsiveContainer>

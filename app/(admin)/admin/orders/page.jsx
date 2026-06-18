@@ -267,59 +267,55 @@ export default function AdminOrdersPage() {
           </div>
         ) : (
           <>
-            {/* ── Mobile card list (< md) ───────────────────────────────────── */}
-            <div className="block md:hidden divide-y divide-gray-50 dark:divide-gray-700">
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
               {orders.map((o) => (
-                <div key={o.id} className="p-4 space-y-3">
-                  {/* Row 1: order ID + status */}
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-primary text-sm">{o.shortId}</p>
-                    <StatusBadge status={o.status} />
+                <div key={o.id} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">{o.shortId}</p>
+                      <StatusBadge status={o.status} />
+                    </div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-0.5">{o.customer}</p>
+                    <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                      {o.rider_name ? (
+                        <span className="flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                          <Bike className="w-3 h-3" /> {o.rider_name}
+                        </span>
+                      ) : (
+                        <span>No rider</span>
+                      )}
+                      {o.city && <span>{o.city}</span>}
+                      {o.date && <span>{o.date}</span>}
+                    </div>
                   </div>
-
-                  {/* Row 2: customer name + amount */}
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-gray-700 dark:text-gray-300">{o.customer}</p>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
                     <p className="font-bold text-gray-900 dark:text-gray-100">₦{(o.total || 0).toLocaleString()}</p>
-                  </div>
-
-                  {/* Row 3: rider + city */}
-                  <div className="flex items-center justify-between gap-2">
-                    {o.rider_name ? (
-                      <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        <Bike className="w-3.5 h-3.5" /> {o.rider_name}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400 dark:text-gray-500">Unassigned</span>
-                    )}
-                    {o.city && <span className="text-xs text-gray-400 dark:text-gray-500">{o.city}</span>}
-                  </div>
-
-                  {/* Row 4: action buttons */}
-                  <div className="flex items-center gap-2">
-                    {!["delivered", "cancelled", "refunded"].includes(o.status) && (
-                      <button
-                        onClick={() => setAssignOrder(o)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                      >
-                        <Bike className="w-3.5 h-3.5" /> Assign Rider
-                      </button>
-                    )}
-                    {!["refunded", "cancelled"].includes(o.status) && (
-                      <button
-                        onClick={() => setRefundOrder(o)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" /> Refund
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {!["delivered", "cancelled", "refunded"].includes(o.status) && (
+                        <button
+                          onClick={() => setAssignOrder(o)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                        >
+                          <Bike className="w-3.5 h-3.5" /> Rider
+                        </button>
+                      )}
+                      {!["refunded", "cancelled"].includes(o.status) && (
+                        <button
+                          onClick={() => setRefundOrder(o)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" /> Refund
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* ── Desktop table (md+) ──────────────────────────────────────── */}
-          <div className="hidden md:block overflow-x-auto">
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>

@@ -47,6 +47,9 @@ export async function GET() {
       { count: shippedCount },
       { count: cancelledCount },
       { count: pendingOnlyCount },
+      { count: confirmedCount },
+      { count: processingCount },
+      { count: refundedCount },
     ] = await Promise.all([
       admin.from("users").select("*", { count: "exact", head: true }),
       admin.from("users").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
@@ -56,13 +59,14 @@ export async function GET() {
       admin.from("orders").select("*", { count: "exact", head: true }),
       admin.from("orders").select("*", { count: "exact", head: true }).in("status", ["pending", "processing"]),
       admin.from("disputes").select("*", { count: "exact", head: true }).eq("status", "open"),
-      admin.from("payments").select("amount").eq("status", "success").gte("created_at", thirtyDaysAgo),
-      admin.from("payments").select("amount, created_at").eq("status", "success").gte("created_at", sixMonthsAgo),
+      admin.from("orders").select("total").eq("payment_status", "paid").gte("created_at", thirtyDaysAgo),
+      admin.from("orders").select("total, created_at").eq("payment_status", "paid").gte("created_at", sixMonthsAgo),
       // New: 14-day registrations
       admin.from("users").select("created_at").gte("created_at", fourteenDaysAgo),
-      // New: category GMV (last 30 days)
+      // Category GMV: only from paid orders, last 30 days
       admin.from("order_items")
-        .select("total, products!product_id(categories!category_id(id, name))")
+        .select("total, orders!inner(payment_status), products!product_id(categories!category_id(id, name))")
+        .eq("orders.payment_status", "paid")
         .gte("created_at", thirtyDaysAgo),
       // New: recent orders for activity feed
       admin.from("orders")
@@ -83,9 +87,12 @@ export async function GET() {
       admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "shipped"),
       admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "cancelled"),
       admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "confirmed"),
+      admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "processing"),
+      admin.from("orders").select("*", { count: "exact", head: true }).eq("status", "refunded"),
     ]);
 
-    const gmv = (revenueData || []).reduce((s, p) => s + (p.amount || 0), 0);
+    const gmv = (revenueData || []).reduce((s, p) => s + (p.total || 0), 0);
 
     // 6-month revenue chart grouped by month
     const monthMap = {};
@@ -97,7 +104,7 @@ export async function GET() {
     }
     for (const p of chartData || []) {
       const key = p.created_at.slice(0, 7);
-      if (monthMap[key]) monthMap[key].revenue += p.amount || 0;
+      if (monthMap[key]) monthMap[key].revenue += p.total || 0;
     }
     const revenueChart = Object.values(monthMap);
 
@@ -187,10 +194,10 @@ export async function GET() {
       recent_activity:      recentActivity,
       orders_by_state:      ordersByState,
       order_status: [
-        { name: "Delivered", value: deliveredCount   ?? 0, color: "#10b981" },
-        { name: "Pending",   value: pendingOnlyCount ?? 0, color: "#f59e0b" },
-        { name: "Shipped",   value: shippedCount     ?? 0, color: "#6366f1" },
-        { name: "Cancelled", value: cancelledCount   ?? 0, color: "#ef4444" },
+        { name: "Delivered",   value: deliveredCount ?? 0,                                                              color: "#10b981" },
+        { name: "In Progress", value: (pendingOnlyCount ?? 0) + (confirmedCount ?? 0) + (processingCount ?? 0),        color: "#f59e0b" },
+        { name: "Shipped",     value: shippedCount ?? 0,                                                                color: "#6366f1" },
+        { name: "Cancelled",   value: (cancelledCount ?? 0) + (refundedCount ?? 0),                                    color: "#ef4444" },
       ],
     });
   } catch (error) {

@@ -229,7 +229,7 @@ export default function CommissionPage() {
             key={id}
             onClick={() => setTab(id)}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
-              tab === id ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              tab === id ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
             }`}
           >
             <Icon className="w-3.5 h-3.5" />
@@ -263,68 +263,121 @@ export default function CommissionPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    {tab === "vendor" ? "Vendor" : "Category"}
-                  </th>
-                  <th className="px-5 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Rate</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Note</th>
-                  <th className="px-5 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {overrides.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">
+          <>
+            {/* Mobile card list */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {overrides.map((r) => (
+                <div key={r.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">
                         {tab === "vendor" ? r.businessName : r.name}
                       </p>
                       {tab === "vendor" && r.ownerName && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{r.ownerName}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{r.ownerName}</p>
                       )}
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
-                        r.rate < defaultRate
-                          ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                          : r.rate > defaultRate
-                          ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                      }`}>
-                        {r.rate}%
-                        {r.rate < defaultRate && <span className="text-xs">▼</span>}
-                        {r.rate > defaultRate && <span className="text-xs">▲</span>}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-gray-500 dark:text-gray-400 text-xs hidden md:table-cell">
-                      {r.note || <span className="text-gray-300 dark:text-gray-600">—</span>}
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => setModal({ mode: "edit", id: r.id, rate: r.rate, note: r.note })}
-                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget({ id: r.id, label: tab === "vendor" ? r.businessName : r.name })}
-                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                          title="Remove override"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+                      {r.note && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{r.note}</p>
+                      )}
+                    </div>
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold shrink-0 ${
+                      r.rate < defaultRate
+                        ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                        : r.rate > defaultRate
+                        ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                    }`}>
+                      {r.rate}%
+                      {r.rate < defaultRate && <span className="text-xs">▼</span>}
+                      {r.rate > defaultRate && <span className="text-xs">▲</span>}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-end mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setModal({ mode: "edit", id: r.id, rate: r.rate, note: r.note })}
+                        className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget({ id: r.id, label: tab === "vendor" ? r.businessName : r.name })}
+                        className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        title="Remove override"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      {tab === "vendor" ? "Vendor" : "Category"}
+                    </th>
+                    <th className="px-5 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Rate</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Note</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {overrides.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">
+                          {tab === "vendor" ? r.businessName : r.name}
+                        </p>
+                        {tab === "vendor" && r.ownerName && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{r.ownerName}</p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
+                          r.rate < defaultRate
+                            ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                            : r.rate > defaultRate
+                            ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                        }`}>
+                          {r.rate}%
+                          {r.rate < defaultRate && <span className="text-xs">▼</span>}
+                          {r.rate > defaultRate && <span className="text-xs">▲</span>}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-gray-500 dark:text-gray-400 text-xs">
+                        {r.note || <span className="text-gray-300 dark:text-gray-600">—</span>}
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => setModal({ mode: "edit", id: r.id, rate: r.rate, note: r.note })}
+                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget({ id: r.id, label: tab === "vendor" ? r.businessName : r.name })}
+                            className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            title="Remove override"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

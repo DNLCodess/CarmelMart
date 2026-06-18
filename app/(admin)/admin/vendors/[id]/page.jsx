@@ -75,7 +75,7 @@ export default function AdminVendorDetailPage({ params }) {
   return (
     <div className="space-y-6">
       {/* Back */}
-      <Link href="/admin/vendors" className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-primary transition-colors">
+      <Link href="/admin/vendors" className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:underline transition-colors">
         <ChevronLeft className="w-4 h-4" /> Back to Vendors
       </Link>
 
@@ -173,13 +173,47 @@ export default function AdminVendorDetailPage({ params }) {
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
             <h2 className="font-bold text-gray-900 dark:text-gray-100">Recent Orders</h2>
           </div>
-          <div className="overflow-x-auto">
+
+          {/* Mobile cards */}
+          <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+            {recentOrders.map((o) => (
+              <div key={o.orderId} className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <Link href="/admin/orders" className="font-mono text-xs font-semibold text-gray-900 dark:text-gray-100 hover:underline">
+                    #{o.orderId?.slice(-8).toUpperCase()}
+                  </Link>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border capitalize ${ORDER_STATUS_CLS[o.status] ?? ""}`}>
+                    {o.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{o.customer}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-900 dark:text-gray-100">₦{o.total?.toLocaleString()}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{o.date}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                <tr>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Order ID</th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Customer</th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</th>
+                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Date</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
                 {recentOrders.map((o) => (
                   <tr key={o.orderId} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
                     <td className="px-5 py-3">
-                      <Link href={`/admin/orders`} className="font-mono text-xs text-primary hover:underline">
+                      <Link href="/admin/orders" className="font-mono text-xs text-gray-900 dark:text-gray-100 hover:underline">
                         #{o.orderId?.slice(-8).toUpperCase()}
                       </Link>
                     </td>
@@ -189,8 +223,8 @@ export default function AdminVendorDetailPage({ params }) {
                         {o.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100">₦{o.total?.toLocaleString()}</td>
-                    <td className="px-5 py-3 text-xs text-gray-400 dark:text-gray-500">{o.date}</td>
+                    <td className="px-5 py-3 text-right font-bold text-gray-900 dark:text-gray-100">₦{o.total?.toLocaleString()}</td>
+                    <td className="px-5 py-3 text-right text-xs text-gray-400 dark:text-gray-500">{o.date}</td>
                   </tr>
                 ))}
               </tbody>

@@ -17,26 +17,43 @@ export async function GET() {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysAgo  = new Date(Date.now() -  7 * 24 * 60 * 60 * 1000).toISOString();
 
-    // ── Parallel fetch — all 10 queries are independent ──────────────────────
+    // ── Parallel fetch ────────────────────────────────────────────────────────
     const [
       { data: revenueData },
-      { count: ordersCount },
+      { data: orderIdsData },
       { data: vendorPendingData },
       { count: productsCount },
       { data: customerData },
       { data: recentOrdersRaw },
-      { data: topProdData },
+      { data: topItemData },
       { data: walletData },
       { data: lowStockData },
       { count: pendingModerationCount },
     ] = await Promise.all([
-      admin.from("order_items").select("total, created_at").eq("vendor_id", user.id).gte("created_at", thirtyDaysAgo),
-      admin.from("order_items").select("*", { count: "exact", head: true }).eq("vendor_id", user.id),
-      admin.from("order_items").select("order_id, orders!inner(id, status)").eq("vendor_id", user.id).eq("orders.status", "pending"),
+      // Revenue: only from paid orders
+      admin.from("order_items")
+        .select("total, created_at, orders!inner(payment_status)")
+        .eq("vendor_id", user.id)
+        .eq("orders.payment_status", "paid")
+        .gte("created_at", thirtyDaysAgo),
+      // Order count: fetch order_ids to deduplicate (items ≠ orders)
+      admin.from("order_items").select("order_id").eq("vendor_id", user.id),
+      // Pending: include both pending and processing
+      admin.from("order_items")
+        .select("order_id, orders!inner(id, status)")
+        .eq("vendor_id", user.id)
+        .in("orders.status", ["pending", "processing"]),
       admin.from("products").select("*", { count: "exact", head: true }).eq("vendor_id", user.id).eq("status", "active"),
       admin.from("order_items").select("orders!inner(customer_id)").eq("vendor_id", user.id),
-      admin.from("orders").select("id, status, total, created_at, users!customer_id ( first_name, last_name, email ), order_items!inner ( vendor_id )").eq("order_items.vendor_id", user.id).order("created_at", { ascending: false }).limit(5),
-      admin.from("products").select("id, name, images, sold_count, price").eq("vendor_id", user.id).order("sold_count", { ascending: false }).limit(5),
+      admin.from("orders")
+        .select("id, status, total, created_at, users!customer_id(first_name, last_name, email), order_items!inner(vendor_id)")
+        .eq("order_items.vendor_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      // Top products: use actual revenue from order_items instead of estimated sold_count * price
+      admin.from("order_items")
+        .select("product_id, total, quantity, products!inner(id, name, images, price)")
+        .eq("vendor_id", user.id),
       admin.from("users").select("wallet_balance").eq("id", user.id).single(),
       admin.from("products").select("id, name, stock").eq("vendor_id", user.id).eq("status", "active").lte("stock", 5).order("stock", { ascending: true }).limit(5),
       admin.from("products").select("*", { count: "exact", head: true }).eq("vendor_id", user.id).eq("moderation_status", "pending"),
@@ -59,6 +76,8 @@ export async function GET() {
     }
     const revenueChart = Object.values(chartMap);
 
+    // Distinct order count (order_items rows != orders)
+    const ordersCount = new Set((orderIdsData || []).map((r) => r.order_id)).size;
     const pendingCount = new Set((vendorPendingData || []).map((r) => r.order_id)).size;
     const uniqueCustomers = new Set((customerData || []).map((r) => r.orders?.customer_id)).size;
 
@@ -70,12 +89,26 @@ export async function GET() {
       date:     new Date(o.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short" }),
     }));
 
-    const topProducts = (topProdData || []).map((p) => ({
-      name:    p.name,
-      image:   Array.isArray(p.images) ? p.images[0] : null,
-      sold:    p.sold_count,
-      revenue: p.sold_count * p.price,
-    }));
+    // Top products: actual revenue from order_items, not estimated sold_count * price
+    const productRevMap = {};
+    for (const item of topItemData || []) {
+      const p = item.products;
+      if (!p?.id) continue;
+      if (!productRevMap[p.id]) {
+        productRevMap[p.id] = {
+          id:      p.id,
+          name:    p.name,
+          image:   Array.isArray(p.images) ? p.images[0] : null,
+          sold:    0,
+          revenue: 0,
+        };
+      }
+      productRevMap[p.id].sold    += item.quantity || 1;
+      productRevMap[p.id].revenue += item.total    || 0;
+    }
+    const topProducts = Object.values(productRevMap)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
 
     const todos = [];
     if (pendingCount > 0) {
@@ -91,8 +124,8 @@ export async function GET() {
     return NextResponse.json({
       stats: {
         revenue, revenue_change: null,
-        orders: ordersCount ?? 0,
-        pending_orders: pendingCount ?? 0,
+        orders: ordersCount,
+        pending_orders: pendingCount,
         products: productsCount ?? 0,
         customers: uniqueCustomers, customers_change: null,
         wallet_balance: walletData?.wallet_balance ?? 0,

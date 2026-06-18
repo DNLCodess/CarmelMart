@@ -204,6 +204,54 @@ export default function PODBlacklistPage() {
     onError: (e) => toast.error(e.message),
   });
 
+  const UserCard = ({ u }) => (
+    <div className="p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{u.name}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{u.email}</p>
+        </div>
+        {u.blacklisted ? (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 shrink-0">
+            <ShieldOff className="w-3 h-3" /> Blacklisted
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 shrink-0">
+            <AlertTriangle className="w-3 h-3" /> Warning
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 mt-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className={`w-2.5 h-2.5 rounded-full ${i < u.refusedCount ? "bg-red-500" : "bg-gray-200 dark:bg-gray-600"}`} />
+        ))}
+        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">{u.refusedCount}/3 refusals</span>
+      </div>
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+        <span className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[60%]">{u.reason || (u.blacklistedAt ? `Since ${u.blacklistedAt}` : "—")}</span>
+        <div className="flex gap-1 shrink-0">
+          {u.blacklisted ? (
+            <button
+              onClick={() => mutate.mutate({ userId: u.id, action: "unblacklist" })}
+              disabled={mutate.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" /> Unblacklist
+            </button>
+          ) : (
+            <button
+              onClick={() => mutate.mutate({ userId: u.id, action: "blacklist" })}
+              disabled={mutate.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <ShieldOff className="w-3.5 h-3.5" /> Blacklist
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   const UserRow = ({ u }) => (
     <tr className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
       <td className="px-5 py-4">
@@ -317,7 +365,12 @@ export default function PODBlacklistPage() {
                   <ShieldOff className="w-4 h-4" /> Blacklisted ({blacklisted.length})
                 </h3>
               </div>
-              <div className="overflow-x-auto">
+              {/* Mobile card list */}
+              <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+                {blacklisted.map((u) => <UserCard key={u.id} u={u} />)}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full text-sm"><TableHead /><tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">{blacklisted.map((u) => <UserRow key={u.id} u={u} />)}</tbody></table>
               </div>
             </div>
@@ -329,7 +382,12 @@ export default function PODBlacklistPage() {
                   <AlertTriangle className="w-4 h-4" /> At Risk ({warned.length})
                 </h3>
               </div>
-              <div className="overflow-x-auto">
+              {/* Mobile card list */}
+              <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+                {warned.map((u) => <UserCard key={u.id} u={u} />)}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full text-sm"><TableHead /><tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">{warned.map((u) => <UserRow key={u.id} u={u} />)}</tbody></table>
               </div>
             </div>

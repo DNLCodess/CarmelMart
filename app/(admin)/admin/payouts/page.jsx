@@ -171,40 +171,34 @@ export default function AdminPayoutsPage() {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Vendor</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Bank Account</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Reference</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Requested</th>
-                  {tab === "pending" && (
-                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Action</th>
+          <>
+            {/* ── Mobile card list (< lg) ─────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {payouts.map((p) => (
+                <div key={p.id} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <div className="flex items-start justify-between gap-2 mb-0.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{p.vendor.businessName || p.vendor.name}</p>
+                      <TierBadge tier={p.vendor.tier} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">{p.vendor.email}</p>
+                  {p.vendor.bankAccount ? (
+                    <p className="text-xs font-mono text-gray-500 dark:text-gray-400">{p.vendor.bankAccount}</p>
+                  ) : (
+                    <p className="text-xs text-red-500">No bank account</p>
                   )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                {payouts.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{p.vendor.businessName || p.vendor.name}</p>
-                        <TierBadge tier={p.vendor.tier} />
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{p.vendor.email}</p>
-                    </td>
-                    <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">₦{p.amount.toLocaleString()}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-gray-600 dark:text-gray-400 hidden md:table-cell">
-                      {p.vendor.bankAccount || <span className="text-red-500">No account</span>}
-                    </td>
-                    <td className="px-5 py-4 font-mono text-xs text-gray-500 dark:text-gray-400 hidden lg:table-cell">{p.reference}</td>
-                    <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
-                    <td className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500 hidden lg:table-cell">{p.createdAt}</td>
-                    {tab === "pending" && (
-                      <td className="px-5 py-4">
+                  {p.reference && (
+                    <p className="text-xs font-mono text-gray-400 dark:text-gray-500 mt-0.5 truncate">{p.reference}</p>
+                  )}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <div>
+                      <p className="font-bold text-gray-900 dark:text-gray-100">₦{p.amount.toLocaleString()}</p>
+                      {p.createdAt && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{p.createdAt}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={p.status} />
+                      {tab === "pending" && (
                         <button
                           onClick={() => setConfirm(p)}
                           disabled={!p.vendor.bankAccount}
@@ -212,13 +206,63 @@ export default function AdminPayoutsPage() {
                         >
                           <Check className="w-3.5 h-3.5" /> Approve
                         </button>
-                      </td>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Desktop table (lg+) ─────────────────────────────────────── */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Vendor</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Bank Account</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reference</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Requested</th>
+                    {tab === "pending" && (
+                      <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Action</th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                  {payouts.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{p.vendor.businessName || p.vendor.name}</p>
+                          <TierBadge tier={p.vendor.tier} />
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{p.vendor.email}</p>
+                      </td>
+                      <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100">₦{p.amount.toLocaleString()}</td>
+                      <td className="px-5 py-4 font-mono text-xs text-gray-600 dark:text-gray-400">
+                        {p.vendor.bankAccount || <span className="text-red-500">No account</span>}
+                      </td>
+                      <td className="px-5 py-4 font-mono text-xs text-gray-500 dark:text-gray-400">{p.reference}</td>
+                      <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
+                      <td className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500">{p.createdAt}</td>
+                      {tab === "pending" && (
+                        <td className="px-5 py-4">
+                          <button
+                            onClick={() => setConfirm(p)}
+                            disabled={!p.vendor.bankAccount}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Approve
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

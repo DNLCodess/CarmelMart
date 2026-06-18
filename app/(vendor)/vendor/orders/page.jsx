@@ -45,7 +45,7 @@ function OrderActions({ order, updateStatus, updating }) {
     <div className="flex items-center gap-2">
       <Link
         href={`/vendor/orders/${order.id}`}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-400 hover:underline transition-colors"
       >
         <Eye className="w-3.5 h-3.5" /> View
       </Link>
@@ -179,8 +179,8 @@ export default function VendorOrdersPage() {
           </div>
         ) : (
           <>
-            {/* ── Mobile card list (< md) ───────────────────────────────────── */}
-            <div className="md:hidden divide-y divide-gray-50 dark:divide-gray-700">
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-50 dark:divide-gray-700">
               {filtered.map((order) => (
                 <div key={order.id} className="p-4 space-y-3">
                   {/* Row 1: order ID + status */}
@@ -223,8 +223,8 @@ export default function VendorOrdersPage() {
               ))}
             </div>
 
-            {/* ── Desktop table (md+) ──────────────────────────────────────── */}
-            <div className="hidden md:block overflow-x-auto">
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                   <tr>

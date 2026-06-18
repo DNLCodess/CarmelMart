@@ -80,7 +80,7 @@ export default function VendorAnalyticsPage() {
               key={p}
               onClick={() => setPeriod(p)}
               className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                period === p ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                period === p ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
               }`}
             >
               {p === "7d" ? "Last 7 days" : p === "30d" ? "Last 30 days" : "Last 90 days"}
@@ -185,28 +185,50 @@ export default function VendorAnalyticsPage() {
             No sales data for this period yet.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">#</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Product</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Revenue</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Units Sold</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {topProducts.map((p, i) => (
-                  <tr key={p.name} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-5 py-4 text-gray-400 dark:text-gray-500 font-semibold">{i + 1}</td>
-                    <td className="px-5 py-4 font-semibold text-gray-900 dark:text-gray-100">{p.name}</td>
-                    <td className="px-5 py-4 text-right font-bold text-primary">₦{p.revenue.toLocaleString()}</td>
-                    <td className="px-5 py-4 text-right text-gray-700 dark:text-gray-300">{p.orders}</td>
+          <>
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {topProducts.map((p, i) => (
+                <div key={p.name} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm line-clamp-1">{p.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <span className="font-bold text-gray-900 dark:text-gray-100 text-sm">₦{p.revenue.toLocaleString()}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{p.orders} units sold</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">#</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Product</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Revenue</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Units Sold</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {topProducts.map((p, i) => (
+                    <tr key={p.name} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-5 py-4 text-gray-400 dark:text-gray-500 font-semibold">{i + 1}</td>
+                      <td className="px-5 py-4 font-semibold text-gray-900 dark:text-gray-100">{p.name}</td>
+                      <td className="px-5 py-4 text-right font-bold text-gray-900 dark:text-gray-100">₦{p.revenue.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-right text-gray-700 dark:text-gray-300">{p.orders}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

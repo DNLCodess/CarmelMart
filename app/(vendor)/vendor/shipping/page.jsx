@@ -161,40 +161,79 @@ export default function VendorShippingPage() {
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Platform default rates apply to all states</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">State</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Add. Fee</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">Free Above</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Remove</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {zones.map((z) => (
-                  <tr key={z.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
-                    <td className="px-5 py-3.5 font-semibold text-gray-900 dark:text-gray-100">{z.state}</td>
-                    <td className="px-5 py-3.5 text-right font-semibold text-gray-700 dark:text-gray-300">
-                      {z.fee === 0 ? <span className="text-green-600 dark:text-green-400">Platform rate</span> : `+₦${z.fee.toLocaleString()}`}
-                    </td>
-                    <td className="px-5 py-3.5 text-right text-gray-500 dark:text-gray-400 hidden sm:table-cell">
-                      {z.free_above != null ? `₦${z.free_above.toLocaleString()}` : "—"}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button
-                        onClick={() => deleteMutation.mutate(z.id)}
-                        disabled={deleteMutation.isPending}
-                        className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
+          <>
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {zones.map((z) => (
+                <div key={z.id} className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{z.state}</p>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Shipping Fee</p>
+                        <p className="font-semibold text-sm mt-0.5">
+                          {z.fee === 0
+                            ? <span className="text-green-600 dark:text-green-400">Platform rate</span>
+                            : <span className="text-gray-900 dark:text-gray-100">+₦{z.fee.toLocaleString()}</span>
+                          }
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Free Above</p>
+                        <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 mt-0.5">
+                          {z.free_above != null ? `₦${z.free_above.toLocaleString()}` : "—"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteMutation.mutate(z.id)}
+                      disabled={deleteMutation.isPending}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">State</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Add. Fee</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Free Above</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Remove</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {zones.map((z) => (
+                    <tr key={z.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
+                      <td className="px-5 py-3.5 font-semibold text-gray-900 dark:text-gray-100">{z.state}</td>
+                      <td className="px-5 py-3.5 text-right font-semibold text-gray-700 dark:text-gray-300">
+                        {z.fee === 0 ? <span className="text-green-600 dark:text-green-400">Platform rate</span> : `+₦${z.fee.toLocaleString()}`}
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-gray-500 dark:text-gray-400">
+                        {z.free_above != null ? `₦${z.free_above.toLocaleString()}` : "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <button
+                          onClick={() => deleteMutation.mutate(z.id)}
+                          disabled={deleteMutation.isPending}
+                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

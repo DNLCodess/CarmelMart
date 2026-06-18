@@ -269,63 +269,107 @@ export default function AdminPromoCodesPage() {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Code</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Discount</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Min Order</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Uses</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Expires</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Created</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                {codes.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
-                    <td className="px-5 py-4 font-mono font-bold text-gray-900 dark:text-gray-100 text-sm">{c.code}</td>
-                    <td className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {c.type === "percentage" ? `${c.value}% off` : `₦${c.value.toLocaleString()} off`}
-                    </td>
-                    <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
-                      {c.minOrder > 0 ? `₦${c.minOrder.toLocaleString()}` : <span className="text-gray-400 dark:text-gray-500">—</span>}
-                    </td>
-                    <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
-                      {c.usedCount}{c.maxUses ? `/${c.maxUses}` : ""}
-                    </td>
-                    <td className="px-5 py-4 text-gray-600 dark:text-gray-400 text-xs">
+          <>
+            {/* Mobile card list */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {codes.map((c) => (
+                <div key={c.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono font-bold text-gray-900 dark:text-gray-100 text-sm truncate">{c.code}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                        {c.type === "percentage" ? `${c.value}% off` : `₦${c.value.toLocaleString()} off`}
+                        {c.maxUses ? ` · ${c.usedCount}/${c.maxUses} uses` : ` · ${c.usedCount} uses`}
+                      </p>
+                    </div>
+                    <Badge active={c.active} expired={c.expired} />
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {c.expiresAt
-                        ? new Date(c.expiresAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })
-                        : <span className="text-gray-400 dark:text-gray-500">Never</span>}
-                    </td>
-                    <td className="px-5 py-4"><Badge active={c.active} expired={c.expired} /></td>
-                    <td className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500">{c.createdAt}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => setModal({ mode: "edit", code: c })}
-                          className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setModal({ mode: "delete", code: c })}
-                          className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
+                        ? `Expires ${new Date(c.expiresAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`
+                        : "No expiry"}
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setModal({ mode: "edit", code: c })}
+                        className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setModal({ mode: "delete", code: c })}
+                        className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Code</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Discount</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Min Order</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Uses</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Expires</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Created</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                  {codes.map((c) => (
+                    <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                      <td className="px-5 py-4 font-mono font-bold text-gray-900 dark:text-gray-100 text-sm">{c.code}</td>
+                      <td className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                        {c.type === "percentage" ? `${c.value}% off` : `₦${c.value.toLocaleString()} off`}
+                      </td>
+                      <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
+                        {c.minOrder > 0 ? `₦${c.minOrder.toLocaleString()}` : <span className="text-gray-400 dark:text-gray-500">—</span>}
+                      </td>
+                      <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
+                        {c.usedCount}{c.maxUses ? `/${c.maxUses}` : ""}
+                      </td>
+                      <td className="px-5 py-4 text-gray-600 dark:text-gray-400 text-xs">
+                        {c.expiresAt
+                          ? new Date(c.expiresAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })
+                          : <span className="text-gray-400 dark:text-gray-500">Never</span>}
+                      </td>
+                      <td className="px-5 py-4"><Badge active={c.active} expired={c.expired} /></td>
+                      <td className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500">{c.createdAt}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setModal({ mode: "edit", code: c })}
+                            className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setModal({ mode: "delete", code: c })}
+                            className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

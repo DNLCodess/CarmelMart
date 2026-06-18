@@ -165,32 +165,53 @@ export default function AdminUserDetailPage({ params }) {
         {orders.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-gray-400 dark:text-gray-500">No orders</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Order</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {orders.map((o) => (
-                  <tr key={o.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
-                    <td className="px-5 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">{o.shortId}</td>
-                    <td className="px-5 py-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ORDER_STATUS_CLS[o.status] ?? "bg-gray-100 text-gray-600"}`}>
-                        {o.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">₦{(o.total || 0).toLocaleString()}</td>
-                    <td className="px-5 py-3 text-right text-xs text-gray-400 dark:text-gray-500 hidden sm:table-cell">{o.date}</td>
+          <>
+            {/* Mobile cards */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {orders.map((o) => (
+                <div key={o.id} className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-mono text-xs font-semibold text-gray-900 dark:text-gray-100">{o.shortId}</p>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ORDER_STATUS_CLS[o.status] ?? "bg-gray-100 text-gray-600"}`}>
+                      {o.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">₦{(o.total || 0).toLocaleString()}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{o.date}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Order</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {orders.map((o) => (
+                    <tr key={o.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
+                      <td className="px-5 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">{o.shortId}</td>
+                      <td className="px-5 py-3">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ORDER_STATUS_CLS[o.status] ?? "bg-gray-100 text-gray-600"}`}>
+                          {o.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">₦{(o.total || 0).toLocaleString()}</td>
+                      <td className="px-5 py-3 text-right text-xs text-gray-400 dark:text-gray-500">{o.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </SectionCard>
 
@@ -199,32 +220,53 @@ export default function AdminUserDetailPage({ params }) {
         {payments.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-gray-400 dark:text-gray-500">No payments</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reference</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Type</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
-                    <td className="px-5 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{p.reference}</td>
-                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300 capitalize">{p.type}</td>
-                    <td className="px-5 py-3">
-                      <span className={`text-xs font-semibold capitalize ${p.status === "success" ? "text-green-600 dark:text-green-400" : p.status === "failed" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">₦{(p.amount || 0).toLocaleString()}</td>
+          <>
+            {/* Mobile cards */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {payments.map((p) => (
+                <div key={p.id} className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-mono text-xs text-gray-900 dark:text-gray-100 font-semibold truncate">{p.reference}</p>
+                    <span className={`text-xs font-semibold capitalize shrink-0 ${p.status === "success" ? "text-green-600 dark:text-green-400" : p.status === "failed" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
+                      {p.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{p.type}</span>
+                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">₦{(p.amount || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reference</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Type</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {payments.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
+                      <td className="px-5 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{p.reference}</td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300 capitalize">{p.type}</td>
+                      <td className="px-5 py-3">
+                        <span className={`text-xs font-semibold capitalize ${p.status === "success" ? "text-green-600 dark:text-green-400" : p.status === "failed" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">₦{(p.amount || 0).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </SectionCard>
 

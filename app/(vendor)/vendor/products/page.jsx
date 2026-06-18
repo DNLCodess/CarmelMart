@@ -195,8 +195,8 @@ export default function VendorProductsPage() {
           </div>
         ) : (
           <>
-            {/* ── Mobile card list (< md) ───────────────────────────────────── */}
-            <div className="block md:hidden divide-y divide-gray-50 dark:divide-gray-700">
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="block lg:hidden divide-y divide-gray-50 dark:divide-gray-700">
               {filtered.map((p) => (
                 <div
                   key={p.id}
@@ -251,7 +251,7 @@ export default function VendorProductsPage() {
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/product/${p.id}`}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-400 hover:underline transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" /> View
                     </Link>
@@ -272,8 +272,8 @@ export default function VendorProductsPage() {
               ))}
             </div>
 
-            {/* ── Desktop table (md+) ──────────────────────────────────────── */}
-          <div className="hidden md:block overflow-x-auto">
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>
@@ -361,7 +361,7 @@ export default function VendorProductsPage() {
                       <div className="flex items-center justify-center gap-1">
                         <Link
                           href={`/product/${p.id}`}
-                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-primary/10 transition-colors"
+                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                           title="View in store"
                         >
                           <Eye className="w-4 h-4" />

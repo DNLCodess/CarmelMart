@@ -189,7 +189,7 @@ export default function AdminDisputesPage() {
             key={label}
             onClick={() => { setStatusFilter(value); setPage(1); }}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              statusFilter === value ? "bg-white dark:bg-gray-600 text-primary shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              statusFilter === value ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
             }`}
           >
             {label}
@@ -210,74 +210,138 @@ export default function AdminDisputesPage() {
             <p className="font-semibold text-gray-500 dark:text-gray-400">No disputes found</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50 dark:divide-gray-700">
-            {disputes.map((d) => (
-              <div key={d.id} className="px-5 py-5 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
-                <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    {/* Top row */}
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className="font-mono text-xs font-bold text-gray-500 dark:text-gray-400">
-                        {d.order?.shortId ?? "—"}
-                      </span>
-                      {d.order?.total && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          ₦{d.order.total.toLocaleString()}
-                        </span>
-                      )}
+          <>
+            {/* ── Mobile card list (< lg) ─────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {disputes.map((d) => (
+                <div key={d.id} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <div className="flex items-start justify-between gap-2 mb-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-bold text-gray-500 dark:text-gray-400">{d.order?.shortId ?? "—"}</span>
                       <StatusBadge status={d.status} />
-                      <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto sm:ml-0">{d.date}</span>
                     </div>
-
-                    {/* Reason */}
-                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1">{d.reason}</p>
-                    {d.description && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">{d.description}</p>
-                    )}
-
-                    {/* Parties */}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-                      <span><span className="font-semibold">Buyer:</span> {d.customer.name}</span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="font-semibold">Vendor:</span> {d.vendor.businessName}
-                        <TierBadge tier={d.vendor.tier} />
-                      </span>
-                    </div>
-
-                    {/* Resolution note */}
-                    {d.resolution && (
-                      <p className="mt-2 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-lg">
-                        Resolution: {d.resolution}
-                      </p>
-                    )}
+                    <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{d.date}</span>
                   </div>
-
-                  {/* Actions */}
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm mt-1 mb-0.5">{d.reason}</p>
+                  {d.description && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-1">{d.description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    <span><span className="font-semibold">Buyer:</span> {d.customer.name}</span>
+                    <span className="flex items-center gap-1">
+                      <span className="font-semibold">Vendor:</span> {d.vendor.businessName}
+                      <TierBadge tier={d.vendor.tier} />
+                    </span>
+                  </div>
+                  {d.resolution && (
+                    <p className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-lg mb-1">
+                      Resolution: {d.resolution}
+                    </p>
+                  )}
                   {(d.status === "open" || d.status === "under_review") && (
-                    <div className="flex gap-2 shrink-0">
-                      {d.status === "open" && (
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                      <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">
+                        {d.order?.total ? `₦${d.order.total.toLocaleString()}` : "—"}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        {d.status === "open" && (
+                          <button
+                            onClick={() => markReview(d.id)}
+                            disabled={mutation.isPending}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Review
+                          </button>
+                        )}
                         <button
-                          onClick={() => markReview(d.id)}
+                          onClick={() => setModal(d)}
                           disabled={mutation.isPending}
-                          title="Mark under review"
-                          className="p-2 text-sm font-semibold text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-1.5"
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
                         >
-                          <Eye className="w-4 h-4" /> Review
+                          <CheckCircle className="w-3.5 h-3.5" /> Resolve
                         </button>
-                      )}
-                      <button
-                        onClick={() => setModal(d)}
-                        disabled={mutation.isPending}
-                        className="p-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors flex items-center gap-1.5 px-3"
-                      >
-                        <CheckCircle className="w-4 h-4" /> Resolve
-                      </button>
+                      </div>
                     </div>
                   )}
+                  {!(d.status === "open" || d.status === "under_review") && d.order?.total && (
+                    <p className="font-bold text-gray-900 dark:text-gray-100 text-sm mt-2">₦{d.order.total.toLocaleString()}</p>
+                  )}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* ── Desktop table (lg+) ─────────────────────────────────────── */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Order ID</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Buyer</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Vendor</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reason</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {disputes.map((d) => (
+                    <tr key={d.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                      <td className="px-5 py-4">
+                        <p className="font-mono text-xs font-bold text-gray-500 dark:text-gray-400">{d.order?.shortId ?? "—"}</p>
+                        {d.date && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{d.date}</p>}
+                      </td>
+                      <td className="px-5 py-4 text-gray-700 dark:text-gray-300 text-sm">{d.customer.name}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-700 dark:text-gray-300 text-sm">{d.vendor.businessName}</span>
+                          <TierBadge tier={d.vendor.tier} />
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-gray-900 dark:text-gray-100">
+                        {d.order?.total ? `₦${d.order.total.toLocaleString()}` : "—"}
+                      </td>
+                      <td className="px-5 py-4"><StatusBadge status={d.status} /></td>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{d.reason}</p>
+                        {d.description && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">{d.description}</p>
+                        )}
+                        {d.resolution && (
+                          <p className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded mt-1">
+                            {d.resolution}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        {(d.status === "open" || d.status === "under_review") && (
+                          <div className="flex items-center justify-end gap-1">
+                            {d.status === "open" && (
+                              <button
+                                onClick={() => markReview(d.id)}
+                                disabled={mutation.isPending}
+                                title="Mark under review"
+                                className="p-2 text-sm font-semibold text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-1.5"
+                              >
+                                <Eye className="w-4 h-4" /> Review
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setModal(d)}
+                              disabled={mutation.isPending}
+                              className="p-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors flex items-center gap-1.5 px-3"
+                            >
+                              <CheckCircle className="w-4 h-4" /> Resolve
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {pages > 1 && (

@@ -164,36 +164,64 @@ export default function VendorReferralsPage() {
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Share your code to get started</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Name / Email</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">Joined</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reward</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {referrals.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">{r.name}</p>
-                      {r.email && <p className="text-xs text-gray-400 dark:text-gray-500">{r.email}</p>}
-                    </td>
-                    <td className="px-5 py-3.5 hidden sm:table-cell text-gray-500 dark:text-gray-400 text-xs">{r.joinedDate ?? r.date}</td>
-                    <td className="px-5 py-3.5"><StatusBadge status={r.status} /></td>
-                    <td className="px-5 py-3.5 text-right font-semibold">
+          <>
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {referrals.map((r) => (
+                <div key={r.id} className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{r.name}</p>
+                      {r.email && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{r.email}</p>}
+                    </div>
+                    <StatusBadge status={r.status} />
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Joined {r.joinedDate ?? r.date ?? "—"}
+                    </p>
+                    <span className="font-bold text-sm">
                       {r.status === "completed"
                         ? <span className="text-green-600 dark:text-green-400">+₦500</span>
                         : <span className="text-gray-400 dark:text-gray-500">Pending</span>
                       }
-                    </td>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Name / Email</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Joined</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reward</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {referrals.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">{r.name}</p>
+                        {r.email && <p className="text-xs text-gray-400 dark:text-gray-500">{r.email}</p>}
+                      </td>
+                      <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 text-xs">{r.joinedDate ?? r.date}</td>
+                      <td className="px-5 py-3.5"><StatusBadge status={r.status} /></td>
+                      <td className="px-5 py-3.5 text-right font-semibold">
+                        {r.status === "completed"
+                          ? <span className="text-green-600 dark:text-green-400">+₦500</span>
+                          : <span className="text-gray-400 dark:text-gray-500">Pending</span>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

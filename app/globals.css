@@ -27,6 +27,15 @@
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
 @layer base {
+  /* Dark mode: step up to a lighter wine/cranberry so text-primary is readable.
+     This shade (#be2e72) still reads as "deep maroon/wine", not pink, while
+     providing 3:1 contrast on gray-900 and 5.4:1 for white text on top. */
+  .dark {
+    --color-primary: #be2e72;
+    --color-primary-dark: #9e2260;
+    --color-primary-light: #d4508a;
+  }
+
   html {
     scroll-behavior: smooth;
   }

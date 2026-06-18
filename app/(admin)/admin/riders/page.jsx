@@ -405,18 +405,100 @@ export default function RidersPage() {
           </button>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {riders.map((rider) => (
-            <RiderCard
-              key={rider.id}
-              rider={rider}
-              loading={loadingId}
-              onSuspend={(r)     => patchStatus(r, "suspended")}
-              onReactivate={(r)  => patchStatus(r, "active")}
-              onDeactivate={(r)  => setDeactivateTarget(r)}
-            />
-          ))}
-        </div>
+        <>
+          {/* ── Mobile card grid (< lg) ──────────────────────────────────────── */}
+          <div className="lg:hidden grid sm:grid-cols-2 gap-4">
+            {riders.map((rider) => (
+              <RiderCard
+                key={rider.id}
+                rider={rider}
+                loading={loadingId}
+                onSuspend={(r)    => patchStatus(r, "suspended")}
+                onReactivate={(r) => patchStatus(r, "active")}
+                onDeactivate={(r) => setDeactivateTarget(r)}
+              />
+            ))}
+          </div>
+
+          {/* ── Desktop table (lg+) ──────────────────────────────────────────── */}
+          <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                <tr>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Rider</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Contact</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Joined</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                {riders.map((rider) => {
+                  const cfg    = STATUS_CFG[rider.status] ?? STATUS_CFG.active;
+                  const isBusy = loadingId === rider.id;
+                  const joined = new Date(rider.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+                  return (
+                    <tr key={rider.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${
+                            rider.status === "active" ? "bg-emerald-600" : "bg-gray-400 dark:bg-gray-600"
+                          }`}>
+                            {(rider.first_name?.[0] ?? "?").toUpperCase()}{(rider.last_name?.[0] ?? "").toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-gray-100">{rider.first_name} {rider.last_name}</p>
+                            <p className="text-xs font-mono text-gray-400 dark:text-gray-500">{rider.id.slice(0, 8)}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-gray-700 dark:text-gray-300">{rider.email}</p>
+                        {rider.phone && <p className="text-xs text-gray-400 dark:text-gray-500">{rider.phone}</p>}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${cfg.cls}`}>{cfg.label}</span>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400">{joined}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          {rider.status === "active" ? (
+                            <button
+                              onClick={() => patchStatus(rider, "suspended")}
+                              disabled={isBusy}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50"
+                            >
+                              {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                              Suspend
+                            </button>
+                          ) : rider.status === "suspended" ? (
+                            <button
+                              onClick={() => patchStatus(rider, "active")}
+                              disabled={isBusy}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors disabled:opacity-50"
+                            >
+                              {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                              Reactivate
+                            </button>
+                          ) : null}
+                          {rider.status !== "banned" && (
+                            <button
+                              onClick={() => setDeactivateTarget(rider)}
+                              disabled={isBusy}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Deactivate
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modals */}

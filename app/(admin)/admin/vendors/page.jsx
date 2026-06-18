@@ -193,46 +193,42 @@ export default function AdminVendorsPage() {
           </div>
         ) : (
           <>
-            {/* ── Mobile card list (< md) ───────────────────────────────────── */}
-            <div className="block md:hidden divide-y divide-gray-50 dark:divide-gray-700">
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
               {vendors.map((v) => (
-                <div key={v.id} className="p-4 space-y-3">
-                  {/* Row 1: store icon + name + tier badge + status badge */}
+                <div key={v.id} className="p-4">
+                  {/* Top: store icon + name + tier badge + status badge */}
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0">
                       <Store className="w-4 h-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-gray-900 dark:text-gray-100">{v.business_name}</p>
-                        <TierBadge tier={v.subscription_tier} />
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{v.business_name}</p>
+                          <TierBadge tier={v.subscription_tier} />
+                        </div>
+                        <StatusBadge status={v.verification_status} />
                       </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{v.email ?? "—"}</p>
                     </div>
-                    <StatusBadge status={v.verification_status} />
                   </div>
-
-                  {/* Row 2: email + phone */}
-                  <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{v.email ?? "—"}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{v.phone ?? "—"}</p>
-                  </div>
-
-                  {/* Row 3: NIN/CAC chips + joined date */}
-                  <div className="flex items-center justify-between gap-2">
+                  {/* Middle: KYC chips + phone + date */}
+                  <div className="flex items-center justify-between mt-2.5 gap-2">
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${v.nin_verified ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800" : "bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600"}`}>NIN</span>
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${v.cac_verified ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800" : "bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600"}`}>CAC</span>
+                      {v.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{v.phone}</p>}
                     </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
                       {new Date(v.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
                     </p>
                   </div>
-
-                  {/* Row 4: action buttons */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {/* Bottom: action buttons */}
+                  <div className="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
                     <Link
                       href={`/admin/vendors/${v.id}`}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" /> View
                     </Link>
@@ -275,16 +271,16 @@ export default function AdminVendorsPage() {
               ))}
             </div>
 
-            {/* ── Desktop table (md+) ──────────────────────────────────────── */}
-          <div className="hidden md:block overflow-x-auto">
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <tr>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Business</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Contact</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Contact</th>
                   <th className="px-5 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">KYC</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Joined</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Joined</th>
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
@@ -305,7 +301,7 @@ export default function AdminVendorsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 hidden md:table-cell">
+                    <td className="px-5 py-4">
                       <p className="text-gray-700 dark:text-gray-300">{v.email ?? "—"}</p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">{v.phone ?? "—"}</p>
                     </td>
@@ -316,14 +312,14 @@ export default function AdminVendorsPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4"><StatusBadge status={v.verification_status} /></td>
-                    <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400 hidden lg:table-cell">
+                    <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400">
                       {new Date(v.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-end gap-1">
                         <Link
                           href={`/admin/vendors/${v.id}`}
-                          className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                           title="View details"
                         >
                           <Eye className="w-4 h-4" />

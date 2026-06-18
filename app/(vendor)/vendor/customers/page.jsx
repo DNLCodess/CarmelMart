@@ -73,61 +73,106 @@ export default function VendorCustomersPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Customer</th>
-                  <th className="px-5 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Orders</th>
-                  <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Spent</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Last Order</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Phone</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                {customers.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <span className="text-sm font-bold text-primary">
-                            {(c.name?.[0] ?? "?").toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-gray-100">{c.name}</p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[180px]">{c.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300">
-                        {c.totalOrders}
+          <>
+            {/* ── Mobile card list (< lg) ───────────────────────────────────── */}
+            <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
+              {customers.map((c) => (
+                <div key={c.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-primary">
+                        {(c.name?.[0] ?? "?").toUpperCase()}
                       </span>
-                    </td>
-                    <td className="px-5 py-4 text-right font-bold text-gray-900 dark:text-gray-100">
-                      ₦{(c.totalSpent || 0).toLocaleString()}
-                    </td>
-                    <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400 hidden md:table-cell">
-                      {c.lastOrderAt ?? "—"}
-                    </td>
-                    <td className="px-5 py-4 hidden lg:table-cell">
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{c.name}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{c.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Orders</p>
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 mt-0.5">
+                          {c.totalOrders}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Total Spent</p>
+                        <p className="font-bold text-gray-900 dark:text-gray-100 text-sm mt-0.5">₦{(c.totalSpent || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{c.lastOrderAt ?? "—"}</p>
                       {c.phone ? (
-                        <a
-                          href={`tel:${c.phone}`}
-                          className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                        >
-                          <Phone className="w-3.5 h-3.5" /> {c.phone}
+                        <a href={`tel:${c.phone}`} className="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 hover:underline mt-0.5">
+                          <Phone className="w-3 h-3" /> {c.phone}
                         </a>
                       ) : (
-                        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">—</p>
                       )}
-                    </td>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* ── Desktop table (lg+) ──────────────────────────────────────── */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Customer</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Orders</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Spent</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Last Order</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Phone</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {customers.map((c) => (
+                    <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-bold text-primary">
+                              {(c.name?.[0] ?? "?").toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-gray-100">{c.name}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[180px]">{c.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300">
+                          {c.totalOrders}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-gray-900 dark:text-gray-100">
+                        ₦{(c.totalSpent || 0).toLocaleString()}
+                      </td>
+                      <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400">
+                        {c.lastOrderAt ?? "—"}
+                      </td>
+                      <td className="px-5 py-4">
+                        {c.phone ? (
+                          <a
+                            href={`tel:${c.phone}`}
+                            className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 hover:underline transition-colors"
+                          >
+                            <Phone className="w-3.5 h-3.5" /> {c.phone}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
