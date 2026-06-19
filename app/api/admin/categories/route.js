@@ -22,27 +22,38 @@ export async function GET() {
       .select("id, name, slug, parent_id, image, template, created_at")
       .order("name", { ascending: true });
 
-    // Count products per category
+    // Count only live products (active + approved) per category
     const { data: counts } = await ctx.admin
       .from("products")
       .select("category_id")
-      .neq("status", "draft");
+      .eq("status", "active")
+      .eq("moderation_status", "approved");
 
+    // Build direct counts per category_id
     const countMap = {};
     (counts || []).forEach(({ category_id }) => {
-      countMap[category_id] = (countMap[category_id] ?? 0) + 1;
+      if (category_id) countMap[category_id] = (countMap[category_id] ?? 0) + 1;
     });
 
-    const list = (categories || []).map((c) => ({
-      id:           c.id,
-      name:         c.name,
-      slug:         c.slug,
-      parentId:     c.parent_id,
-      image:        c.image,
-      template:     c.template ?? "standard",
-      productCount: countMap[c.id] ?? 0,
-      createdAt:    new Date(c.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
-    }));
+    // Roll up subcategory counts into each parent
+    const list = (categories || []).map((c) => {
+      let productCount = countMap[c.id] ?? 0;
+      if (!c.parent_id) {
+        (categories || []).forEach((sub) => {
+          if (sub.parent_id === c.id) productCount += countMap[sub.id] ?? 0;
+        });
+      }
+      return {
+        id:        c.id,
+        name:      c.name,
+        slug:      c.slug,
+        parentId:  c.parent_id,
+        image:     c.image,
+        template:  c.template ?? "standard",
+        productCount,
+        createdAt: new Date(c.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
+      };
+    });
 
     return NextResponse.json({ categories: list });
   } catch (error) {

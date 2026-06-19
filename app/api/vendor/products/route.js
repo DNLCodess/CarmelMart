@@ -147,6 +147,7 @@ export async function POST(request) {
     }
 
     if (!name || !price) return NextResponse.json({ error: "Name and price are required" }, { status: 400 });
+    if (!category_id)   return NextResponse.json({ error: "Please select a category for this product" }, { status: 400 });
     if (sale_price && Number(sale_price) >= Number(price)) {
       return NextResponse.json({ error: "Sale price must be less than regular price" }, { status: 400 });
     }

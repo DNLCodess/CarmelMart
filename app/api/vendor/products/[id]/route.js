@@ -67,6 +67,10 @@ export async function PATCH(request, { params }) {
       }
     }
 
+    if (!body.category_id) {
+      return NextResponse.json({ error: "Please select a category for this product" }, { status: 400 });
+    }
+
     const isDigital     = body.is_digital ?? false;
     const isDigitalOnly = body.digital_only ?? false;
 

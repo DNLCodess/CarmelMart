@@ -58,6 +58,23 @@ export async function GET(request, { params }) {
       done:  order.status === "cancelled" ? false : i <= currentIdx,
     }));
 
+    // For delivered orders, pre-load which products this user has already reviewed
+    let reviewedProductIds = [];
+    if (order.status === "delivered") {
+      const productIds = (order.order_items ?? [])
+        .map((it) => it.products?.id)
+        .filter(Boolean);
+      if (productIds.length) {
+        const { data: existingReviews } = await admin
+          .from("product_reviews")
+          .select("product_id")
+          .eq("user_id", user.id)
+          .eq("order_id", id)
+          .in("product_id", productIds);
+        reviewedProductIds = (existingReviews ?? []).map((r) => r.product_id);
+      }
+    }
+
     return NextResponse.json({
       order: {
         id:             order.id,
@@ -86,6 +103,7 @@ export async function GET(request, { params }) {
           is_digital:      it.products?.is_digital ?? false,
           delivery_format: it.delivery_format ?? "physical",
         })),
+        reviewed_product_ids: reviewedProductIds,
       },
     });
   } catch (error) {

@@ -482,7 +482,10 @@ export default function EditProductPage() {
                 </select>
               </div>
             )}
-            <input type="hidden" {...register("category_id")} />
+            <input type="hidden" {...register("category_id", { required: "Please select a category" })} />
+            {errors.category_id && (
+              <p className="text-xs text-red-500 mt-1">{errors.category_id.message}</p>
+            )}
           </div>
 
         </div>

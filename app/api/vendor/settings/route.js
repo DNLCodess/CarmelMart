@@ -79,7 +79,7 @@ export async function PATCH(request) {
         );
       }
 
-      const flwRes = await fetch("https://api.flutterwave.com/v3/resolve_account", {
+      const flwRes = await fetch("https://api.flutterwave.com/v3/accounts/resolve", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
@@ -88,11 +88,24 @@ export async function PATCH(request) {
         body: JSON.stringify({ account_number: resolveNumber, account_bank: resolveCode }),
         signal: AbortSignal.timeout(10_000),
       });
+
+      const contentType = flwRes.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        const text = await flwRes.text();
+        console.error("[vendor/settings] Flutterwave non-JSON response:", flwRes.status, text);
+        return NextResponse.json(
+          { error: "Bank verification service returned an unexpected response. Please try again." },
+          { status: 502 }
+        );
+      }
+
       const flwData = await flwRes.json();
+      console.log("[vendor/settings] Flutterwave resolve response:", JSON.stringify(flwData));
 
       if (flwData.status !== "success" || !flwData.data?.account_name) {
+        console.error("[vendor/settings] Flutterwave verification failed:", flwData.message ?? flwData.status);
         return NextResponse.json(
-          { error: "Could not verify bank account. Please check your account number and bank code." },
+          { error: flwData.message || "Could not verify bank account. Please check your account number and bank code." },
           { status: 400 }
         );
       }

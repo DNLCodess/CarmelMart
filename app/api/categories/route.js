@@ -13,19 +13,27 @@ export async function GET() {
 
     if (error) throw error;
 
+    // Build direct counts per category_id
     const countMap = {};
     (counts || []).forEach((p) => {
-      countMap[p.category_id] = (countMap[p.category_id] || 0) + 1;
+      if (p.category_id) countMap[p.category_id] = (countMap[p.category_id] || 0) + 1;
     });
 
-    const result = (categories || []).map((c) => ({
-      ...c,
-      productCount: countMap[c.id] || 0,
-    }));
+    // Roll up subcategory counts into each parent
+    const result = (categories || []).map((c) => {
+      let productCount = countMap[c.id] || 0;
+      if (!c.parent_id) {
+        // Add counts from all children of this parent
+        (categories || []).forEach((sub) => {
+          if (sub.parent_id === c.id) productCount += countMap[sub.id] || 0;
+        });
+      }
+      return { ...c, productCount };
+    });
 
     return NextResponse.json(
       { success: true, categories: result },
-      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

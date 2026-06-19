@@ -22,7 +22,6 @@ import {
   Package,
   RefreshCw,
   TrendingUp,
-  Eye,
   MapPin,
   Clock,
   MessageCircle,
@@ -294,9 +293,6 @@ export default function ProductDetailPage() {
   const [imgIndex, setImgIndex] = useState(0);
   const [selectedAttrs, setSelectedAttrs] = useState({});
   const [activeTab, setActiveTab] = useState("description");
-  // Simulated live viewers (would come from realtime in production)
-  const [viewers] = useState(() => Math.floor(Math.random() * 18) + 3);
-
   const addItem = useCartStore((s) => s.addItem);
   const addToWishlist = useUIStore((s) => s.addToWishlist);
   const removeFromWishlist = useUIStore((s) => s.removeFromWishlist);
@@ -527,11 +523,6 @@ export default function ProductDetailPage() {
                       {product.badge}
                     </div>
                   )}
-                  {/* Live viewers badge */}
-                  <div className="absolute bottom-4 left-4 flex items-center gap-1.5 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>{viewers} people viewing now</span>
-                  </div>
                   {images.length > 1 && (
                     <>
                       <button

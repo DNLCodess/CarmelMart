@@ -54,7 +54,6 @@ const NAV_ITEMS = [
   { href: "/admin/payouts", label: "Payouts", icon: Wallet },
   { href: "/admin/commission", label: "Commission", icon: Percent },
   { href: "/admin/fraud-flags", label: "Fraud Flags", icon: Flag },
-  { href: "/admin/hero-banners", label: "Hero Banners", icon: Image },
   { href: "/admin/bulk-mail", label: "Bulk Mail", icon: Mail },
   { href: "/admin/support", label: "Support Inbox", icon: Inbox },
   { href: "/admin/users", label: "Users", icon: Users },

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // GET /api/products/[id]/reviews
 export async function GET(request, { params }) {
@@ -43,6 +44,73 @@ export async function GET(request, { params }) {
     });
 
     return NextResponse.json({ reviews: normalized, total: count ?? 0 });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// POST /api/products/[id]/reviews — submit a product review (requires delivered order)
+export async function POST(request, { params }) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { id: product_id } = await params;
+    const body = await request.json();
+    const { rating, comment, order_id } = body;
+
+    if (!rating || Number(rating) < 1 || Number(rating) > 5) {
+      return NextResponse.json({ error: "Rating must be between 1 and 5" }, { status: 400 });
+    }
+    if (!order_id) {
+      return NextResponse.json({ error: "order_id is required" }, { status: 400 });
+    }
+
+    const admin = createAdminClient();
+
+    // Verify: order belongs to this user, is delivered, and contains this product
+    const { data: orderItem } = await admin
+      .from("order_items")
+      .select("id, orders!inner(id, customer_id, status)")
+      .eq("product_id", product_id)
+      .eq("order_id", order_id)
+      .eq("orders.customer_id", user.id)
+      .eq("orders.status", "delivered")
+      .maybeSingle();
+
+    if (!orderItem) {
+      return NextResponse.json(
+        { error: "You can only review products from your delivered orders" },
+        { status: 403 }
+      );
+    }
+
+    // Insert — RLS INSERT policy enforces user_id = auth.uid()
+    const { data: review, error } = await supabase
+      .from("product_reviews")
+      .insert({
+        product_id,
+        user_id:  user.id,
+        order_id,
+        rating:   Number(rating),
+        comment:  comment?.trim() || null,
+        images:   [],
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "You have already reviewed this product for this order" },
+          { status: 409 }
+        );
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ success: true, review }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

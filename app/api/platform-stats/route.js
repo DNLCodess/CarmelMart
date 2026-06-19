@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-
-export const revalidate = 300; // revalidate every 5 minutes
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
-    const admin = await createClient();
+    const admin = createAdminClient();
 
     const [vendorsRes, productsRes, ordersRes] = await Promise.all([
       admin.from("vendors").select("id", { count: "exact", head: true }).eq("verification_status", "verified"),
       admin.from("products").select("id", { count: "exact", head: true }).eq("status", "active").eq("moderation_status", "approved"),
-      admin.from("orders").select("id", { count: "exact", head: true }),
+      admin.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "paid"),
     ]);
 
     return NextResponse.json(

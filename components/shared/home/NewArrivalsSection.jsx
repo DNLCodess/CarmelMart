@@ -73,7 +73,7 @@ export default function NewArrivalsSection() {
         </div>
 
         {/* Products grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 items-stretch">
           {products.slice(0, 8).map((p, i) => {
             const price   = p.salePrice ?? p.sale_price ?? p.price;
             const origPrice = p.salePrice ? p.price : (p.sale_price ? p.price : null);
@@ -88,11 +88,12 @@ export default function NewArrivalsSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
                 viewport={{ once: true }}
-                className="group"
+                className="group h-full"
               >
-                <Link href={`/product/${p.id}`}>
-                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300">
-                    <div className="relative aspect-square overflow-hidden bg-gray-50">
+                <Link href={`/product/${p.id}`} className="flex h-full">
+                  <div className="flex flex-col w-full bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300">
+                    {/* Image — fixed square ratio */}
+                    <div className="relative aspect-square overflow-hidden bg-gray-50 shrink-0">
                       {img && (
                         <Image
                           src={img}
@@ -102,7 +103,6 @@ export default function NewArrivalsSection() {
                           sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
                         />
                       )}
-                      {/* New badge */}
                       <span className="absolute top-3 left-3 text-xs font-bold bg-primary text-white px-2.5 py-1 rounded-full">
                         New
                       </span>
@@ -111,22 +111,19 @@ export default function NewArrivalsSection() {
                           -{discount}%
                         </span>
                       )}
-                      {/* Wishlist */}
                       <button
                         onClick={(e) => handleWishlist(e, p)}
                         className={`absolute top-3 right-3 w-8 h-8 rounded-full shadow flex items-center justify-center transition-colors ${isWished ? "bg-red-500 text-white" : "bg-white text-gray-400 hover:text-red-500"}`}
                       >
                         <Heart className={`w-4 h-4 ${isWished ? "fill-current" : ""}`} />
                       </button>
-                      {/* Mobile: persistent cart button */}
                       <button
                         onClick={(e) => handleAddToCart(e, p)}
-                        className="sm:hidden absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center bg-gray-900 text-white rounded-full shadow active:scale-95 transition-opacity"
+                        className="sm:hidden absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center bg-gray-900 text-white rounded-full shadow active:scale-95"
                         aria-label="Add to cart"
                       >
                         <ShoppingCart className="w-3.5 h-3.5" />
                       </button>
-                      {/* Desktop: slide-up CTA */}
                       <div className="hidden sm:block absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                         <button
                           onClick={(e) => handleAddToCart(e, p)}
@@ -137,11 +134,12 @@ export default function NewArrivalsSection() {
                       </div>
                     </div>
 
-                    <div className="p-4">
+                    {/* Info — flex-1 so all cards in a row stretch to the same height */}
+                    <div className="p-4 flex flex-col flex-1">
                       {p.category && (
-                        <p className="text-xs font-semibold text-primary mb-1">{p.category.name}</p>
+                        <p className="text-xs font-semibold text-primary mb-1 truncate">{p.category.name}</p>
                       )}
-                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1.5 hover:text-primary transition-colors">
+                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1.5">
                         {p.name}
                       </h3>
                       <p className="text-xs text-gray-500 mb-2 truncate">
@@ -154,7 +152,8 @@ export default function NewArrivalsSection() {
                           <span className="text-xs text-gray-400">({p.reviewCount ?? p.review_count})</span>
                         </div>
                       )}
-                      <div className="flex items-baseline gap-2">
+                      {/* Price pinned to bottom */}
+                      <div className="mt-auto flex items-baseline gap-2 pt-2">
                         <span className="text-base font-bold text-gray-900">
                           {price != null ? `₦${price.toLocaleString()}` : "—"}
                         </span>

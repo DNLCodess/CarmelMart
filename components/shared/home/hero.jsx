@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Star, ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { ArrowRight, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -100,14 +100,6 @@ export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
-  // Fetch DB banners — fall back to static slides if empty/unavailable
-  const { data: bannerData } = useQuery({
-    queryKey: ["hero-banners"],
-    queryFn: () => fetch("/api/banners").then((r) => r.json()),
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-
   const { data: productsData } = useQuery({
     queryKey: ["hero-featured-products"],
     queryFn: () =>
@@ -127,36 +119,7 @@ export default function HeroSection() {
     }));
   }, [productsData]);
 
-  const slides = useMemo(() => {
-    const db = bannerData?.banners ?? [];
-    if (db.length > 0) {
-      return db.map((b) => ({
-        id: b.id,
-        image: b.image_url,
-        badge: b.badge_text || "Featured",
-        title: b.title,
-        titleAccent: b.subtitle || "",
-        description: b.description || "",
-        ctaLabel: b.cta_label || "Shop Now",
-        ctaHref: b.cta_href || "/shop",
-        stats: {
-          vendors: "Verified",
-          products: "Authentic",
-          satisfaction: "100%",
-        },
-        statLabels: {
-          vendors: "Vendors Only",
-          products: "Products",
-          satisfaction: "Buyer Protection",
-        },
-      }));
-    }
-    return heroSlides.map((s) => ({
-      ...s,
-      ctaLabel: s.ctaLabel ?? "Shop Now",
-      ctaHref: s.ctaHref ?? "/shop",
-    }));
-  }, [bannerData]);
+  const slides = heroSlides;
 
   useEffect(() => {
     if (!isAutoPlaying) return;
@@ -217,14 +180,14 @@ export default function HeroSection() {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="hidden md:flex absolute left-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
+        className="hidden xl:flex absolute left-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
         aria-label="Previous slide"
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
       <button
         onClick={nextSlide}
-        className="hidden md:flex absolute right-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
+        className="hidden xl:flex absolute right-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
         aria-label="Next slide"
       >
         <ChevronRight className="w-6 h-6" />
@@ -242,22 +205,6 @@ export default function HeroSection() {
               transition={{ duration: 0.6 }}
               className="max-w-2xl"
             >
-              {/* Badge */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full mb-8 border border-white/20"
-              >
-                <Tag className="w-4 h-4 text-accent" />
-                <span className="text-sm font-semibold text-white">
-                  {currentHero.badge}
-                </span>
-                <span className="text-xs text-white/60">
-                  • Nigeria&apos;s Verified Marketplace
-                </span>
-              </motion.div>
-
               {/* Heading */}
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6">
                 {currentHero.title}
