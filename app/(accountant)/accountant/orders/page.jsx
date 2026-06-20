@@ -69,7 +69,7 @@ async function fetchOrders({ range, status, payment, search, page }) {
 function SummaryStrip({ summary, isLoading }) {
   const fmtN = (n) => `₦${(n ?? 0).toLocaleString()}`;
   const items = [
-    { label: "GMV",           value: fmtN(summary?.gmv),           icon: ShoppingCart, color: "bg-primary/10 text-primary"              },
+    { label: "Total Sales",    value: fmtN(summary?.gmv),           icon: ShoppingCart, color: "bg-primary/10 text-primary"              },
     { label: "Platform Fees", value: fmtN(summary?.platformFees),  icon: DollarSign,   color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
     { label: "Delivery Fees", value: fmtN(summary?.deliveryFees),  icon: Truck,        color: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"                 },
   ];

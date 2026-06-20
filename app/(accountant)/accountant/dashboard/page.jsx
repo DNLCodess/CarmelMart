@@ -55,7 +55,7 @@ async function fetchFinancials(range, page) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-// Full-width hero card for the primary metric (GMV)
+// Full-width hero card for the primary metric (Total Sales)
 function GmvHero({ value, completedCount, refundedCount, totalRefunded, isLoading }) {
   return (
     <div className="bg-primary rounded-2xl p-5 text-white relative overflow-hidden">
@@ -64,7 +64,7 @@ function GmvHero({ value, completedCount, refundedCount, totalRefunded, isLoadin
       <div className="absolute -right-2 -bottom-10 w-24 h-24 rounded-full bg-white/5" />
 
       <p className="text-[11px] font-bold uppercase tracking-widest text-white/60">
-        Gross Revenue (GMV)
+        Total Sales
       </p>
       {isLoading ? (
         <div className="h-9 w-40 bg-white/20 rounded-lg animate-pulse mt-2" />
@@ -190,7 +190,7 @@ export default function AccountantDashboardPage() {
         </div>
       </div>
 
-      {/* ── Hero: GMV ── */}
+      {/* ── Hero: Total Sales ── */}
       <GmvHero
         value={fmtN(s.gmv)}
         completedCount={s.completedCount}
@@ -453,10 +453,10 @@ export default function AccountantDashboardPage() {
         <BadgeCheck className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div className="space-y-1 text-xs text-amber-700 dark:text-amber-400">
           <p className="font-semibold text-sm">How the numbers work</p>
-          <p><strong>Order Total</strong> = Product Amount + Delivery Fee — what the customer pays.</p>
-          <p><strong>Platform Fee</strong> = {s.feeRate != null ? `${(s.feeRate * 100).toFixed(1)}%` : "configured %"} of Order Total — the platform&apos;s earning per order.</p>
-          <p><strong>Delivery Fee</strong> = Charged to the customer, passed to the rider/service.</p>
-          <p><strong>Vendor Payout</strong> = Order Total − Platform Fee — transferred to vendor bank account.</p>
+          <p><strong>Total Sales</strong> — the combined value of all completed customer orders in this period.</p>
+          <p><strong>Commission ({s.feeRate != null ? `${(s.feeRate * 100).toFixed(1)}%` : "configured %"})</strong> — CarmelMart&apos;s cut of every order. This is the platform&apos;s actual earnings.</p>
+          <p><strong>Delivery Fee</strong> — paid by the customer, passed directly to the rider or delivery service. Not platform income.</p>
+          <p><strong>Vendor Payout</strong> — what the vendor receives: Order Total minus the commission and delivery fee.</p>
         </div>
       </div>
     </div>

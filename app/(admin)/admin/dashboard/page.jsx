@@ -2,8 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  DollarSign, Users, Store, ShoppingCart, Package, Shield,
-  AlertCircle, Clock, ArrowUp, ArrowDown, ShoppingBag, Tag,
+  Users, Store, ShoppingCart,
+  AlertCircle, ShoppingBag, Tag,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -39,45 +39,76 @@ const STATUS_COLOR = {
   pending_kyc: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
 };
 
-function StatCard({ label, value, sub, icon: Icon, color, trend, trendValue, alert, href }) {
-  const card = (
-    <div className={`group relative bg-white dark:bg-gray-800 rounded-2xl border p-5 transition-all duration-200 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/30 hover:-translate-y-0.5 ${
-      alert
-        ? "border-amber-200 dark:border-amber-700/60"
-        : "border-gray-100 dark:border-gray-700/60"
-    }`}>
-      {/* Top row: icon + trend/alert */}
-      <div className="flex items-start justify-between mb-5">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${color}`}>
-          <Icon className="w-[22px] h-[22px] text-white" />
-        </div>
+// ── Mobile-first stat hierarchy ───────────────────────────────────────────────
 
-        {trendValue ? (
-          <span className={`inline-flex items-center gap-0.5 text-xs font-bold px-2.5 py-1 rounded-xl ${
-            trend === "up"
-              ? "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-              : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-          }`}>
-            {trend === "up" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-            {trendValue}
-          </span>
-        ) : alert ? (
-          <span className="relative flex h-2.5 w-2.5 mt-1">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
-          </span>
-        ) : null}
-      </div>
-
-      {/* Label + value + sub */}
-      <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">{label}</p>
-      <p className="text-[1.875rem] font-black text-gray-900 dark:text-gray-50 leading-none tracking-tight">{value}</p>
-      {sub && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2.5">{sub}</p>
-      )}
+function HeroCard({ label, value, sub, isLoading }) {
+  return (
+    <div className="bg-primary rounded-2xl p-5 text-white relative overflow-hidden">
+      <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/5" />
+      <div className="absolute -right-2 -bottom-10 w-24 h-24 rounded-full bg-white/5" />
+      <p className="text-[11px] font-bold uppercase tracking-widest text-white/60">{label}</p>
+      {isLoading
+        ? <div className="h-9 w-40 bg-white/20 rounded-lg animate-pulse mt-2" />
+        : <p className="text-4xl font-extrabold mt-1 leading-none">{value}</p>
+      }
+      {sub && <p className="text-xs text-white/60 mt-2">{sub}</p>}
     </div>
   );
-  return href ? <Link href={href} className="block">{card}</Link> : card;
+}
+
+function MetricTile({ label, value, sub, icon: Icon, colorClass, href, alert }) {
+  const inner = (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-3.5 flex flex-col gap-2 h-full">
+      <div className="flex items-start justify-between">
+        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${colorClass}`}>
+          <Icon className="w-4 h-4 text-white" />
+        </div>
+        {alert && (
+          <span className="relative flex h-2 w-2 mt-1">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
+          </span>
+        )}
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide leading-tight">{label}</p>
+        <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-0.5 leading-none">{value}</p>
+        {sub && <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-tight">{sub}</p>}
+      </div>
+    </div>
+  );
+  return href ? <Link href={href} className="block">{inner}</Link> : inner;
+}
+
+function SecondaryPanel({ rows }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Platform Status</p>
+      </div>
+      <div className="divide-y divide-gray-50 dark:divide-gray-700/60">
+        {rows.map(({ label, value, valueClass, href, alert }) => {
+          const inner = (
+            <div className={`px-4 py-3 flex items-center justify-between gap-3 ${href ? "hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors" : ""}`}>
+              <div className="flex items-center gap-2 min-w-0">
+                {alert && (
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
+                  </span>
+                )}
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-tight">{label}</p>
+              </div>
+              <p className={`text-sm font-bold shrink-0 ${valueClass ?? "text-gray-900 dark:text-gray-100"}`}>{value}</p>
+            </div>
+          );
+          return href
+            ? <Link key={label} href={href} className="block">{inner}</Link>
+            : <div key={label}>{inner}</div>;
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function AdminDashboardPage() {
@@ -98,21 +129,52 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Primary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Sales (30d)" value={fmtNaira(s.gmv || 0)}                                   icon={DollarSign}   color="bg-primary"                                                     sub="from paid orders"   />
-        <StatCard label="Total Users"     value={(s.total_users || 0).toLocaleString()}                  icon={Users}        color="bg-blue-500"    trend="up"  trendValue={`+${s.new_users_30d || 0}`} sub="new this month"     href="/admin/users"  />
-        <StatCard label="Active Vendors"  value={(s.vendors || 0).toLocaleString()}                      icon={Store}        color="bg-violet-500"  sub={`${s.pending_kyc || 0} pending KYC`}  alert={(s.pending_kyc || 0) > 0}  href="/admin/kyc"    />
-        <StatCard label="Total Orders"    value={(s.orders || 0).toLocaleString()}                       icon={ShoppingCart} color="bg-emerald-500" sub={`${s.pending_orders || 0} pending`}    href="/admin/orders" />
+      {/* Hero: Total Sales */}
+      <HeroCard
+        label="Total Sales (30d)"
+        value={fmtNaira(s.gmv || 0)}
+        sub="from completed paid orders"
+        isLoading={isLoading}
+      />
+
+      {/* 3-col metric strip */}
+      <div className="grid grid-cols-3 gap-3">
+        <MetricTile
+          label="Total Users"
+          value={(s.total_users || 0).toLocaleString()}
+          sub={`+${s.new_users_30d || 0} this month`}
+          icon={Users}
+          colorClass="bg-blue-500"
+          href="/admin/users"
+        />
+        <MetricTile
+          label="Active Vendors"
+          value={(s.vendors || 0).toLocaleString()}
+          sub={`${s.pending_kyc || 0} pending KYC`}
+          icon={Store}
+          colorClass="bg-violet-500"
+          href="/admin/kyc"
+          alert={(s.pending_kyc || 0) > 0}
+        />
+        <MetricTile
+          label="Total Orders"
+          value={(s.orders || 0).toLocaleString()}
+          sub={`${s.pending_orders || 0} pending`}
+          icon={ShoppingCart}
+          colorClass="bg-emerald-500"
+          href="/admin/orders"
+        />
       </div>
 
-      {/* Secondary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Live Products"  value={(s.products || 0).toLocaleString()}      icon={Package}      color="bg-orange-500" />
-        <StatCard label="Pending KYC"   value={(s.pending_kyc || 0).toLocaleString()}    icon={Shield}       color="bg-amber-500"  alert={(s.pending_kyc || 0) > 0}  href="/admin/kyc"    />
-        <StatCard label="Open Disputes" value={(s.open_disputes || 0).toLocaleString()}  icon={AlertCircle}  color="bg-red-500"    alert={(s.open_disputes || 0) > 0} />
-        <StatCard label="Pending Orders" value={(s.pending_orders || 0).toLocaleString()} icon={Clock}        color="bg-cyan-500"   href="/admin/orders" />
-      </div>
+      {/* Secondary stats as statement panel */}
+      <SecondaryPanel
+        rows={[
+          { label: "Live Products",       value: (s.products || 0).toLocaleString() },
+          { label: "Pending KYC Reviews", value: (s.pending_kyc || 0).toLocaleString(),   valueClass: (s.pending_kyc || 0) > 0 ? "text-amber-600 dark:text-amber-400" : undefined, href: "/admin/kyc",    alert: (s.pending_kyc || 0) > 0 },
+          { label: "Open Disputes",       value: (s.open_disputes || 0).toLocaleString(),  valueClass: (s.open_disputes || 0) > 0 ? "text-red-600 dark:text-red-400" : undefined,   alert: (s.open_disputes || 0) > 0 },
+          { label: "Pending Orders",      value: (s.pending_orders || 0).toLocaleString(), href: "/admin/orders" },
+        ]}
+      />
 
       {/* Action alerts */}
       {((s.pending_kyc || 0) > 0 || (s.open_disputes || 0) > 0) && (
@@ -134,7 +196,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-bold text-gray-900 dark:text-gray-100">Platform Revenue</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">6-month GMV trend</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">6-month sales trend</p>
             </div>
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Last 6 months</span>
           </div>
@@ -234,7 +296,7 @@ export default function AdminDashboardPage() {
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
             <Tag className="w-4 h-4 text-primary" />
             <h3 className="font-bold text-gray-900 dark:text-gray-100">Top Categories</h3>
-            <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">by GMV · last 30 days</span>
+            <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">by sales · last 30 days</span>
           </div>
           {isLoading ? (
             <div className="py-10 flex items-center justify-center">

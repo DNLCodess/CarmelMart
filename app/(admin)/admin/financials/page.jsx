@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  DollarSign, TrendingUp, Wallet, RotateCcw, RefreshCw, ArrowUp, ArrowDown,
+  DollarSign, TrendingUp, Wallet, RotateCcw, RefreshCw, ArrowUp, ArrowDown, BadgePercent,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -21,16 +21,33 @@ async function fetchFinancials(range) {
   return r.json();
 }
 
-function KpiCard({ label, value, sub, icon: Icon, color }) {
+// ── Mobile-first stat hierarchy ───────────────────────────────────────────────
+
+function HeroCard({ label, value, sub, isLoading }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 flex items-start gap-4">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-        <Icon className="w-5 h-5 text-white" />
+    <div className="bg-primary rounded-2xl p-5 text-white relative overflow-hidden">
+      <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/5" />
+      <div className="absolute -right-2 -bottom-10 w-24 h-24 rounded-full bg-white/5" />
+      <p className="text-[11px] font-bold uppercase tracking-widest text-white/60">{label}</p>
+      {isLoading
+        ? <div className="h-9 w-40 bg-white/20 rounded-lg animate-pulse mt-2" />
+        : <p className="text-4xl font-extrabold mt-1 leading-none">{value}</p>
+      }
+      {sub && <p className="text-xs text-white/60 mt-2">{sub}</p>}
+    </div>
+  );
+}
+
+function MetricTile({ label, value, sub, icon: Icon, colorClass }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-3.5 flex flex-col gap-2">
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${colorClass}`}>
+        <Icon className="w-4 h-4 text-white" />
       </div>
       <div>
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
-        <p className="text-2xl font-extrabold text-gray-900 dark:text-gray-100 mt-0.5 leading-none">{value}</p>
-        {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{sub}</p>}
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide leading-tight">{label}</p>
+        <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-0.5 leading-none">{value}</p>
+        {sub && <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-tight">{sub}</p>}
       </div>
     </div>
   );
@@ -73,12 +90,37 @@ export default function AdminFinancialsPage() {
         </div>
       </div>
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Gross GMV"       value={`₦${(s.gmv ?? 0).toLocaleString()}`}               sub={`${(s.feeRate ?? 0.05) * 100}% platform fee`}  icon={TrendingUp}   color="bg-primary" />
-        <KpiCard label="Platform Fees"   value={`₦${(s.platformFees ?? 0).toLocaleString()}`}      sub="5% of GMV"                                      icon={DollarSign}   color="bg-emerald-500" />
-        <KpiCard label="Total Refunded"  value={`₦${(s.totalRefunded ?? 0).toLocaleString()}`}     sub="from refunded orders"                           icon={RotateCcw}    color="bg-red-500" />
-        <KpiCard label="Wallet Balances" value={`₦${(s.totalWalletBalances ?? 0).toLocaleString()}`} sub="total held across all users"                  icon={Wallet}       color="bg-violet-500" />
+      {/* Hero: Total Sales */}
+      <HeroCard
+        label="Total Sales"
+        value={`₦${(s.gmv ?? 0).toLocaleString()}`}
+        sub="from completed orders in this period"
+        isLoading={isLoading}
+      />
+
+      {/* 3-col metric strip */}
+      <div className="grid grid-cols-3 gap-3">
+        <MetricTile
+          label="Commission Earned"
+          value={`₦${(s.platformFees ?? 0).toLocaleString()}`}
+          sub={`${((s.feeRate ?? 0.1) * 100).toFixed(1)}% rate`}
+          icon={BadgePercent}
+          colorClass="bg-emerald-500"
+        />
+        <MetricTile
+          label="Total Refunded"
+          value={`₦${(s.totalRefunded ?? 0).toLocaleString()}`}
+          sub="refunded orders"
+          icon={RotateCcw}
+          colorClass="bg-red-500"
+        />
+        <MetricTile
+          label="Wallet Balances"
+          value={`₦${(s.totalWalletBalances ?? 0).toLocaleString()}`}
+          sub="held across users"
+          icon={Wallet}
+          colorClass="bg-violet-500"
+        />
       </div>
 
       {/* Reconciliation row */}
@@ -97,7 +139,7 @@ export default function AdminFinancialsPage() {
 
       {/* Revenue + Fees chart */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
-        <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-5">GMV vs Platform Fees</h3>
+        <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-5">Total Sales vs Commission Earned</h3>
         {isLoading ? (
           <div className="h-52 flex items-center justify-center">
             <RefreshCw className="w-6 h-6 text-gray-300 animate-spin" />
@@ -109,8 +151,8 @@ export default function AdminFinancialsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#6b7280" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v, name) => [`₦${v.toLocaleString()}`, name === "gmv" ? "GMV" : "Platform Fee"]} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
-                <Legend formatter={(v) => v === "gmv" ? "GMV" : "Platform Fee"} iconType="circle" iconSize={8} />
+                <Tooltip formatter={(v, name) => [`₦${v.toLocaleString()}`, name === "gmv" ? "Total Sales" : "Commission Earned"]} contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                <Legend formatter={(v) => v === "gmv" ? "Total Sales" : "Commission Earned"} iconType="circle" iconSize={8} />
                 <Bar dataKey="gmv"  fill="#560238" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="fees" fill="#10b981" radius={[4, 4, 0, 0]} />
               </BarChart>

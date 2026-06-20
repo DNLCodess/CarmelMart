@@ -5,15 +5,7 @@ import {
   DollarSign,
   ShoppingCart,
   Package,
-  Users,
-  ArrowUp,
-  ArrowDown,
   AlertCircle,
-  Clock,
-  Truck,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
   ListTodo,
   ChevronRight,
   MessageCircle,
@@ -74,41 +66,33 @@ function StatusBadge({ status }) {
   );
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon: Icon, color, trend, trendValue }) {
+// ── Mobile-first stat hierarchy ───────────────────────────────────────────────
+
+function HeroCard({ label, value, sub, isLoading }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 flex items-start gap-4">
-      <div
-        className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}
-      >
-        <Icon className="w-5 h-5 text-white" />
+    <div className="bg-primary rounded-2xl p-5 text-white relative overflow-hidden">
+      <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/5" />
+      <div className="absolute -right-2 -bottom-10 w-24 h-24 rounded-full bg-white/5" />
+      <p className="text-[11px] font-bold uppercase tracking-widest text-white/60">{label}</p>
+      {isLoading
+        ? <div className="h-9 w-40 bg-white/20 rounded-lg animate-pulse mt-2" />
+        : <p className="text-4xl font-extrabold mt-1 leading-none">{value}</p>
+      }
+      {sub && <p className="text-xs text-white/60 mt-2">{sub}</p>}
+    </div>
+  );
+}
+
+function MetricTile({ label, value, sub, icon: Icon, colorClass }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-3.5 flex flex-col gap-2">
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${colorClass}`}>
+        <Icon className="w-4 h-4 text-white" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-          {label}
-        </p>
-        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5 leading-none">
-          {value}
-        </p>
-        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-          {trendValue && (
-            <span
-              className={`inline-flex items-center gap-0.5 text-xs font-bold ${trend === "up" ? "text-green-600" : "text-red-500"}`}
-            >
-              {trend === "up" ? (
-                <ArrowUp className="w-3 h-3" />
-              ) : (
-                <ArrowDown className="w-3 h-3" />
-              )}
-              {trendValue}
-            </span>
-          )}
-          {sub && (
-            <span className="text-xs text-gray-400 dark:text-gray-500">
-              {sub}
-            </span>
-          )}
-        </div>
+      <div>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide leading-tight">{label}</p>
+        <p className="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-0.5 leading-none">{value}</p>
+        {sub && <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-tight">{sub}</p>}
       </div>
     </div>
   );
@@ -140,34 +124,35 @@ export default function VendorOverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Revenue (30d)"
-          value={`₦${(stats.revenue || 0).toLocaleString()}`}
-          icon={DollarSign}
-          color="bg-primary"
-          sub="last 30 days"
-        />
-        <StatCard
+      {/* Hero: Revenue */}
+      <HeroCard
+        label="Revenue (30d)"
+        value={`₦${(stats.revenue || 0).toLocaleString()}`}
+        sub="from completed orders this month"
+        isLoading={isLoading}
+      />
+
+      {/* 3-col metric strip */}
+      <div className="grid grid-cols-3 gap-3">
+        <MetricTile
           label="Total Orders"
           value={(stats.orders || 0).toLocaleString()}
-          icon={ShoppingCart}
-          color="bg-blue-500"
           sub={`${stats.pending_orders || 0} pending`}
+          icon={ShoppingCart}
+          colorClass="bg-blue-500"
         />
-        <StatCard
+        <MetricTile
           label="Products Live"
           value={(stats.products || 0).toLocaleString()}
           icon={Package}
-          color="bg-emerald-500"
+          colorClass="bg-emerald-500"
         />
-        <StatCard
+        <MetricTile
           label="Wallet Balance"
           value={`₦${(stats.wallet_balance || 0).toLocaleString()}`}
-          icon={Users}
-          color="bg-violet-500"
-          sub="available balance"
+          sub="available"
+          icon={DollarSign}
+          colorClass="bg-violet-500"
         />
       </div>
 
