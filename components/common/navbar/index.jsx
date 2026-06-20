@@ -17,6 +17,7 @@ import {
   ChevronDown,
   Download,
   Bike,
+  Calculator,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -75,6 +76,7 @@ export default function Navbar() {
     isCustomer,
     isAdmin,
     isRider,
+    isAccountant,
   } = useAuth();
   const { canInstall, isIOS, triggerInstall } = usePWAInstall() ?? {};
 
@@ -113,7 +115,10 @@ export default function Navbar() {
         ...(isAdmin
           ? [{ label: "Admin Panel", href: "/admin/dashboard", icon: Settings }]
           : []),
-        ...(isAdmin || isRider
+        ...(isAccountant
+          ? [{ label: "Finance Portal", href: "/accountant/dashboard", icon: Calculator }]
+          : []),
+        ...(isAdmin || isRider || isAccountant
           ? []
           : [{ label: "My Orders", href: "/orders", icon: Package }]),
         { label: "Settings", href: "/settings", icon: Settings },
@@ -613,6 +618,7 @@ export default function Navbar() {
         isVendor={isVendor}
         isRider={isRider}
         isAdmin={isAdmin}
+        isAccountant={isAccountant}
         initials={initials}
         displayName={displayName}
         displayRole={displayRole}

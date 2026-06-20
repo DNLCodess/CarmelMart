@@ -22,7 +22,7 @@ const IDLE_EVENTS = ["mousemove", "keydown", "click", "scroll", "touchstart"];
 
 // Paths that require authentication — used to decide whether a SIGNED_OUT event
 // from another tab should force-navigate the current tab to /login.
-const PROTECTED_PATH_RE = /^\/(account|checkout|cart|wishlist|dashboard|orders|settings|vendor|admin|rider)/;
+const PROTECTED_PATH_RE = /^\/(account|checkout|cart|wishlist|dashboard|orders|settings|vendor|admin|rider|accountant)/;
 
 export function AuthProvider({ children }) {
   const queryClient = useQueryClient();
@@ -44,6 +44,7 @@ export function AuthProvider({ children }) {
   const isVendor = role === "vendor";
   const isCustomer = role === "customer";
   const isRider = role === "rider";
+  const isAccountant = role === "accountant";
 
   // Admin idle timeout — auto-logout after 15 min inactivity
   const idleTimerRef    = useRef(null);
@@ -89,9 +90,9 @@ export function AuthProvider({ children }) {
     idleTimerRef.current = setTimeout(() => forceLogout("idle"), IDLE_TIMEOUT_MS);
   }, [clearTimers, forceLogout]);
 
-  // Idle timeout only active for admins
+  // Idle timeout active for admins and accountants
   useEffect(() => {
-    if (!isAdmin) {
+    if (!isAdmin && !isAccountant) {
       clearTimers();
       return;
     }
@@ -103,7 +104,7 @@ export function AuthProvider({ children }) {
       IDLE_EVENTS.forEach((e) => window.removeEventListener(e, resetIdleTimer));
       clearTimers();
     };
-  }, [isAdmin, resetIdleTimer, clearTimers]);
+  }, [isAdmin, isAccountant, resetIdleTimer, clearTimers]);
 
   // Listen for Supabase auth state changes (token refresh, signout from another tab, etc.)
   useEffect(() => {
@@ -146,8 +147,9 @@ export function AuthProvider({ children }) {
       isVendor,
       isCustomer,
       isRider,
+      isAccountant,
     }),
-    [user, role, isGuest, isLoading, isAuthenticated, isAdmin, isVendor, isCustomer, isRider],
+    [user, role, isGuest, isLoading, isAuthenticated, isAdmin, isVendor, isCustomer, isRider, isAccountant],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ShoppingCart, Download, RefreshCw, RotateCcw, X, Bike, ChevronDown } from "lucide-react";
+import { ShoppingCart, Download, RefreshCw, RotateCcw, X, Bike, ChevronDown, Package, MapPin, User, CreditCard, Eye } from "lucide-react";
+import Image from "next/image";
 import toast from "react-hot-toast";
+
+async function fetchOrderDetail(id) {
+  const r = await fetch(`/api/admin/orders/${id}`);
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error ?? "Failed to load order");
+  return d;
+}
 
 async function fetchOrders(params) {
   const r = await fetch(`/api/admin/orders?${params}`);
@@ -35,6 +43,180 @@ function StatusBadge({ status }) {
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.cls}`}>
       {c.label}
     </span>
+  );
+}
+
+const PAYMENT_METHOD_LABEL = { card: "Card (Flutterwave)", pod: "Pay on Delivery", wallet: "Wallet", transfer: "Bank Transfer" };
+const PAYMENT_STATUS_CLS   = { paid: "text-green-700 bg-green-50 border-green-200", pending: "text-amber-700 bg-amber-50 border-amber-200", failed: "text-red-700 bg-red-50 border-red-200" };
+
+function OrderDetailModal({ orderId, onClose, onAssignRider, onRefund }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-order-detail", orderId],
+    queryFn: () => fetchOrderDetail(orderId),
+    enabled: !!orderId,
+    staleTime: 30_000,
+  });
+  const order = data?.order ?? null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">{order?.shortId ?? "Order Detail"}</h3>
+            {order && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{order.date}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            {order && <StatusBadge status={order.status} />}
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <RefreshCw className="w-6 h-6 text-gray-300 animate-spin" />
+          </div>
+        ) : !order ? (
+          <div className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">Failed to load order detail.</div>
+        ) : (
+          <div className="p-6 space-y-6">
+
+            {/* Order items */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5" /> Items Ordered
+              </h4>
+              <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Product</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 hidden sm:table-cell">Vendor</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400">Qty</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400">Unit</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                    {order.items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-700 shrink-0 overflow-hidden flex items-center justify-center">
+                              {item.image
+                                ? <Image src={item.image} alt={item.product_name} width={36} height={36} className="object-cover w-full h-full" />
+                                : <Package className="w-4 h-4 text-gray-300 dark:text-gray-500" />
+                              }
+                            </div>
+                            <span className="font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{item.product_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 hidden sm:table-cell">{item.vendor_name ?? "—"}</td>
+                        <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{item.quantity}</td>
+                        <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">₦{item.unit_price.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">₦{item.total.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Payment breakdown */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5" /> Payment Breakdown
+              </h4>
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                {[
+                  { label: "Items Subtotal",                   value: `₦${order.items_subtotal.toLocaleString()}` },
+                  { label: "Delivery Fee",                     value: `₦${order.delivery_fee.toLocaleString()}` },
+                  { label: `Platform Commission (${order.platform_rate}%)`, value: `₦${order.platform_fee.toLocaleString()}`, note: true },
+                ].map(({ label, value, note }) => (
+                  <div key={label} className="flex items-center justify-between px-4 py-2.5">
+                    <span className={`text-sm ${note ? "text-primary dark:text-primary-light" : "text-gray-600 dark:text-gray-400"}`}>{label}</span>
+                    <span className={`text-sm font-semibold ${note ? "text-primary dark:text-primary-light" : "text-gray-800 dark:text-gray-200"}`}>{value}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="font-bold text-gray-900 dark:text-gray-100">Total Paid</span>
+                  <span className="font-extrabold text-gray-900 dark:text-gray-100 text-lg">₦{order.total.toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${PAYMENT_STATUS_CLS[order.payment_status] ?? "text-gray-600 bg-gray-50 border-gray-200"}`}>
+                  {order.payment_status === "paid" ? "Paid" : order.payment_status === "pending" ? "Pending" : (order.payment_status ?? "Unknown")}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  via {PAYMENT_METHOD_LABEL[order.payment_method] ?? order.payment_method ?? "Unknown"}
+                </span>
+                {order.payment_ref && (
+                  <span className="text-xs font-mono text-gray-400 dark:text-gray-500">Ref: {order.payment_ref}</span>
+                )}
+                {order.pod_deposit > 0 && (
+                  <span className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-full font-semibold">
+                    POD deposit: ₦{order.pod_deposit.toLocaleString()}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Customer + Address */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5" /> Customer
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-4 space-y-1 text-sm">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{order.customer.name}</p>
+                  {order.customer.email && <p className="text-gray-500 dark:text-gray-400">{order.customer.email}</p>}
+                  {order.customer.phone && <p className="text-gray-500 dark:text-gray-400">{order.customer.phone}</p>}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" /> Delivery Address
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-4 text-sm text-gray-700 dark:text-gray-300 space-y-0.5">
+                  {order.address.fullName && <p className="font-semibold text-gray-900 dark:text-gray-100">{order.address.fullName}</p>}
+                  {order.address.street   && <p>{[order.address.houseNumber, order.address.street].filter(Boolean).join(" ")}</p>}
+                  {order.address.landmark && <p className="text-gray-500 dark:text-gray-400">Near: {order.address.landmark}</p>}
+                  {(order.address.city || order.address.state) && (
+                    <p>{[order.address.area, order.address.city, order.address.state].filter(Boolean).join(", ")}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+              {!["delivered", "cancelled", "refunded"].includes(order.status) && (
+                <button
+                  onClick={() => { onAssignRider({ id: order.id, shortId: order.shortId, city: order.address?.city, rider_id: null, rider_name: null }); onClose(); }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                >
+                  <Bike className="w-3.5 h-3.5" /> Assign Rider
+                </button>
+              )}
+              {!["refunded", "cancelled"].includes(order.status) && (
+                <button
+                  onClick={() => { onRefund({ id: order.id, shortId: order.shortId, customer: order.customer.name, customerId: order.customer.id, total: order.total }); onClose(); }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Issue Refund
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -145,6 +327,7 @@ export default function AdminOrdersPage() {
   const [page,         setPage]         = useState(1);
   const [refundOrder,  setRefundOrder]  = useState(null);
   const [assignOrder,  setAssignOrder]  = useState(null);
+  const [detailId,     setDetailId]     = useState(null);
 
   const params = new URLSearchParams({ page });
   if (statusFilter) params.set("status", statusFilter);
@@ -209,6 +392,14 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-5">
+      {detailId && (
+        <OrderDetailModal
+          orderId={detailId}
+          onClose={() => setDetailId(null)}
+          onAssignRider={(o) => setAssignOrder(o)}
+          onRefund={(o) => setRefundOrder(o)}
+        />
+      )}
       <RefundModal
         order={refundOrder}
         saving={refundMutation.isPending}
@@ -271,6 +462,7 @@ export default function AdminOrdersPage() {
             <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-700">
               {orders.map((o) => (
                 <div key={o.id} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <button className="w-full text-left" onClick={() => setDetailId(o.id)}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">{o.shortId}</p>
@@ -289,9 +481,17 @@ export default function AdminOrdersPage() {
                       {o.date && <span>{o.date}</span>}
                     </div>
                   </div>
+                  </div>
+                  </button>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
                     <p className="font-bold text-gray-900 dark:text-gray-100">₦{(o.total || 0).toLocaleString()}</p>
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setDetailId(o.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> View
+                      </button>
                       {!["delivered", "cancelled", "refunded"].includes(o.status) && (
                         <button
                           onClick={() => setAssignOrder(o)}
@@ -331,7 +531,7 @@ export default function AdminOrdersPage() {
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                 {orders.map((o) => (
-                  <tr key={o.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                  <tr key={o.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={() => setDetailId(o.id)}>
                     <td className="px-5 py-4">
                       <p className="font-semibold text-primary">{o.shortId}</p>
                       <p className="text-xs font-mono text-gray-400 dark:text-gray-500">{o.id.slice(0, 8)}…</p>
@@ -355,9 +555,16 @@ export default function AdminOrdersPage() {
                     <td className="px-5 py-4 text-xs text-gray-500 dark:text-gray-400 hidden lg:table-cell">{o.date}</td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDetailId(o.id); }}
+                          title="View order detail"
+                          className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-primary/5 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         {!["delivered", "cancelled", "refunded"].includes(o.status) && (
                           <button
-                            onClick={() => setAssignOrder(o)}
+                            onClick={(e) => { e.stopPropagation(); setAssignOrder(o); }}
                             title={o.rider_name ? `Reassign rider (${o.rider_name})` : "Assign rider"}
                             className={`p-2 rounded-lg transition-colors ${
                               o.rider_name
@@ -370,7 +577,7 @@ export default function AdminOrdersPage() {
                         )}
                         {!["refunded", "cancelled"].includes(o.status) && (
                           <button
-                            onClick={() => setRefundOrder(o)}
+                            onClick={(e) => { e.stopPropagation(); setRefundOrder(o); }}
                             title="Issue refund to customer wallet"
                             className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
                           >

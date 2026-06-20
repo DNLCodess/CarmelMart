@@ -64,7 +64,27 @@ export async function GET(request) {
 
     // Analytics is a Premium/VIP benefit — gate free-tier vendors
     const { data: vendor } = await admin.from("vendors").select("subscription_tier").eq("id", user.id).single();
-    const tier = vendor?.subscription_tier ?? "free";
+    let tier = vendor?.subscription_tier ?? "free";
+
+    // Fallback: vendors.subscription_tier may be stale — check vendor_subscriptions directly
+    if (tier === "free") {
+      const { data: activeSub } = await admin
+        .from("vendor_subscriptions")
+        .select("tier")
+        .eq("vendor_id", user.id)
+        .eq("status", "active")
+        .neq("tier", "free")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeSub?.tier) {
+        tier = activeSub.tier;
+        // Sync the stale column so future requests are fast
+        await admin.from("vendors").update({ subscription_tier: tier }).eq("id", user.id);
+      }
+    }
+
     if (tier === "free") {
       return NextResponse.json({ error: "ANALYTICS_GATED", tier: "free" }, { status: 403 });
     }

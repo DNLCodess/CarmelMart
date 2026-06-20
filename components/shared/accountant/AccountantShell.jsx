@@ -6,33 +6,16 @@ import NextImage from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  Store,
-  ShoppingCart,
-  Users,
-  Shield,
-  ShieldCheck,
   Settings,
-  Bell,
   Menu,
   X,
   LogOut,
   Sun,
   Moon,
-  Package,
-  Tag,
-  AlertTriangle,
-  Truck,
-  Bike,
-  BarChart2,
-  Ticket,
-  Wallet,
-  Flame,
-  Percent,
-  Image,
-  Flag,
-  Mail,
-  Inbox,
   Calculator,
+  ShoppingCart,
+  Wallet,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { logoutAction } from "@/app/actions/auth";
@@ -40,40 +23,24 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useDashboardTheme } from "@/lib/useDashboardTheme";
 
 const NAV_ITEMS = [
-  { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/vendors", label: "Vendors", icon: Store },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/categories", label: "Categories", icon: Tag },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
-  { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
-  { href: "/admin/delivery-zones", label: "Delivery", icon: Truck },
-  { href: "/admin/riders", label: "Riders", icon: Bike },
-  { href: "/admin/auth-requests", label: "Auth Requests", icon: ShieldCheck },
-  { href: "/admin/financials", label: "Financials", icon: BarChart2 },
-  { href: "/admin/promo-codes", label: "Promo Codes", icon: Ticket },
-  { href: "/admin/flash-sales", label: "Flash Sales", icon: Flame },
-  { href: "/admin/payouts", label: "Payouts", icon: Wallet },
-  { href: "/admin/commission", label: "Commission", icon: Percent },
-  { href: "/admin/fraud-flags", label: "Fraud Flags", icon: Flag },
-  { href: "/admin/bulk-mail", label: "Bulk Mail", icon: Mail },
-  { href: "/admin/support", label: "Support Inbox", icon: Inbox },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/kyc", label: "KYC Reviews", icon: Shield },
-  { href: "/admin/accountants", label: "Accountants", icon: Calculator },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/accountant/dashboard",    label: "Financial Overview", icon: LayoutDashboard  },
+  { href: "/accountant/orders",       label: "Orders",             icon: ShoppingCart     },
+  { href: "/accountant/payouts",      label: "Payouts",            icon: Wallet           },
+  { href: "/accountant/transactions", label: "Transactions",       icon: ArrowLeftRight   },
+  { href: "/accountant/settings",     label: "Settings",           icon: Settings         },
 ];
 
-export default function AdminShell({ children }) {
+export default function AccountantShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const { dark, toggle, mounted } = useDashboardTheme("cm-admin-theme");
+  const { dark, toggle, mounted } = useDashboardTheme("cm-accountant-theme");
 
   const displayName = user?.first_name
     ? `${user.first_name} ${user.last_name ?? ""}`.trim()
-    : (user?.email ?? "Admin");
+    : (user?.email ?? "Accountant");
   const initials = displayName
     .split(" ")
     .map((n) => n[0])
@@ -88,10 +55,9 @@ export default function AdminShell({ children }) {
   };
 
   const isActive = (href) =>
-    href === "/admin/dashboard" ? pathname === href : pathname.startsWith(href);
+    href === "/accountant/dashboard" ? pathname === href : pathname.startsWith(href);
 
-  const currentLabel =
-    NAV_ITEMS.find((n) => isActive(n.href))?.label ?? "Admin";
+  const currentLabel = NAV_ITEMS.find((n) => isActive(n.href))?.label ?? "Accountant Portal";
 
   return (
     <div
@@ -131,7 +97,7 @@ export default function AdminShell({ children }) {
               />
             </div>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wide">
-              Admin Console
+              Finance Portal
             </p>
           </Link>
           <button
@@ -174,8 +140,8 @@ export default function AdminShell({ children }) {
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                 {displayName}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
-                Administrator
+              <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                <Calculator className="w-3 h-3" /> Accountant
               </p>
             </div>
           </div>
@@ -200,29 +166,21 @@ export default function AdminShell({ children }) {
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="font-bold text-gray-900 dark:text-gray-100">
-                {currentLabel}
-              </h1>
+              <h1 className="font-bold text-gray-900 dark:text-gray-100">{currentLabel}</h1>
               <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
-                CarmelMart Administration
+                CarmelMart Finance Portal
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Dark mode toggle */}
             <button
               onClick={toggle}
               title={dark ? "Switch to light mode" : "Switch to dark mode"}
               className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
             >
-              {dark ? (
-                <Sun className="w-4 h-4" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
+              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs shrink-0">
               {initials}
             </div>

@@ -110,26 +110,47 @@ export async function POST(request) {
     if (payoutInsertErr) throw payoutInsertErr;
 
     // ── Call Flutterwave Transfers API (with timeout) ─────────────────────────
+    // When PROXY_URL + PROXY_SECRET are set (Hetzner VPS), the request is
+    // forwarded through the proxy so it originates from a whitelisted fixed IP.
+    // Without those env vars the call goes direct — behaviour is unchanged from
+    // before the proxy was introduced, so missing envs never break production.
     let fwData;
     try {
-      const fwRes = await fetch("https://api.flutterwave.com/v3/transfers", {
-        method:  "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
-          "Content-Type":  "application/json",
-        },
-        body: JSON.stringify({
-          account_bank:    vendorData.bank_code,
-          account_number:  vendorData.bank_account_number,
-          amount:          amountNum,
-          narration:       `CarmelMart payout — ${reference}`,
-          currency:        "NGN",
-          reference,
-          callback_url:    `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/webhooks/flutterwave`,
-          debit_currency:  "NGN",
-        }),
-        signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
-      });
+      const transferPayload = {
+        account_bank:    vendorData.bank_code,
+        account_number:  vendorData.bank_account_number,
+        amount:          amountNum,
+        narration:       `CarmelMart payout — ${reference}`,
+        currency:        "NGN",
+        reference,
+        callback_url:    `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/webhooks/flutterwave`,
+        debit_currency:  "NGN",
+      };
+
+      let fwRes;
+      if (process.env.PROXY_URL && process.env.PROXY_SECRET) {
+        // Route through the fixed-IP VPS proxy
+        fwRes = await fetch(`${process.env.PROXY_URL}/flw-transfer`, {
+          method:  "POST",
+          headers: {
+            "x-proxy-secret": process.env.PROXY_SECRET,
+            "Content-Type":   "application/json",
+          },
+          body:   JSON.stringify(transferPayload),
+          signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
+        });
+      } else {
+        // No proxy configured — call Flutterwave directly
+        fwRes = await fetch("https://api.flutterwave.com/v3/transfers", {
+          method:  "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+            "Content-Type":  "application/json",
+          },
+          body:   JSON.stringify(transferPayload),
+          signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
+        });
+      }
       fwData = await fwRes.json();
     } catch (fetchErr) {
       // Flutterwave unreachable — mark payout as failed, no wallet change
@@ -146,18 +167,24 @@ export async function POST(request) {
     }
 
     if (!fwData || fwData.status !== "success") {
-      // Flutterwave rejected the transfer — mark payout as failed, no wallet change
+      const rawError = fwData?.message ?? "Transfer rejected by payment provider";
+
+      // Sanitise Flutterwave internal errors before surfacing to the vendor
+      const userFacingError = rawError.toLowerCase().includes("whitelist")
+        ? "Withdrawals are temporarily unavailable due to a payment configuration issue. Please contact support."
+        : rawError;
+
       await admin
         .from("vendor_payouts")
         .update({
           status:     "failed",
-          error:      fwData?.message ?? "Transfer rejected by payment provider",
+          error:      rawError,
           updated_at: new Date().toISOString(),
         })
         .eq("reference", reference);
 
       return NextResponse.json(
-        { error: fwData?.message ?? "Transfer failed. Please try again or contact support." },
+        { error: userFacingError },
         { status: 502 }
       );
     }

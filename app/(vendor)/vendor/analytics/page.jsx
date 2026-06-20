@@ -11,7 +11,9 @@ import {
 
 async function fetchAnalytics(period) {
   const r = await fetch(`/api/vendor/analytics?period=${period}`);
-  return r.json();
+  const json = await r.json();
+  if (!r.ok && json?.error !== "ANALYTICS_GATED") throw new Error(json?.error ?? "Failed to load analytics");
+  return json;
 }
 
 function AnalyticsGate() {
@@ -47,7 +49,7 @@ function AnalyticsGate() {
 export default function VendorAnalyticsPage() {
   const [period, setPeriod] = useState("7d");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["vendor-analytics", period],
     queryFn: () => fetchAnalytics(period),
     staleTime: 60_000,
@@ -57,6 +59,21 @@ export default function VendorAnalyticsPage() {
   // Show upgrade gate for free-tier vendors
   if (!isLoading && data?.error === "ANALYTICS_GATED") {
     return <AnalyticsGate />;
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-96 text-center px-6">
+        <p className="text-sm font-semibold text-red-500 mb-3">Failed to load analytics</p>
+        <p className="text-xs text-gray-400 mb-5">{error?.message ?? "An unexpected error occurred."}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   const chart        = data?.chart        ?? [];

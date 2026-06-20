@@ -9,6 +9,8 @@ const VENDOR_PATHS = ["/vendor"];
 const ADMIN_PATHS = ["/admin"];
 // Routes that require rider role (role check done in layout, not here)
 const RIDER_PATHS = ["/rider"];
+// Routes that require accountant role (role check done in layout, not here)
+const ACCOUNTANT_PATHS = ["/accountant"];
 
 export async function middleware(request) {
   let supabaseResponse = NextResponse.next({ request });
@@ -60,6 +62,7 @@ export async function middleware(request) {
     (ADMIN_PATHS.some((p) => pathname.startsWith(p)) ||
       VENDOR_PATHS.some((p) => pathname.startsWith(p)) ||
       RIDER_PATHS.some((p) => pathname.startsWith(p)) ||
+      ACCOUNTANT_PATHS.some((p) => pathname.startsWith(p)) ||
       AUTH_REQUIRED.some((p) => pathname.startsWith(p))) &&
     !user
   ) {

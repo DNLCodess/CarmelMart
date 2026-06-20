@@ -5,7 +5,7 @@ import {
   X, Heart, ShoppingCart, User, TrendingUp, Package,
   BadgeCheck, ArrowRight, LogOut, Download, Settings,
   Bike, LayoutDashboard, Store, Wallet, ShieldCheck,
-  Users, Tag, ClipboardList,
+  Users, Tag, ClipboardList, Calculator,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -68,7 +68,7 @@ function SectionDivider({ label }) {
 export default function MobileDrawer({
   isOpen, onClose,
   // auth
-  isAuthenticated, isCustomer, isVendor, isRider, isAdmin,
+  isAuthenticated, isCustomer, isVendor, isRider, isAdmin, isAccountant,
   initials, displayName, displayRole,
   accountLinks, onSignOut,
   // cart / wishlist counts
@@ -102,6 +102,9 @@ export default function MobileDrawer({
     ];
     if (isRider) return [
       { label: "My Deliveries", sub: "Active & recent",     href: "/rider/orders",      icon: Bike,    fullWidth: true },
+    ];
+    if (isAccountant) return [
+      { label: "Finance Portal", sub: "Revenue & fees",      href: "/accountant/dashboard", icon: Calculator, fullWidth: true },
     ];
     if (isVendor) return [
       { label: "Dashboard",    sub: "Store overview",       href: "/vendor/dashboard",  icon: TrendingUp      },

@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
 
     const { data: order } = await admin
       .from("orders")
-      .select("id, customer_id, status, total, created_at, delivery_address, payment_method")
+      .select("id, customer_id, status, total, created_at, delivery_address, payment_method, payment_status, payment_ref")
       .eq("id", id)
       .single();
 
@@ -47,16 +47,23 @@ export async function GET(request, { params }) {
     const addr = order.delivery_address ?? {};
     const customerName = [customerUser?.first_name, customerUser?.last_name].filter(Boolean).join(" ") || customerUser?.email || "Customer";
 
+    const deliveryFee   = addr.delivery_fee ?? 0;
+    const itemsSubtotal = items.reduce((s, it) => s + (it.total ?? it.unit_price * it.quantity), 0);
+
     return NextResponse.json({
       order: {
-        id:       order.id,
-        shortId:  `#CM-${order.id.slice(0, 8).toUpperCase()}`,
-        status:   order.status,
-        amount:   order.total,
+        id:             order.id,
+        shortId:        `#CM-${order.id.slice(0, 8).toUpperCase()}`,
+        status:         order.status,
+        amount:         order.total,
+        items_subtotal: itemsSubtotal,
+        delivery_fee:   deliveryFee,
         payment_method: order.payment_method ?? null,
-        date:     new Date(order.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
-        customer: customerName,
-        phone:    customerUser?.phone ?? addr.phone ?? null,
+        payment_status: order.payment_status ?? null,
+        payment_ref:    order.payment_ref ?? null,
+        date:           new Date(order.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
+        customer:       customerName,
+        phone:          customerUser?.phone ?? addr.phone ?? null,
         delivery_address: addr,
         order_items: items.map((it) => ({
           id:           it.id,

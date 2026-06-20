@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import {
   ChevronLeft, Package, MapPin, Phone, User, Clock,
-  Truck, CheckCircle, XCircle, RefreshCw, AlertCircle,
+  Truck, CheckCircle, XCircle, RefreshCw, AlertCircle, CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -278,23 +278,64 @@ export default function VendorOrderDetailPage() {
           <div className="divide-y divide-gray-50 dark:divide-gray-700">
             {order.order_items.map((item) => (
               <div key={item.id} className="flex items-center gap-4 px-5 py-4">
-                <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                  <Package className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0 overflow-hidden">
+                  {item.image
+                    ? <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
+                    : <Package className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                  }
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">{item.product_name ?? item.product_id}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Qty: {item.quantity}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Qty: {item.quantity} × ₦{(item.unit_price || 0).toLocaleString()}</p>
                 </div>
                 <p className="font-bold text-gray-900 dark:text-gray-100">₦{(item.total || item.unit_price * item.quantity || 0).toLocaleString()}</p>
               </div>
             ))}
           </div>
-          <div className="px-5 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Order Total</span>
-            <span className="text-lg font-extrabold text-gray-900 dark:text-gray-100">₦{(order.amount || 0).toLocaleString()}</span>
-          </div>
         </div>
       )}
+
+      {/* Payment summary */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+          <h3 className="font-bold text-gray-900 dark:text-gray-100">Payment Summary</h3>
+        </div>
+        <div className="divide-y divide-gray-50 dark:divide-gray-700">
+          {[
+            { label: "My Items Subtotal", value: `₦${(order.items_subtotal ?? order.amount ?? 0).toLocaleString()}` },
+            { label: "Delivery Fee",      value: `₦${(order.delivery_fee ?? 0).toLocaleString()}` },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex items-center justify-between px-5 py-3">
+              <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
+              <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{value}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between px-5 py-4 bg-gray-50 dark:bg-gray-900">
+            <span className="font-bold text-gray-900 dark:text-gray-100">Order Total</span>
+            <span className="text-xl font-extrabold text-gray-900 dark:text-gray-100">₦{(order.amount || 0).toLocaleString()}</span>
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-3 text-xs">
+          {order.payment_status && (
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full font-semibold border ${
+              order.payment_status === "paid"
+                ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800"
+                : "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/20 dark:border-amber-800"
+            }`}>
+              {order.payment_status === "paid" ? "Paid" : "Payment Pending"}
+            </span>
+          )}
+          {order.payment_method && (
+            <span className="text-gray-500 dark:text-gray-400">
+              via {{ card: "Card (Flutterwave)", pod: "Pay on Delivery", wallet: "Wallet", transfer: "Bank Transfer" }[order.payment_method] ?? order.payment_method}
+            </span>
+          )}
+          {order.payment_ref && (
+            <span className="font-mono text-gray-400 dark:text-gray-500">Ref: {order.payment_ref}</span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

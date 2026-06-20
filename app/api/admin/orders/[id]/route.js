@@ -2,15 +2,101 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+async function requireAdmin() {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const admin = createAdminClient();
+  const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
+  return profile?.role === "admin" ? { user, admin } : null;
+}
+
+export async function GET(request, { params }) {
+  try {
+    const ctx = await requireAdmin();
+    if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { id } = await params;
+    const { admin } = ctx;
+
+    const [{ data: order }, { data: items }, { data: platformFeeRow }] = await Promise.all([
+      admin
+        .from("orders")
+        .select("id, customer_id, rider_id, status, total, payment_method, payment_status, payment_ref, pod_deposit, delivery_address, notes, created_at")
+        .eq("id", id)
+        .single(),
+      admin
+        .from("order_items")
+        .select("id, quantity, unit_price, total, vendor_id, products(id, name, images)")
+        .eq("order_id", id),
+      admin.from("platform_settings").select("value").eq("key", "platform_fee_percent").single(),
+    ]);
+
+    if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+    // Customer info
+    const { data: customer } = order.customer_id
+      ? await admin.from("users").select("first_name, last_name, email, phone").eq("id", order.customer_id).single()
+      : { data: null };
+
+    // Vendor store names for each item
+    const vendorIds = [...new Set((items ?? []).map((i) => i.vendor_id).filter(Boolean))];
+    let vendorMap = {};
+    if (vendorIds.length) {
+      const { data: vendors } = await admin.from("vendors").select("id, store_name").in("id", vendorIds);
+      vendorMap = Object.fromEntries((vendors ?? []).map((v) => [v.id, v.store_name]));
+    }
+
+    const addr          = order.delivery_address ?? {};
+    const deliveryFee   = addr.delivery_fee ?? 0;
+    const itemsSubtotal = (items ?? []).reduce((s, i) => s + (i.total ?? i.unit_price * i.quantity), 0);
+    const platformRate  = Number(platformFeeRow?.value ?? 6.5);
+    const platformFee   = Math.round(itemsSubtotal * platformRate / 100);
+
+    return NextResponse.json({
+      order: {
+        id:             order.id,
+        shortId:        `#CM-${order.id.slice(0, 8).toUpperCase()}`,
+        status:         order.status,
+        total:          order.total,
+        items_subtotal: itemsSubtotal,
+        delivery_fee:   deliveryFee,
+        platform_fee:   platformFee,
+        platform_rate:  platformRate,
+        payment_method: order.payment_method ?? null,
+        payment_status: order.payment_status ?? null,
+        payment_ref:    order.payment_ref ?? null,
+        pod_deposit:    order.pod_deposit ?? 0,
+        notes:          order.notes ?? null,
+        date:           new Date(order.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
+        customer: {
+          id:    order.customer_id ?? null,
+          name:  [customer?.first_name, customer?.last_name].filter(Boolean).join(" ") || customer?.email || "Unknown",
+          email: customer?.email ?? null,
+          phone: customer?.phone ?? addr.phone ?? null,
+        },
+        address: addr,
+        items: (items ?? []).map((it) => ({
+          id:           it.id,
+          product_name: it.products?.name ?? "Product",
+          image:        Array.isArray(it.products?.images) ? it.products.images[0] : null,
+          vendor_name:  vendorMap[it.vendor_id] ?? null,
+          quantity:     it.quantity,
+          unit_price:   it.unit_price,
+          total:        it.total ?? it.unit_price * it.quantity,
+        })),
+      },
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function PATCH(request, { params }) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const admin = createAdminClient();
-    const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
-    if (!profile || profile.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const ctx = await requireAdmin();
+    if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const { admin } = ctx;
 
     const { id: orderId } = await params;
     const { rider_id } = await request.json();
