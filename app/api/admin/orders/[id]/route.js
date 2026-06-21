@@ -27,7 +27,7 @@ export async function GET(request, { params }) {
         .single(),
       admin
         .from("order_items")
-        .select("id, quantity, unit_price, total, vendor_id, products(id, name, images)")
+        .select("id, quantity, unit_price, total, vendor_id, variant_id, variant_combination, products(id, name, images)")
         .eq("order_id", id),
       admin.from("platform_settings").select("value").eq("key", "platform_fee_percent").single(),
     ]);
@@ -80,10 +80,12 @@ export async function GET(request, { params }) {
           id:           it.id,
           product_name: it.products?.name ?? "Product",
           image:        Array.isArray(it.products?.images) ? it.products.images[0] : null,
-          vendor_name:  vendorMap[it.vendor_id] ?? null,
-          quantity:     it.quantity,
-          unit_price:   it.unit_price,
-          total:        it.total ?? it.unit_price * it.quantity,
+          vendor_name:         vendorMap[it.vendor_id] ?? null,
+          quantity:            it.quantity,
+          unit_price:          it.unit_price,
+          total:               it.total ?? it.unit_price * it.quantity,
+          variant_id:          it.variant_id ?? null,
+          variant_combination: it.variant_combination ?? null,
         })),
       },
     });

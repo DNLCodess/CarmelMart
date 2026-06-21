@@ -286,6 +286,11 @@ export default function VendorOrderDetailPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">{item.product_name ?? item.product_id}</p>
+                  {item.variant_combination && (
+                    <p className="text-xs text-primary/80 font-medium mt-0.5">
+                      {Object.entries(item.variant_combination).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500 dark:text-gray-400">Qty: {item.quantity} × ₦{(item.unit_price || 0).toLocaleString()}</p>
                 </div>
                 <p className="font-bold text-gray-900 dark:text-gray-100">₦{(item.total || item.unit_price * item.quantity || 0).toLocaleString()}</p>

@@ -22,6 +22,7 @@ export async function GET(request, { params }) {
       .from("order_items")
       .select(`
         id, quantity, unit_price, total,
+        variant_id, variant_combination,
         products ( id, name, images )
       `)
       .eq("order_id", id)
@@ -70,9 +71,11 @@ export async function GET(request, { params }) {
           product_id:   it.products?.id ?? null,
           product_name: it.products?.name ?? "Product",
           image:        Array.isArray(it.products?.images) ? it.products.images[0] : null,
-          quantity:     it.quantity,
-          unit_price:   it.unit_price,
-          total:        it.total ?? it.unit_price * it.quantity,
+          quantity:            it.quantity,
+          unit_price:          it.unit_price,
+          total:               it.total ?? it.unit_price * it.quantity,
+          variant_id:          it.variant_id ?? null,
+          variant_combination: it.variant_combination ?? null,
         })),
       },
     });

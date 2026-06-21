@@ -610,6 +610,11 @@ export default function OrderDetailPage() {
                           <Link href={item.product_id ? `/product/${item.product_id}` : "#"}>
                             <p className="text-sm font-semibold text-gray-900 line-clamp-1 hover:text-primary">{item.name}</p>
                           </Link>
+                          {item.variant_combination && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {Object.entries(item.variant_combination).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                            </p>
+                          )}
                           <p className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity}</p>
                           {item.delivery_format === "digital" && (
                             isPaid ? (

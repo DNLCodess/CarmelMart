@@ -114,7 +114,14 @@ function OrderDetailModal({ orderId, onClose, onAssignRider, onRefund }) {
                                 : <Package className="w-4 h-4 text-gray-300 dark:text-gray-500" />
                               }
                             </div>
-                            <span className="font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{item.product_name}</span>
+                            <div>
+                              <span className="font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{item.product_name}</span>
+                              {item.variant_combination && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                  {Object.entries(item.variant_combination).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 hidden sm:table-cell">{item.vendor_name ?? "—"}</td>

@@ -19,6 +19,7 @@ export async function GET(request, { params }) {
         payment_ref, delivery_address, notes, created_at,
         order_items (
           id, quantity, unit_price, total, delivery_format,
+          variant_id, variant_combination,
           products ( id, name, images, slug, is_digital, digital_file_path )
         )
       `)
@@ -100,8 +101,10 @@ export async function GET(request, { params }) {
           quantity:        it.quantity,
           price:           it.unit_price,
           total:           it.total ?? it.unit_price * it.quantity,
-          is_digital:      it.products?.is_digital ?? false,
-          delivery_format: it.delivery_format ?? "physical",
+          is_digital:          it.products?.is_digital ?? false,
+          delivery_format:     it.delivery_format ?? "physical",
+          variant_id:          it.variant_id ?? null,
+          variant_combination: it.variant_combination ?? null,
         })),
         reviewed_product_ids: reviewedProductIds,
       },
