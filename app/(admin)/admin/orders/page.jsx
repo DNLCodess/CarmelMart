@@ -481,7 +481,6 @@ export default function AdminOrdersPage() {
                       {o.date && <span>{o.date}</span>}
                     </div>
                   </div>
-                  </div>
                   </button>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
                     <p className="font-bold text-gray-900 dark:text-gray-100">₦{(o.total || 0).toLocaleString()}</p>
