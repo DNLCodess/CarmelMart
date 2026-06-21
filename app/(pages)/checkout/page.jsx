@@ -285,13 +285,15 @@ export default function CheckoutPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         items: items.map((i) => ({
-          productId:       i.productId,
-          vendorId:        i.vendorId,
-          name:            i.name,
-          price:           i.price,
-          quantity:        i.quantity,
-          image:           i.image ?? null,
-          delivery_format: i.deliveryFormat ?? "physical",
+          productId:          i.productId,
+          vendorId:           i.vendorId,
+          name:               i.name,
+          price:              i.price,
+          quantity:           i.quantity,
+          image:              i.image ?? null,
+          delivery_format:    i.deliveryFormat ?? "physical",
+          variantId:          i.variantId ?? null,
+          variantCombination: i.variantCombination ?? null,
         })),
         delivery_address: isAllDigital ? {
           fullName:      address.fullName,
@@ -341,10 +343,12 @@ export default function CheckoutPage() {
     // when the user returns to the site.
     const pendingPayload = {
       items: items.map((i) => ({
-        productId:       i.productId,
-        vendorId:        i.vendorId,
-        quantity:        i.quantity,
-        delivery_format: i.deliveryFormat ?? "physical",
+        productId:          i.productId,
+        vendorId:           i.vendorId,
+        quantity:           i.quantity,
+        delivery_format:    i.deliveryFormat ?? "physical",
+        variantId:          i.variantId ?? null,
+        variantCombination: i.variantCombination ?? null,
       })),
       delivery_address: isAllDigital ? {
         fullName:        address.fullName,
@@ -727,12 +731,17 @@ export default function CheckoutPage() {
                   {/* Items */}
                   <div className="space-y-3">
                     {items.map((item) => (
-                      <div key={item.productId} className="flex items-center gap-3">
+                      <div key={item.cartKey ?? item.productId} className="flex items-center gap-3">
                         <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-100 shrink-0">
                           {item.image && <Image src={item.image} alt={item.name} fill className="object-cover" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</p>
+                          {item.variantCombination && (
+                            <p className="text-xs text-gray-400">
+                              {Object.entries(item.variantCombination).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                            </p>
+                          )}
                           <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
                         </div>
                         <span className="text-sm font-bold text-gray-900">₦{(item.price * item.quantity).toLocaleString()}</span>

@@ -1,48 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "@/lib/useCategories";
 import { useRouter, useParams } from "next/navigation";
-import { ChevronLeft, Save, AlertCircle, Trash2, BookOpen, Upload, X, Package, Download, Layers, Clock, CheckCircle2, XCircle, Flag, Info } from "lucide-react";
+import {
+  ChevronLeft, Save, AlertCircle, Trash2, BookOpen, Upload, X,
+  Package, Download, Layers, Clock, CheckCircle2, XCircle, Flag, Info,
+  Plus, Tag,
+} from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import ProductImageUploader from "@/components/shared/vendor/ProductImageUploader";
-
-// Per-category attribute definitions
-const CATEGORY_ATTRIBUTES = {
-  fashion:      [
-    { key: "sizes",    label: "Available Sizes",         type: "multicheck", options: ["XS","S","M","L","XL","XXL","XXXL"] },
-    { key: "colors",   label: "Available Colors",        type: "multicheck", options: ["Black","White","Red","Blue","Green","Yellow","Brown","Gray","Pink","Purple"] },
-    { key: "material", label: "Material/Fabric",         type: "text",       placeholder: "e.g. 100% Cotton, Polyester blend" },
-  ],
-  electronics:  [
-    { key: "storage",  label: "Storage Options",         type: "multicheck", options: ["32GB","64GB","128GB","256GB","512GB","1TB","2TB"] },
-    { key: "ram",      label: "RAM Options",              type: "multicheck", options: ["4GB","6GB","8GB","12GB","16GB","32GB"] },
-    { key: "colors",   label: "Available Colors",        type: "multicheck", options: ["Black","White","Silver","Gold","Blue","Space Gray"] },
-  ],
-  phones:       [
-    { key: "storage",  label: "Storage Options",         type: "multicheck", options: ["64GB","128GB","256GB","512GB"] },
-    { key: "ram",      label: "RAM Options",              type: "multicheck", options: ["4GB","6GB","8GB","12GB","16GB"] },
-    { key: "colors",   label: "Available Colors",        type: "multicheck", options: ["Black","White","Silver","Gold","Blue","Red","Green"] },
-  ],
-  "home-living": [
-    { key: "colors",   label: "Available Colors",        type: "multicheck", options: ["Black","White","Brown","Gray","Beige","Natural Wood"] },
-    { key: "material", label: "Material",                type: "text",       placeholder: "e.g. Solid Oak, MDF, Stainless Steel" },
-  ],
-  beauty:       [
-    { key: "shades",   label: "Available Shades/Colors", type: "multicheck", options: ["Ivory","Beige","Tan","Caramel","Ebony","Cocoa","Universal"] },
-    { key: "size",     label: "Volume/Size Options",     type: "multicheck", options: ["30ml","50ml","100ml","200ml","250ml","500ml","1L"] },
-  ],
-  sports:       [
-    { key: "sizes",    label: "Available Sizes",         type: "multicheck", options: ["XS","S","M","L","XL","XXL","36","37","38","39","40","41","42","43","44","45"] },
-    { key: "colors",   label: "Available Colors",        type: "multicheck", options: ["Black","White","Red","Blue","Green","Gray","Navy","Orange"] },
-  ],
-  _default:     [
-    { key: "colors",   label: "Available Colors",        type: "multicheck", options: ["Black","White","Red","Blue","Green","Yellow","Other"] },
-  ],
-};
+import { getTemplate } from "@/lib/product-templates";
 
 const MEDIA_FORMATS = [
   "Hardcover", "Paperback", "eBook", "Audiobook",
@@ -74,14 +45,34 @@ function FieldError({ error }) {
   );
 }
 
+// Cartesian product of arrays
+function cartesian(arrays) {
+  if (!arrays.length) return [[]];
+  const [first, ...rest] = arrays;
+  const restProd = cartesian(rest);
+  return first.flatMap((v) => restProd.map((r) => [v, ...r]));
+}
+
 export default function EditProductPage() {
   const router  = useRouter();
   const { id }  = useParams();
   const qc      = useQueryClient();
-  const [images, setImages]         = useState([]);
+  const [images, setImages]           = useState([]);
   const [imagesReady, setImagesReady] = useState(false);
-  const [condition, setCondition]   = useState("new");
-  const [attributes, setAttributes] = useState({});
+  const [condition, setCondition]     = useState("new");
+
+  // Extra template fields (material, brand, etc.) stored in attributes JSONB
+  const [attributes, setAttributes]   = useState({});
+
+  // Variant/options state
+  const [variantType, setVariantType]               = useState("none");
+  const [descriptiveOptions, setDescriptiveOptions] = useState({});
+  const [selectedDimOptions, setSelectedDimOptions] = useState({});
+  const [variantRows, setVariantRows]               = useState([]);
+
+  // Quantity / bulk pricing state
+  const [enableQtyPricing, setEnableQtyPricing] = useState(false);
+  const [quantityTiers, setQuantityTiers]       = useState([{ min_qty: "", price: "" }]);
 
   // Books & Media state
   const [mediaFields, setMediaFields] = useState({
@@ -94,8 +85,8 @@ export default function EditProductPage() {
     media_language:     "English",
     media_format:       "",
     media_genre:        [],
-    delivery_type:      "physical", // "physical" | "digital" | "both"
-    digital_price:      "",         // only used when delivery_type === "both"
+    delivery_type:      "physical",
+    digital_price:      "",
   });
   const [digitalFile,      setDigitalFile]      = useState(null);
   const [digitalUploading, setDigitalUploading] = useState(false);
@@ -140,7 +131,6 @@ export default function EditProductPage() {
   };
 
   const { categories, parents: parentCategories, subsByParent } = useCategories();
-
   const [parentCategoryId, setParentCategoryId] = useState("");
 
   const { data: product, isLoading } = useQuery({
@@ -162,7 +152,11 @@ export default function EditProductPage() {
   const salePrice  = watch("sale_price");
   const categoryId = watch("category_id");
 
-  const currentSubs = subsByParent[parentCategoryId] ?? [];
+  const currentSubs    = subsByParent[parentCategoryId] ?? [];
+  const selectedCat    = categories.find((c) => String(c.id) === String(categoryId));
+  const categoryTemplate = selectedCat?.template ?? "standard";
+  const isMediaCategory  = categoryTemplate === "books_media";
+  const template         = getTemplate(categoryTemplate);
 
   const handleParentChange = (e) => {
     const pid = e.target.value;
@@ -170,33 +164,58 @@ export default function EditProductPage() {
     const subs = subsByParent[pid] ?? [];
     setValue("category_id", subs.length === 0 ? pid : "");
     setAttributes({});
+    setVariantType("none");
+    setDescriptiveOptions({});
+    setSelectedDimOptions({});
+    setVariantRows([]);
   };
 
-  const selectedCat    = categories.find((c) => String(c.id) === String(categoryId));
-  const isMediaCategory = selectedCat?.template === "books_media";
-  const attrDefs       = selectedCat
-    ? (CATEGORY_ATTRIBUTES[selectedCat.slug] ?? CATEGORY_ATTRIBUTES._default)
-    : [];
+  // ── Variant builder helpers ────────────────────────────────────────────────
 
-  const toggleAttrOption = (key, value) => {
-    setAttributes((prev) => {
-      const current = prev[key] ?? [];
-      const next = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
-      return { ...prev, [key]: next };
+  const toggleDescriptiveOption = (dimKey, value) => {
+    setDescriptiveOptions((prev) => {
+      const cur = prev[dimKey] ?? [];
+      return { ...prev, [dimKey]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
     });
   };
 
-  // Populate form + images once product and categories both load
+  const toggleSelectedDimOption = (dimKey, value) => {
+    setSelectedDimOptions((prev) => {
+      const cur = prev[dimKey] ?? [];
+      return { ...prev, [dimKey]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
+    });
+  };
+
+  const generateCombinations = useCallback(() => {
+    const activeDims = template.variantDimensions.filter(
+      (d) => (selectedDimOptions[d.key] ?? []).length > 0
+    );
+    if (!activeDims.length) { setVariantRows([]); return; }
+    const combos = cartesian(activeDims.map((d) => selectedDimOptions[d.key]));
+    setVariantRows((prev) => {
+      const prevMap = {};
+      prev.forEach((r) => { prevMap[JSON.stringify(r.combination)] = r; });
+      return combos.map((values) => {
+        const combination = Object.fromEntries(activeDims.map((d, i) => [d.key, values[i]]));
+        const key = JSON.stringify(combination);
+        return prevMap[key] ?? { _id: `v_${Date.now()}_${Math.random()}`, combination, stock: "", price: "" };
+      });
+    });
+  }, [template.variantDimensions, selectedDimOptions]);
+
+  const updateVariantRow = (rowId, field, value) =>
+    setVariantRows((prev) => prev.map((r) => (r._id === rowId ? { ...r, [field]: value } : r)));
+
+  const removeVariantRow = (rowId) =>
+    setVariantRows((prev) => prev.filter((r) => r._id !== rowId));
+
+  // ── Populate form once product + categories load ───────────────────────────
+
   useEffect(() => {
     if (!product || !categories.length) return;
     const catId = product.category?.id ?? product.category_id ?? "";
 
-    // Normalise status so RHF's internal value always matches an available dropdown
-    // option. Approved products keep their status; everything else collapses to
-    // "inactive" (= submit for review) unless already a draft.
-    const isApproved     = product.moderation_status === "approved";
+    const isApproved      = product.moderation_status === "approved";
     const normalizedStatus = isApproved
       ? (["active", "draft", "inactive"].includes(product.status) ? product.status : "active")
       : (product.status === "draft" ? "draft" : "inactive");
@@ -210,27 +229,74 @@ export default function EditProductPage() {
       category_id: catId,
       status:      normalizedStatus,
     });
-    // Determine parent selection from the saved category
+
     if (catId) {
       const cat = categories.find((c) => c.id === catId);
-      if (cat?.parent_id) {
-        setParentCategoryId(cat.parent_id);
-      } else if (cat) {
-        setParentCategoryId(cat.id);
-      }
+      if (cat?.parent_id) setParentCategoryId(cat.parent_id);
+      else if (cat)       setParentCategoryId(cat.id);
     }
+
     setImages(Array.isArray(product.images) ? product.images : []);
     if (product.condition) setCondition(product.condition);
+
+    // Restore attributes (extra fields)
     if (product.attributes && typeof product.attributes === "object") {
       setAttributes(product.attributes);
     }
-    // Restore Books & Media fields if this is a media product
+
+    // Restore variant type and data
+    const savedVariantType = product.variant_type ?? "none";
+    setVariantType(savedVariantType);
+
+    if (savedVariantType === "descriptive" && product.attributes) {
+      // Descriptive options were stored in attributes
+      const tmpl = getTemplate(product.categories?.template ?? "standard");
+      const dimKeys = new Set(tmpl.variantDimensions.map((d) => d.key));
+      const dimAttrs = {};
+      Object.entries(product.attributes).forEach(([k, v]) => {
+        if (dimKeys.has(k) && Array.isArray(v)) dimAttrs[k] = v;
+      });
+      setDescriptiveOptions(dimAttrs);
+    }
+
+    if (savedVariantType === "variants" && Array.isArray(product.variants) && product.variants.length > 0) {
+      const rows = product.variants.map((v) => ({
+        _id:         v.id ?? `v_${Math.random()}`,
+        combination: v.combination,
+        stock:       v.stock ?? "",
+        price:       v.price ?? "",
+      }));
+      setVariantRows(rows);
+
+      // Rebuild selectedDimOptions from existing variants
+      const tmpl = getTemplate(product.categories?.template ?? "standard");
+      const dimSelections = {};
+      rows.forEach((r) => {
+        Object.entries(r.combination).forEach(([dimKey, val]) => {
+          if (!dimSelections[dimKey]) dimSelections[dimKey] = new Set();
+          dimSelections[dimKey].add(val);
+        });
+      });
+      const converted = {};
+      Object.entries(dimSelections).forEach(([k, s]) => {
+        // Preserve order from template options
+        const tmplDim = tmpl.variantDimensions.find((d) => d.key === k);
+        converted[k] = tmplDim
+          ? tmplDim.options.filter((o) => s.has(o))
+          : [...s];
+      });
+      setSelectedDimOptions(converted);
+    }
+
+    // Restore quantity tiers
+    if (Array.isArray(product.quantity_tiers) && product.quantity_tiers.length > 0) {
+      setEnableQtyPricing(true);
+      setQuantityTiers(product.quantity_tiers.map((t) => ({ min_qty: t.min_qty, price: t.price })));
+    }
+
+    // Restore Books & Media fields
     if (product.categories?.template === "books_media") {
-      const deliveryType = product.digital_only
-        ? "digital"
-        : product.is_digital
-          ? "both"
-          : "physical";
+      const deliveryType = product.digital_only ? "digital" : product.is_digital ? "both" : "physical";
       setMediaFields({
         media_author:       product.media_author       ?? "",
         media_isbn:         product.media_isbn         ?? "",
@@ -242,7 +308,7 @@ export default function EditProductPage() {
         media_format:       product.media_format       ?? "",
         media_genre:        Array.isArray(product.media_genre) ? product.media_genre : [],
         delivery_type:      deliveryType,
-        digital_price:      product.digital_price      ?? "",
+        digital_price:      product.digital_price ?? "",
       });
       if (product.is_digital && product.digital_file_path) {
         setDigitalFile({
@@ -252,35 +318,61 @@ export default function EditProductPage() {
         });
       }
     }
+
     setImagesReady(true);
   }, [product, categories, reset]);
+
+  // ── Submit ────────────────────────────────────────────────────────────────
 
   const { mutate: updateProduct } = useMutation({
     mutationFn: async (data) => {
       const isDigital     = isMediaCategory && mediaFields.delivery_type !== "physical";
       const isDigitalOnly = isMediaCategory && mediaFields.delivery_type === "digital";
-      if (isDigital && !digitalFile) {
-        throw new Error("Please upload a digital file for this product");
-      }
+      if (isDigital && !digitalFile) throw new Error("Please upload a digital file for this product");
+
+      const baseAttributes = Object.fromEntries(
+        Object.entries(attributes).filter(([, v]) =>
+          Array.isArray(v) ? v.length > 0 : v?.toString().trim()
+        )
+      );
+      const descriptiveAttrs = variantType === "descriptive"
+        ? Object.fromEntries(Object.entries(descriptiveOptions).filter(([, v]) => v.length > 0))
+        : {};
+
+      const baseStock = variantType === "variants"
+        ? variantRows.reduce((sum, r) => sum + Number(r.stock || 0), 0)
+        : Number(data.stock ?? 0);
+
       const r = await fetch(`/api/vendor/products/${id}`, {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name:        data.name,
-          description: data.description,
-          price:       Number(data.price),
-          sale_price:  data.sale_price ? Number(data.sale_price) : null,
-          stock:       Number(data.stock ?? 0),
-          category_id: data.category_id || null,
-          status:      data.status,
+          name:             data.name,
+          description:      data.description,
+          price:            Number(data.price),
+          sale_price:       data.sale_price ? Number(data.sale_price) : null,
+          stock:            isDigitalOnly ? 9999 : baseStock,
+          category_id:      data.category_id || null,
+          status:           data.status,
           images,
           condition,
-          attributes:  Object.fromEntries(
-            Object.entries(attributes).filter(([, v]) =>
-              Array.isArray(v) ? v.length > 0 : v?.toString().trim()
-            )
-          ),
-          // Books & Media fields
+          attributes:       { ...baseAttributes, ...descriptiveAttrs },
+          variant_type:     variantType,
+          quantity_tiers:   enableQtyPricing
+            ? quantityTiers.filter((t) => t.min_qty && t.price).map((t) => ({
+                min_qty: Number(t.min_qty),
+                price:   Number(t.price),
+              }))
+            : null,
+          variants:         variantType === "variants"
+            ? variantRows
+                .filter((r) => Object.values(r.combination).every(Boolean))
+                .map((r) => ({
+                  combination: r.combination,
+                  stock:       Number(r.stock || 0),
+                  price:       r.price ? Number(r.price) : null,
+                }))
+            : null,
           is_media_category: isMediaCategory,
           ...(isMediaCategory && {
             media_author:       mediaFields.media_author       || null,
@@ -347,51 +439,41 @@ export default function EditProductPage() {
   }
 
   const onSubmit = (data) => updateProduct(data);
-
   const isDigitalOnly = isMediaCategory && mediaFields.delivery_type === "digital";
 
   const discount = salePrice && price && Number(salePrice) > 0 && Number(salePrice) < Number(price)
     ? Math.round(((Number(price) - Number(salePrice)) / Number(price)) * 100)
     : null;
 
-  // ── Moderation status banner config ─────────────────────────────────────────
   const moderationBanner = (() => {
     const ms = product.moderation_status;
     if (ms === "pending") return {
-      Icon: Clock,
-      bg:   "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700",
-      icon: "text-amber-600 dark:text-amber-400",
-      text: "text-amber-900 dark:text-amber-200",
+      Icon: Clock, bg: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700",
+      icon: "text-amber-600 dark:text-amber-400", text: "text-amber-900 dark:text-amber-200",
       title: "Awaiting admin review",
-      body:  "Your product is in the review queue. Once an admin approves it, it will go live automatically. You can keep editing — changes are saved until approval.",
+      body:  "Your product is in the review queue. Once approved it will go live automatically.",
     };
     if (ms === "rejected") return {
-      Icon: XCircle,
-      bg:   "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700",
-      icon: "text-red-600 dark:text-red-400",
-      text: "text-red-900 dark:text-red-200",
+      Icon: XCircle, bg: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700",
+      icon: "text-red-600 dark:text-red-400", text: "text-red-900 dark:text-red-200",
       title: "Product rejected",
       body:  product.moderation_reason
-        ? `Reason: "${product.moderation_reason}" — Please fix the issue below and save. Your product will be automatically resubmitted for review.`
-        : "This product was rejected by an admin. Please update it below and save to resubmit for review.",
+        ? `Reason: "${product.moderation_reason}" — Fix the issue below and save to resubmit.`
+        : "This product was rejected. Update it below and save to resubmit for review.",
     };
     if (ms === "flagged") return {
-      Icon: Flag,
-      bg:   "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700",
-      icon: "text-orange-600 dark:text-orange-400",
-      text: "text-orange-900 dark:text-orange-200",
+      Icon: Flag, bg: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700",
+      icon: "text-orange-600 dark:text-orange-400", text: "text-orange-900 dark:text-orange-200",
       title: "Product flagged",
       body:  product.moderation_reason
-        ? `Admin note: "${product.moderation_reason}" — Fix the issue below and save. Your product will be automatically resubmitted for review.`
-        : "This product has been flagged by an admin. Please review the listing, make necessary changes, and save to resubmit.",
+        ? `Admin note: "${product.moderation_reason}" — Fix the issue below and save to resubmit.`
+        : "This product has been flagged. Review the listing, make changes, and save to resubmit.",
     };
     if (ms === "approved" && product.status === "active") return {
-      Icon: CheckCircle2,
-      bg:   "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700",
-      icon: "text-green-600 dark:text-green-400",
-      text: "text-green-900 dark:text-green-200",
+      Icon: CheckCircle2, bg: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700",
+      icon: "text-green-600 dark:text-green-400", text: "text-green-900 dark:text-green-200",
       title: "Product is live",
-      body:  "Your product is approved and visible to customers. Any edits you save here go live immediately.",
+      body:  "Your product is approved and visible to customers. Any edits you save go live immediately.",
     };
     return null;
   })();
@@ -410,12 +492,13 @@ export default function EditProductPage() {
           disabled={deleting}
           className="flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
         >
-          {deleting ? <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" /> : <Trash2 className="w-4 h-4" />}
+          {deleting
+            ? <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+            : <Trash2 className="w-4 h-4" />}
           Delete Product
         </button>
       </div>
 
-      {/* ── Moderation status banner ────────────────────────────────────────── */}
       {moderationBanner && (
         <div className={`flex items-start gap-3 border rounded-2xl px-5 py-4 ${moderationBanner.bg}`}>
           <moderationBanner.Icon className={`w-5 h-5 mt-0.5 shrink-0 ${moderationBanner.icon}`} />
@@ -472,7 +555,14 @@ export default function EditProductPage() {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Subcategory</label>
                 <select
                   value={categoryId || ""}
-                  onChange={(e) => { setValue("category_id", e.target.value); setAttributes({}); }}
+                  onChange={(e) => {
+                    setValue("category_id", e.target.value);
+                    setAttributes({});
+                    setVariantType("none");
+                    setDescriptiveOptions({});
+                    setSelectedDimOptions({});
+                    setVariantRows([]);
+                  }}
                   className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
                 >
                   <option value="">Select a subcategory</option>
@@ -487,7 +577,6 @@ export default function EditProductPage() {
               <p className="text-xs text-red-500 mt-1">{errors.category_id.message}</p>
             )}
           </div>
-
         </div>
 
         {/* ── Pricing & Inventory ──────────────────────────────────────────── */}
@@ -532,6 +621,13 @@ export default function EditProductPage() {
                   Stock is managed automatically — digital products have unlimited availability.
                 </p>
               </div>
+            ) : variantType === "variants" ? (
+              <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-xl">
+                <Info className="w-4 h-4 text-violet-500 shrink-0" />
+                <p className="text-sm text-violet-700 dark:text-violet-300 font-medium">
+                  Stock is set per option below — total will be calculated automatically.
+                </p>
+              </div>
             ) : (
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Stock Quantity</label>
@@ -565,55 +661,157 @@ export default function EditProductPage() {
                 <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                 {product.moderation_status === "approved"
                   ? "Your product is approved. Switch to Draft to temporarily hide it without losing approval."
-                  : "Choosing \"Submit for review\" places this product in the admin queue. An admin will review and approve it — you'll be notified when it goes live. Choose Draft to save without submitting."}
+                  : "Choosing \"Submit for review\" places this product in the admin queue."}
               </p>
             </div>
           </div>
         </div>
 
-        {/* ── Condition & Variants ────────────────────────────────────────── */}
+        {/* ── Condition ──────────────────────────────────────────────────────── */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-5">
-          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Condition & Variants</h2>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Condition <span className="text-red-500">*</span>
-            </label>
-            <div className="flex gap-3 flex-wrap">
-              {[{ value: "new", label: "New" }, { value: "used", label: "Used" }, { value: "refurbished", label: "Refurbished" }].map((opt) => (
-                <button
-                  type="button"
-                  key={opt.value}
-                  onClick={() => setCondition(opt.value)}
-                  className={`px-5 py-2 text-sm font-semibold rounded-full border-2 transition-all ${
-                    condition === opt.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Condition</h2>
+          <div className="flex gap-3 flex-wrap">
+            {[{ value: "new", label: "New" }, { value: "used", label: "Used" }, { value: "refurbished", label: "Refurbished" }].map((opt) => (
+              <button
+                type="button" key={opt.value}
+                onClick={() => setCondition(opt.value)}
+                className={`px-5 py-2 text-sm font-semibold rounded-full border-2 transition-all ${
+                  condition === opt.value
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {attrDefs.length > 0 && (
-            <div className="space-y-5 pt-2 border-t border-gray-100 dark:border-gray-700">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-                {selectedCat?.name} Variants
+        {/* ── Category-specific Product Details ─────────────────────────────── */}
+        {categoryId && !isMediaCategory && template.extraFields.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-5">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">
+              {template.label} Details
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 -mt-2">
+              Optional but recommended — helps customers find and trust your product.
+            </p>
+            {template.extraFields.map((field) => (
+              <div key={field.key}>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  {field.label}
+                  {!field.required && <span className="text-gray-400 dark:text-gray-500 font-normal ml-1">optional</span>}
+                </label>
+
+                {field.type === "text" && (
+                  <input
+                    type="text"
+                    placeholder={field.placeholder}
+                    value={attributes[field.key] ?? ""}
+                    onChange={(e) => setAttributes((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+                  />
+                )}
+
+                {field.type === "number" && (
+                  <input
+                    type="number" min="0"
+                    placeholder={field.placeholder}
+                    value={attributes[field.key] ?? ""}
+                    onChange={(e) => setAttributes((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+                  />
+                )}
+
+                {field.type === "select" && (
+                  <select
+                    value={attributes[field.key] ?? field.options[0]}
+                    onChange={(e) => setAttributes((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  >
+                    {field.options.map((opt, idx) => (
+                      <option key={opt} value={opt}>{field.displayOptions?.[idx] ?? opt}</option>
+                    ))}
+                  </select>
+                )}
+
+                {field.type === "multicheck" && (
+                  <div className="flex flex-wrap gap-2">
+                    {field.options.map((opt) => {
+                      const checked = (attributes[field.key] ?? []).includes(opt);
+                      return (
+                        <button
+                          type="button" key={opt}
+                          onClick={() => setAttributes((prev) => {
+                            const cur = prev[field.key] ?? [];
+                            return { ...prev, [field.key]: checked ? cur.filter((v) => v !== opt) : [...cur, opt] };
+                          })}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 transition-all ${
+                            checked
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Options / Variants ─────────────────────────────────────────────── */}
+        {categoryId && !isMediaCategory && template.supportsVariants && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-5">
+            <div>
+              <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Options & Variants</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                Does this product come in different colours, sizes, or other options?
               </p>
-              {attrDefs.map((attr) => (
-                <div key={attr.key}>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{attr.label}</label>
-                  {attr.type === "multicheck" ? (
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-3">
+              {[
+                { value: "none",        title: "No options",               desc: "One version only — no sizes, colours, or variations." },
+                { value: "descriptive", title: "Just show options",        desc: "List what options are available. One stock total." },
+                { value: "variants",    title: "Separate stock per option", desc: "Track stock and set a different price for each combination." },
+              ].map(({ value, title, desc }) => {
+                const active = variantType === value;
+                return (
+                  <button
+                    type="button" key={value}
+                    onClick={() => setVariantType(value)}
+                    className={`flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                      active
+                        ? "border-primary bg-primary/5 dark:bg-primary/10"
+                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                    }`}
+                  >
+                    <p className={`text-sm font-bold ${active ? "text-primary" : "text-gray-800 dark:text-gray-200"}`}>{title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">{desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {variantType === "descriptive" && (
+              <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                  Which options do you offer?
+                </p>
+                {template.variantDimensions.map((dim) => (
+                  <div key={dim.key}>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{dim.label}</label>
                     <div className="flex flex-wrap gap-2">
-                      {attr.options.map((opt) => {
-                        const checked = (attributes[attr.key] ?? []).includes(opt);
+                      {dim.options.map((opt) => {
+                        const checked = (descriptiveOptions[dim.key] ?? []).includes(opt);
                         return (
                           <button
-                            type="button"
-                            key={opt}
-                            onClick={() => toggleAttrOption(attr.key, opt)}
+                            type="button" key={opt}
+                            onClick={() => toggleDescriptiveOption(dim.key, opt)}
                             className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 transition-all ${
                               checked
                                 ? "border-primary bg-primary/10 text-primary"
@@ -625,20 +823,180 @@ export default function EditProductPage() {
                         );
                       })}
                     </div>
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder={attr.placeholder}
-                      value={attributes[attr.key] ?? ""}
-                      onChange={(e) => setAttributes((prev) => ({ ...prev, [attr.key]: e.target.value }))}
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-                    />
-                  )}
+                  </div>
+                ))}
+                <p className="text-xs text-gray-400 dark:text-gray-500 italic flex items-start gap-1">
+                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  Customers will see these as information. You manage one single stock number above.
+                </p>
+              </div>
+            )}
+
+            {variantType === "variants" && (
+              <div className="space-y-5 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                    Step 1 — Select the options you offer
+                  </p>
+                  {template.variantDimensions.map((dim) => (
+                    <div key={dim.key} className="mb-4">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{dim.label}</label>
+                      <div className="flex flex-wrap gap-2">
+                        {dim.options.map((opt) => {
+                          const checked = (selectedDimOptions[dim.key] ?? []).includes(opt);
+                          return (
+                            <button
+                              type="button" key={opt}
+                              onClick={() => toggleSelectedDimOption(dim.key, opt)}
+                              className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 transition-all ${
+                                checked
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300"
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={generateCombinations}
+                    className="mt-1 px-5 py-2 bg-primary text-white text-sm font-bold rounded-full hover:opacity-90 transition-opacity"
+                  >
+                    Generate combinations
+                  </button>
                 </div>
-              ))}
+
+                {variantRows.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                      Step 2 — Set stock (and optional price) for each combination
+                    </p>
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden">
+                      <div className="grid grid-cols-[1fr_80px_120px_36px] gap-0 bg-gray-50 dark:bg-gray-700 px-3 py-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                        <span>Option</span>
+                        <span className="text-center">Stock</span>
+                        <span className="text-center">Custom price</span>
+                        <span />
+                      </div>
+                      {variantRows.map((row) => (
+                        <div
+                          key={row._id}
+                          className="grid grid-cols-[1fr_80px_120px_36px] gap-0 border-t border-gray-100 dark:border-gray-700 items-center px-3 py-2"
+                        >
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+                            {Object.values(row.combination).join(" / ")}
+                          </span>
+                          <input
+                            type="number" min="0"
+                            value={row.stock}
+                            onChange={(e) => updateVariantRow(row._id, "stock", e.target.value)}
+                            placeholder="0"
+                            className="w-full text-center text-sm px-2 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
+                          />
+                          <input
+                            type="number" min="0"
+                            value={row.price}
+                            onChange={(e) => updateVariantRow(row._id, "price", e.target.value)}
+                            placeholder="Same price"
+                            className="w-full text-center text-sm px-2 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeVariantRow(row._id)}
+                            className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-400 dark:text-gray-500 italic">
+                      Leave "Custom price" blank to use the main price above.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Bulk / Quantity Discounts ──────────────────────────────────────── */}
+        {categoryId && !isMediaCategory && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-primary" />
+                  Quantity Discounts
+                  <span className="text-sm text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  Offer a lower price when customers buy in bulk.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEnableQtyPricing((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  enableQtyPricing ? "bg-primary" : "bg-gray-200 dark:bg-gray-600"
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  enableQtyPricing ? "translate-x-6" : "translate-x-1"
+                }`} />
+              </button>
             </div>
-          )}
-        </div>
+
+            {enableQtyPricing && (
+              <div className="space-y-3 pt-2">
+                {quantityTiers.map((tier, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 shrink-0">Buy at least</span>
+                    <input
+                      type="number" min="2"
+                      value={tier.min_qty}
+                      onChange={(e) => setQuantityTiers((prev) => prev.map((t, i) => i === idx ? { ...t, min_qty: e.target.value } : t))}
+                      placeholder="3"
+                      className="w-20 text-center text-sm px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400 shrink-0">→ ₦</span>
+                    <input
+                      type="number" min="1"
+                      value={tier.price}
+                      onChange={(e) => setQuantityTiers((prev) => prev.map((t, i) => i === idx ? { ...t, price: e.target.value } : t))}
+                      placeholder="4500 each"
+                      className="flex-1 text-sm px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
+                    />
+                    <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">per unit</span>
+                    {quantityTiers.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setQuantityTiers((prev) => prev.filter((_, i) => i !== idx))}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setQuantityTiers((prev) => [...prev, { min_qty: "", price: "" }])}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                >
+                  <Plus className="w-4 h-4" /> Add another tier
+                </button>
+                <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                  Example: Buy 3 or more → ₦4,500 each. Set lower prices for bigger orders to encourage bulk buying.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Books & Media Details ────────────────────────────────────────── */}
         {isMediaCategory && (
@@ -648,23 +1006,21 @@ export default function EditProductPage() {
               <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Books & Media Details</h2>
             </div>
 
-            {/* ── Delivery type selector ── */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 How will customers receive this product? <span className="text-red-500">*</span>
               </label>
               <div className="grid sm:grid-cols-3 gap-3">
                 {[
-                  { value: "physical", Icon: Package,  title: "Physical copy",       desc: "Ships as a package — book, CD, DVD, etc." },
-                  { value: "digital",  Icon: Download,  title: "Digital download",    desc: "Instant download only — eBook, MP3, PDF, etc." },
-                  { value: "both",     Icon: Layers,    title: "Physical + Digital",  desc: "Buyers choose: ship the item or download instantly." },
+                  { value: "physical", Icon: Package,  title: "Physical copy",      desc: "Ships as a package." },
+                  { value: "digital",  Icon: Download,  title: "Digital download",   desc: "Instant download only." },
+                  { value: "both",     Icon: Layers,    title: "Physical + Digital", desc: "Buyers choose." },
                 ].map(({ value, Icon, title, desc }) => {
                   const active = mediaFields.delivery_type === value;
                   return (
                     <button
-                      type="button"
-                      key={value}
-                      onClick={() => { setMedia("delivery_type", value); if (value === "physical") { setDigitalFile(null); } }}
+                      type="button" key={value}
+                      onClick={() => { setMedia("delivery_type", value); if (value === "physical") setDigitalFile(null); }}
                       className={`flex flex-col items-start gap-1.5 p-4 rounded-xl border-2 text-left transition-all ${
                         active
                           ? "border-primary bg-primary/5 dark:bg-primary/10"
@@ -673,7 +1029,7 @@ export default function EditProductPage() {
                     >
                       <Icon className={`w-5 h-5 ${active ? "text-primary" : "text-gray-400"}`} />
                       <p className={`text-sm font-bold ${active ? "text-primary" : "text-gray-800 dark:text-gray-200"}`}>{title}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">{desc}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
                     </button>
                   );
                 })}
@@ -681,35 +1037,27 @@ export default function EditProductPage() {
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                { key: "media_author",       label: "Author / Artist / Director",  placeholder: "e.g. Chinua Achebe" },
+                { key: "media_publisher",    label: "Publisher / Label / Studio",   placeholder: "e.g. Heinemann" },
+                { key: "media_isbn",         label: "ISBN / Barcode (optional)",    placeholder: "978-0-000-00000-0", mono: true },
+                { key: "media_edition",      label: "Edition (optional)",           placeholder: "e.g. 3rd Edition" },
+                { key: "media_language",     label: "Language",                      placeholder: "English" },
+                { key: "media_pages",        label: "Pages / Runtime (optional)",   placeholder: "e.g. 320", num: true },
+              ].map(({ key, label, placeholder, mono, num }) => (
+                <div key={key}>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">{label}</label>
+                  <input
+                    type={num ? "number" : "text"} min={num ? "1" : undefined}
+                    value={mediaFields[key]}
+                    onChange={(e) => setMedia(key, e.target.value)}
+                    placeholder={placeholder}
+                    className={`w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500${mono ? " font-mono" : ""}`}
+                  />
+                </div>
+              ))}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Author / Artist / Director</label>
-                <input
-                  value={mediaFields.media_author}
-                  onChange={(e) => setMedia("media_author", e.target.value)}
-                  placeholder="e.g. Chinua Achebe"
-                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Publisher / Label / Studio</label>
-                <input
-                  value={mediaFields.media_publisher}
-                  onChange={(e) => setMedia("media_publisher", e.target.value)}
-                  placeholder="e.g. Heinemann"
-                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">ISBN / Barcode <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input
-                  value={mediaFields.media_isbn}
-                  onChange={(e) => setMedia("media_isbn", e.target.value)}
-                  placeholder="978-0-000-00000-0"
-                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Publication / Release Date <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Release Date (optional)</label>
                 <input
                   type="date"
                   value={mediaFields.media_publish_date}
@@ -717,45 +1065,14 @@ export default function EditProductPage() {
                   className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Edition <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input
-                  value={mediaFields.media_edition}
-                  onChange={(e) => setMedia("media_edition", e.target.value)}
-                  placeholder="e.g. 3rd Edition, Deluxe"
-                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Pages / Runtime <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input
-                  type="number"
-                  min="1"
-                  value={mediaFields.media_pages}
-                  onChange={(e) => setMedia("media_pages", e.target.value)}
-                  placeholder="e.g. 320 pages or 94 mins"
-                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Language</label>
-                <input
-                  value={mediaFields.media_language}
-                  onChange={(e) => setMedia("media_language", e.target.value)}
-                  placeholder="English"
-                  className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-                />
-              </div>
             </div>
 
-            {/* Format */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Format</label>
               <div className="flex flex-wrap gap-2">
                 {MEDIA_FORMATS.map((f) => (
                   <button
-                    type="button"
-                    key={f}
+                    type="button" key={f}
                     onClick={() => setMedia("media_format", mediaFields.media_format === f ? "" : f)}
                     className={`px-3.5 py-1.5 text-sm font-semibold rounded-full border-2 transition-all ${
                       mediaFields.media_format === f
@@ -769,7 +1086,6 @@ export default function EditProductPage() {
               </div>
             </div>
 
-            {/* Genre */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Genre / Category Tags</label>
               <div className="flex flex-wrap gap-2">
@@ -777,9 +1093,7 @@ export default function EditProductPage() {
                   const active = mediaFields.media_genre.includes(g);
                   return (
                     <button
-                      type="button"
-                      key={g}
-                      onClick={() => toggleGenre(g)}
+                      type="button" key={g} onClick={() => toggleGenre(g)}
                       className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all ${
                         active
                           ? "border-primary bg-primary text-white"
@@ -793,10 +1107,8 @@ export default function EditProductPage() {
               </div>
             </div>
 
-            {/* Digital file upload — shown for "digital" and "both" modes */}
             {mediaFields.delivery_type !== "physical" && (
               <div className="pt-2 border-t border-gray-100 dark:border-gray-700 space-y-4">
-                {/* Separate digital price — only for "both" mode */}
                 {mediaFields.delivery_type === "both" && (
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
@@ -805,8 +1117,7 @@ export default function EditProductPage() {
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">₦</span>
                       <input
-                        type="number"
-                        min="1"
+                        type="number" min="1"
                         value={mediaFields.digital_price}
                         onChange={(e) => setMedia("digital_price", e.target.value)}
                         placeholder="Leave blank to use the same price as physical"
@@ -833,22 +1144,17 @@ export default function EditProductPage() {
                           </p>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={removeDigitalFile}
-                        className="p-1 text-green-600 dark:text-green-400 hover:text-red-500 transition-colors shrink-0"
-                      >
+                      <button type="button" onClick={removeDigitalFile}
+                        className="p-1 text-green-600 dark:text-green-400 hover:text-red-500 transition-colors shrink-0">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
                   ) : (
                     <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-8 cursor-pointer transition-colors ${digitalUploading ? "opacity-60 pointer-events-none" : "border-gray-200 dark:border-gray-600 hover:border-primary/50 hover:bg-primary/5"}`}>
                       <input type="file" className="hidden" onChange={handleDigitalFileChange} accept=".pdf,.epub,.mobi,.mp3,.mp4,.ogg,.wav,.mkv,.zip" />
-                      {digitalUploading ? (
-                        <span className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Upload className="w-8 h-8 text-gray-400" />
-                      )}
+                      {digitalUploading
+                        ? <span className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        : <Upload className="w-8 h-8 text-gray-400" />}
                       <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                         {digitalUploading ? "Uploading…" : "Click to upload your file"}
                       </p>
@@ -870,10 +1176,7 @@ export default function EditProductPage() {
             </p>
           </div>
           {imagesReady && (
-            <ProductImageUploader
-              value={images}
-              onChange={setImages}
-            />
+            <ProductImageUploader value={images} onChange={setImages} />
           )}
         </div>
 

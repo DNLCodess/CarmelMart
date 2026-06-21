@@ -23,7 +23,7 @@ export async function GET(request, { params }) {
 
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    const [{ data: vendorData }, { count: soldToday }] = await Promise.all([
+    const [{ data: vendorData }, { count: soldToday }, { data: variants }] = await Promise.all([
       supabase
         .from("vendors")
         .select("id, business_name, verification_status")
@@ -34,6 +34,12 @@ export async function GET(request, { params }) {
         .select("id", { count: "exact", head: true })
         .eq("product_id", id)
         .gte("created_at", since24h),
+      supabase
+        .from("product_variants")
+        .select("id, combination, stock, price, image")
+        .eq("product_id", id)
+        .eq("is_active", true)
+        .order("created_at"),
     ]);
 
     // Block products from suspended or rejected vendors
@@ -76,6 +82,9 @@ export async function GET(request, { params }) {
       mediaFormat:      data.media_format ?? null,
       mediaGenre:       data.media_genre ?? [],
       isDigital:        data.is_digital ?? false,
+      variantType:      data.variant_type ?? "none",
+      quantityTiers:    data.quantity_tiers ?? null,
+      variants:         variants ?? [],
       vendor: vendorData
         ? {
             id: vendorData.id,

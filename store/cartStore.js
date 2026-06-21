@@ -5,48 +5,72 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+// Item shape:
+// { cartKey, productId, variantId, variantCombination, vendorId, name, price,
+//   quantity, image, isDigital, deliveryFormat }
+// cartKey = unique per cart entry — derived as `${productId}::${variantId}` for
+// variant items, or just `${productId}` for non-variant items.
+
+function makeCartKey(productId, variantId) {
+  return variantId ? `${productId}::${variantId}` : productId;
+}
+
 export const useCartStore = create(
   persist(
     (set, get) => ({
-      // Item shape: { productId, vendorId, name, price, quantity, image, isDigital, deliveryFormat }
-      // deliveryFormat: "digital" | "physical" — set at product page when customer picks format
       items: [],
 
       addItem: (product) =>
         set((state) => {
-          const existing = state.items.find((i) => i.productId === product.productId);
+          const cartKey = makeCartKey(product.productId, product.variantId ?? null);
+          const existing = state.items.find((i) => i.cartKey === cartKey);
+
           if (existing) {
-            if (existing.deliveryFormat === product.deliveryFormat) {
-              // Same format: increment quantity
+            if (!product.variantId && existing.deliveryFormat !== product.deliveryFormat) {
+              // Non-variant item: different format → replace format + price, keep quantity
               return {
                 items: state.items.map((i) =>
-                  i.productId === product.productId
-                    ? { ...i, quantity: i.quantity + (product.quantity ?? 1) }
+                  i.cartKey === cartKey
+                    ? { ...i, price: product.price, deliveryFormat: product.deliveryFormat }
                     : i,
                 ),
               };
             }
-            // Different format: replace format + price, keep quantity
+            // Same format (or variant): increment quantity
             return {
               items: state.items.map((i) =>
-                i.productId === product.productId
-                  ? { ...i, price: product.price, deliveryFormat: product.deliveryFormat }
+                i.cartKey === cartKey
+                  ? { ...i, quantity: i.quantity + (product.quantity ?? 1) }
                   : i,
               ),
             };
           }
-          return { items: [...state.items, { ...product, quantity: product.quantity ?? 1 }] };
+
+          return {
+            items: [
+              ...state.items,
+              {
+                ...product,
+                cartKey,
+                variantId:          product.variantId ?? null,
+                variantCombination: product.variantCombination ?? null,
+                quantity:           product.quantity ?? 1,
+              },
+            ],
+          };
         }),
 
-      removeItem: (productId) =>
-        set((state) => ({ items: state.items.filter((i) => i.productId !== productId) })),
+      // cartKey is the primary key for mutations — pass item.cartKey from UI.
+      // Passing just productId still works for non-variant items (their cartKey === productId).
+      removeItem: (cartKey) =>
+        set((state) => ({ items: state.items.filter((i) => i.cartKey !== cartKey) })),
 
-      updateQuantity: (productId, quantity) =>
+      updateQuantity: (cartKey, quantity) =>
         set((state) => ({
           items:
             quantity <= 0
-              ? state.items.filter((i) => i.productId !== productId)
-              : state.items.map((i) => (i.productId === productId ? { ...i, quantity } : i)),
+              ? state.items.filter((i) => i.cartKey !== cartKey)
+              : state.items.map((i) => (i.cartKey === cartKey ? { ...i, quantity } : i)),
         })),
 
       clearCart: () => set({ items: [] }),

@@ -115,6 +115,8 @@ export async function POST(request) {
     const body = await request.json();
     const {
       name, description, price, sale_price, stock, category_id, images, condition, attributes,
+      // Variants & pricing
+      variant_type, quantity_tiers, variants,
       // Books & Media fields
       media_author, media_isbn, media_publisher, media_publish_date,
       media_edition, media_pages, media_language, media_format, media_genre,
@@ -178,6 +180,9 @@ export async function POST(request) {
         images:             images ?? [],
         condition:          VALID_CONDITIONS.includes(condition) ? condition : "new",
         attributes:         attributes && typeof attributes === "object" ? attributes : {},
+        // Variants & pricing
+        variant_type:       ["none","descriptive","variants"].includes(variant_type) ? variant_type : "none",
+        quantity_tiers:     Array.isArray(quantity_tiers) && quantity_tiers.length ? quantity_tiers : null,
         // Books & Media
         media_author:       media_author?.trim() || null,
         media_isbn:         media_isbn?.trim() || null,
@@ -201,6 +206,18 @@ export async function POST(request) {
       .single();
 
     if (error) throw error;
+
+    // Insert product variants when variant_type = 'variants'
+    if (variant_type === "variants" && Array.isArray(variants) && variants.length > 0) {
+      const variantRows = variants.map((v) => ({
+        product_id:  product.id,
+        combination: v.combination,
+        stock:       Number(v.stock ?? 0),
+        price:       v.price != null ? Number(v.price) : null,
+      }));
+      const { error: varErr } = await admin.from("product_variants").insert(variantRows);
+      if (varErr) throw varErr;
+    }
 
     return NextResponse.json({ success: true, product }, { status: 201 });
   } catch (error) {

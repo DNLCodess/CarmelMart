@@ -21,6 +21,7 @@ export async function GET(request, { params }) {
       .from("products")
       .select(`id, name, slug, description, price, sale_price, stock, images, status,
         condition, moderation_status, moderation_reason, attributes,
+        variant_type, quantity_tiers,
         category_id, categories(id, name, slug, template),
         media_author, media_isbn, media_publisher, media_publish_date, media_edition,
         media_pages, media_language, media_format, media_genre,
@@ -30,7 +31,13 @@ export async function GET(request, { params }) {
       .single();
     if (error) throw error;
     if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json({ success: true, product });
+    const { data: variants } = await admin
+      .from("product_variants")
+      .select("id, combination, stock, price, image, is_active")
+      .eq("product_id", id)
+      .eq("is_active", true)
+      .order("created_at");
+    return NextResponse.json({ success: true, product: { ...product, variants: variants ?? [] } });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -75,16 +82,18 @@ export async function PATCH(request, { params }) {
     const isDigitalOnly = body.digital_only ?? false;
 
     const update = {
-      name:        body.name,
-      description: body.description,
-      price:       body.price,
-      sale_price:  body.sale_price ?? null,
+      name:           body.name,
+      description:    body.description,
+      price:          body.price,
+      sale_price:     body.sale_price ?? null,
       // Digital-only products have unlimited stock — managed automatically
-      stock:       isDigitalOnly ? 9999 : body.stock,
-      category_id: body.category_id,
-      images:      body.images ?? [],
-      attributes:  body.attributes && typeof body.attributes === "object" ? body.attributes : {},
-      updated_at:  new Date().toISOString(),
+      stock:          isDigitalOnly ? 9999 : body.stock,
+      category_id:    body.category_id,
+      images:         body.images ?? [],
+      attributes:     body.attributes && typeof body.attributes === "object" ? body.attributes : {},
+      variant_type:   ["none","descriptive","variants"].includes(body.variant_type) ? body.variant_type : "none",
+      quantity_tiers: Array.isArray(body.quantity_tiers) && body.quantity_tiers.length ? body.quantity_tiers : null,
+      updated_at:     new Date().toISOString(),
     };
     if (body.status !== undefined) update.status = body.status;
 
@@ -122,6 +131,25 @@ export async function PATCH(request, { params }) {
       .eq("id", id)
       .eq("vendor_id", user.id); // vendor can only edit own products
     if (error) throw error;
+
+    // Upsert product variants: delete all existing and re-insert
+    if (body.variant_type === "variants" && Array.isArray(body.variants)) {
+      await admin.from("product_variants").delete().eq("product_id", id);
+      if (body.variants.length > 0) {
+        const variantRows = body.variants.map((v) => ({
+          product_id:  id,
+          combination: v.combination,
+          stock:       Number(v.stock ?? 0),
+          price:       v.price != null ? Number(v.price) : null,
+        }));
+        const { error: varErr } = await admin.from("product_variants").insert(variantRows);
+        if (varErr) throw varErr;
+      }
+    } else if (body.variant_type !== "variants") {
+      // Clear variants when switching away from variants mode
+      await admin.from("product_variants").delete().eq("product_id", id);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
