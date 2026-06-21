@@ -131,7 +131,7 @@ export default function CategoriesSection() {
 
   return (
     <section className="py-14 lg:py-16 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between gap-6 mb-8">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-950">Shop by category</h2>

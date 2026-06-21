@@ -193,7 +193,7 @@ export default function HeroSection() {
         <ChevronRight className="w-6 h-6" />
       </button>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
+      <div className="relative z-10 max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
           <AnimatePresence mode="wait">

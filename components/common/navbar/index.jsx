@@ -369,7 +369,7 @@ export default function Navbar() {
         className="sticky top-0 z-50 bg-white"
       >
         {/* ── Main bar ── */}
-        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-3 sm:px-5 lg:px-8">
           <div className="flex items-center justify-between sm:justify-start gap-3 lg:gap-5 h-14 sm:h-[70px]">
             {/* Logo */}
             <Link href="/" className="shrink-0">

@@ -35,7 +35,7 @@ export default function LiveActivityTicker() {
 
   return (
     <section className="py-3 bg-primary/5 border-y border-primary/10 overflow-hidden">
-      <div className="flex items-center gap-4 max-w-7xl mx-auto px-4">
+      <div className="flex items-center gap-4 max-w-screen-2xl mx-auto px-4">
         {/* Label */}
         <div className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full whitespace-nowrap">
           <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />

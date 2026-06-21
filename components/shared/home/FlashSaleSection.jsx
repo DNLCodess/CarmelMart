@@ -85,7 +85,7 @@ export default function FlashSaleSection() {
   if (isLoading) {
     return (
       <section className="py-12 sm:py-16 bg-primary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-8 w-48 bg-white/20 rounded-xl mb-8 animate-pulse" />
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -120,7 +120,7 @@ export default function FlashSaleSection() {
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "24px 24px" }} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 relative">
 
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 mb-8">

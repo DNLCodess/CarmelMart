@@ -111,7 +111,7 @@ export default function VendorStorePage() {
         <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* ── Vendor profile card ──────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 -mt-12 relative z-10 mb-8">
           {isLoading ? (

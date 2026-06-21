@@ -154,7 +154,8 @@ export default function EditProductPage() {
 
   const currentSubs    = subsByParent[parentCategoryId] ?? [];
   const selectedCat    = categories.find((c) => String(c.id) === String(categoryId));
-  const categoryTemplate = selectedCat?.template ?? "standard";
+  // effectiveTemplate is resolved (inherits from parent when subcategory template is null)
+  const categoryTemplate = selectedCat?.effectiveTemplate ?? selectedCat?.template ?? "standard";
   const isMediaCategory  = categoryTemplate === "books_media";
   const template         = getTemplate(categoryTemplate);
 
@@ -250,7 +251,7 @@ export default function EditProductPage() {
 
     if (savedVariantType === "descriptive" && product.attributes) {
       // Descriptive options were stored in attributes
-      const tmpl = getTemplate(product.categories?.template ?? "standard");
+      const tmpl = getTemplate(product.categories?.effectiveTemplate ?? product.categories?.template ?? "standard");
       const dimKeys = new Set(tmpl.variantDimensions.map((d) => d.key));
       const dimAttrs = {};
       Object.entries(product.attributes).forEach(([k, v]) => {
@@ -269,7 +270,7 @@ export default function EditProductPage() {
       setVariantRows(rows);
 
       // Rebuild selectedDimOptions from existing variants
-      const tmpl = getTemplate(product.categories?.template ?? "standard");
+      const tmpl = getTemplate(product.categories?.effectiveTemplate ?? product.categories?.template ?? "standard");
       const dimSelections = {};
       rows.forEach((r) => {
         Object.entries(r.combination).forEach(([dimKey, val]) => {
@@ -295,7 +296,7 @@ export default function EditProductPage() {
     }
 
     // Restore Books & Media fields
-    if (product.categories?.template === "books_media") {
+    if ((product.categories?.effectiveTemplate ?? product.categories?.template) === "books_media") {
       const deliveryType = product.digital_only ? "digital" : product.is_digital ? "both" : "physical";
       setMediaFields({
         media_author:       product.media_author       ?? "",

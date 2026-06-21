@@ -73,7 +73,7 @@ export default function Footer() {
     <footer className="bg-[#111111] text-gray-400 border-t-2 border-primary">
 
       {/* ══════════════════════ MAIN FOOTER BODY ══════════════════════════════ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 md:py-10">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-7 md:py-10">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-0 md:gap-8 lg:gap-12">
 
           {/* ── Brand column ── */}
@@ -209,7 +209,7 @@ export default function Footer() {
 
       {/* ══════════════════════ BOTTOM BAR ════════════════════════════════════ */}
       <div className="border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/60">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/60">
 
           {/* Payment methods */}
           <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">

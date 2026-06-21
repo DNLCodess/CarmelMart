@@ -1269,7 +1269,7 @@ function ShopContent() {
 
       {/* ── Shop header banner ───────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
             <Link href="/" className="hover:text-primary transition-colors flex items-center gap-1">
@@ -1316,7 +1316,7 @@ function ShopContent() {
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex gap-6">
           {/* Sidebar */}
           <FilterSidebar

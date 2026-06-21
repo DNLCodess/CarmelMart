@@ -84,7 +84,7 @@ export default function DailyDealsSection() {
 
   return (
     <section className="py-12 sm:py-16 bg-linear-to-br from-orange-50 via-white to-red-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">

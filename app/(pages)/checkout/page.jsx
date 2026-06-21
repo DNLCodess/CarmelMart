@@ -472,7 +472,7 @@ export default function CheckoutPage() {
       {/* Flutterwave SDK — must use next/script, not plain <script>, to execute on client-side navigation */}
       <Script src="https://checkout.flutterwave.com/v3.js" strategy="lazyOnload" />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10">
         <h1 className="text-2xl font-bold text-gray-900 text-center mb-5">Checkout</h1>
 
         {/* Payment recovery banner — shown when a previous payment was charged but the order was never created */}

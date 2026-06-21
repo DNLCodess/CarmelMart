@@ -213,7 +213,7 @@ export default function FeaturedProductsSection() {
         <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-accent/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="flex items-end justify-between mb-10">
           <div>

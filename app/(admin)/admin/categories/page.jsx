@@ -6,8 +6,11 @@ import { CATEGORIES_QUERY_KEY } from "@/lib/useCategories";
 import { Fragment } from "react";
 import {
   Tag, Plus, Pencil, Trash2, RefreshCw, X, Check,
-  ChevronDown, ChevronRight, Package, ExternalLink, Folder,
+  ChevronDown, ChevronRight, Package, ExternalLink, Folder, Layers,
+  Shirt, Footprints, Dumbbell, Gem, Puzzle, Gamepad2,
+  UtensilsCrossed, Wrench, Cpu, Scissors, ShoppingBag, Music, BookOpen, Home, Sofa,
 } from "lucide-react";
+import { TEMPLATE_OPTIONS } from "@/lib/product-templates";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -41,114 +44,262 @@ function ModBadge({ status }) {
   );
 }
 
-// ─── Category modal ───────────────────────────────────────────────────────────
+// ─── Template icon map ────────────────────────────────────────────────────────
 
-const TEMPLATE_OPTIONS = [
-  { value: "standard",    label: "Standard",      desc: "General merchandise (default)" },
-  { value: "books_media", label: "Books & Media",  desc: "Books, eBooks, music, film, games — unlocks media metadata fields and digital download support" },
-];
+const TEMPLATE_ICON = {
+  standard:    Package,
+  fashion:     Shirt,
+  footwear:    Footprints,
+  accessories: ShoppingBag,
+  fabric:      Scissors,
+  electronics: Cpu,
+  sports:      Dumbbell,
+  jewelry:     Gem,
+  home_living: Sofa,
+  consumables: UtensilsCrossed,
+  automotive:  Wrench,
+  toys:        Puzzle,
+  video_games: Gamepad2,
+  musical:     Music,
+  books_media: BookOpen,
+};
+
+// ─── Template badge helper ────────────────────────────────────────────────────
+
+function TemplateBadge({ template, effectiveTemplate, isSubcategory }) {
+  const opt = TEMPLATE_OPTIONS.find((o) => o.value === (effectiveTemplate ?? "standard"));
+  const inherited = isSubcategory && !template;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${
+      inherited
+        ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700"
+        : opt?.supportsVariants
+          ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-700"
+          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-600"
+    }`}>
+      {inherited && <Layers className="w-2.5 h-2.5 shrink-0" />}
+      {opt?.supportsVariants && !inherited && <Tag className="w-2.5 h-2.5 shrink-0" />}
+      {inherited ? `↳ ${opt?.label ?? effectiveTemplate}` : (opt?.label ?? effectiveTemplate ?? "Standard")}
+    </span>
+  );
+}
+
+// ─── Category modal ───────────────────────────────────────────────────────────
 
 function CategoryModal({ open, initial, parents, onClose, onSave, saving }) {
   const [name, setName]         = useState(initial?.name ?? "");
   const [slug, setSlug]         = useState(initial?.slug ?? "");
   const [image, setImage]       = useState(initial?.image ?? "");
-  const [template, setTemplate] = useState(initial?.template ?? "standard");
+  const [template, setTemplate] = useState(initial?.template ?? null);
   const [parentId, setParentId] = useState(initial?.parentId ?? "");
 
   if (!open) return null;
 
+  const selectedParent = parents.find((p) => p.id === parentId);
+  const parentTemplate = selectedParent?.effectiveTemplate ?? selectedParent?.template ?? "standard";
+  const isSubcategory  = !!parentId;
+  const inheritedOpt   = TEMPLATE_OPTIONS.find((o) => o.value === parentTemplate);
+
+  const handleParentChange = (val) => {
+    setParentId(val);
+    if (val) setTemplate(null);
+    else setTemplate("standard");
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) { toast.error("Name is required"); return; }
-    onSave({ name: name.trim(), slug: slug.trim(), image: image.trim(), parent_id: parentId || null, template });
+    const resolvedTemplate = isSubcategory ? template : (template ?? "standard");
+    onSave({ name: name.trim(), slug: slug.trim(), image: image.trim(), parent_id: parentId || null, template: resolvedTemplate });
   };
 
+  const isEditing = !!initial;
+  const modalTitle = isEditing ? "Edit Category" : isSubcategory ? "New Subcategory" : "New Category";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-gray-900 dark:text-gray-100">
-            {initial ? "Edit Category" : parentId ? "New Subcategory" : "New Category"}
-          </h3>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg transition-colors">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg flex flex-col max-h-[92dvh] sm:max-h-[88vh]">
+
+        {/* Header */}
+        <div className="flex items-center gap-3.5 px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0">
+            {isSubcategory
+              ? <Tag className="w-5 h-5 text-primary" />
+              : <Folder className="w-5 h-5 text-primary" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">{modalTitle}</h3>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              {isEditing ? "Update details and product template" : "Configure how products in this category behave"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Name *</label>
-            <input
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (!initial) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
-              }}
-              placeholder="e.g. Women's Clothing"
-              required
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
-          </div>
+        {/* Scrollable body + footer wrapped in form */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Slug</label>
-            <input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="auto-generated from name"
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Parent Category</label>
-            <select
-              value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-gray-700 dark:text-gray-100"
-            >
-              <option value="">None (top-level category)</option>
-              {parents
-                .filter((c) => !initial || c.id !== initial.id)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Product Template</label>
-            <div className="space-y-2">
-              {TEMPLATE_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
-                    template === opt.value
-                      ? "border-primary bg-primary/5 dark:bg-primary/10"
-                      : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="template"
-                    value={opt.value}
-                    checked={template === opt.value}
-                    onChange={() => setTemplate(opt.value)}
-                    className="mt-0.5 accent-primary shrink-0"
-                  />
-                  <div>
-                    <p className={`text-sm font-semibold ${template === opt.value ? "text-primary" : "text-gray-800 dark:text-gray-200"}`}>
-                      {opt.label}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{opt.desc}</p>
-                  </div>
-                </label>
-              ))}
+          {/* Name + Slug */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wide">Name *</label>
+              <input
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (!initial) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
+                }}
+                placeholder="e.g. Clothing"
+                required
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 transition-shadow"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wide">Slug</label>
+              <input
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="auto-generated"
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 font-mono transition-shadow"
+              />
             </div>
           </div>
 
+          {/* Parent */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Category Image</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wide">Parent Category</label>
+            <select
+              value={parentId}
+              onChange={(e) => handleParentChange(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 dark:bg-gray-800 dark:text-gray-100 transition-shadow"
+            >
+              <option value="">None — top-level category</option>
+              {parents
+                .filter((c) => !initial || c.id !== initial.id)
+                .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          {/* Template picker */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Product Template</label>
+
+            {/* Live description — updates with selection */}
+            {(() => {
+              const active = template === null
+                ? (isSubcategory ? { label: `Inherit — ${inheritedOpt?.label ?? parentTemplate}`, supportsVariants: inheritedOpt?.supportsVariants, isInherit: true } : null)
+                : TEMPLATE_OPTIONS.find((o) => o.value === template);
+              if (!active) return null;
+              const Icon = template ? (TEMPLATE_ICON[template] ?? Package) : Layers;
+              return (
+                <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl mb-3 ${
+                  active.isInherit
+                    ? "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
+                    : active.supportsVariants
+                      ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800"
+                      : "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                }`}>
+                  <Icon className={`w-4 h-4 shrink-0 ${
+                    active.isInherit ? "text-amber-500" : active.supportsVariants ? "text-blue-500" : "text-gray-400"
+                  }`} />
+                  <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
+                    <span className="font-semibold">{active.label}</span>
+                    {" — "}
+                    {active.supportsVariants
+                      ? "unlocks color, size & fit variant dimensions for products"
+                      : "uses descriptive attributes only; no variant dimensions"}
+                  </p>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-2">
+              {/* Inherit option — only for subcategories */}
+              {isSubcategory && (
+                <button
+                  type="button"
+                  onClick={() => setTemplate(null)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                    template === null
+                      ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20 shadow-sm"
+                      : "border-dashed border-gray-200 dark:border-gray-700 hover:border-amber-300 dark:hover:border-amber-700 bg-gray-50/50 dark:bg-gray-800/30"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    template === null ? "bg-amber-100 dark:bg-amber-900/40" : "bg-gray-100 dark:bg-gray-800"
+                  }`}>
+                    <Layers className={`w-4 h-4 ${template === null ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-gray-500"}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold ${template === null ? "text-amber-700 dark:text-amber-400" : "text-gray-700 dark:text-gray-300"}`}>
+                      Inherit from parent
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      Follows <span className="font-medium text-gray-600 dark:text-gray-300">{inheritedOpt?.label ?? parentTemplate}</span>
+                    </p>
+                  </div>
+                  {template === null && (
+                    <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </button>
+              )}
+
+              {/* 3-column grid */}
+              <div className="grid grid-cols-3 gap-2">
+                {TEMPLATE_OPTIONS.map((opt) => {
+                  const Icon    = TEMPLATE_ICON[opt.value] ?? Package;
+                  const active  = template === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setTemplate(opt.value)}
+                      className={`relative flex flex-col items-center gap-2 pt-4 pb-3 px-2 rounded-xl border-2 transition-all ${
+                        active
+                          ? "border-primary bg-primary/5 dark:bg-primary/10 shadow-sm"
+                          : "border-gray-100 dark:border-gray-700/80 hover:border-gray-300 dark:hover:border-gray-600 bg-gray-50/60 dark:bg-gray-800/40"
+                      }`}
+                    >
+                      {/* Variant dot */}
+                      {opt.supportsVariants && (
+                        <span className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${active ? "bg-primary" : "bg-blue-300 dark:bg-blue-600"}`} />
+                      )}
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                        active
+                          ? "bg-primary/15 dark:bg-primary/25"
+                          : "bg-white dark:bg-gray-700 shadow-sm"
+                      }`}>
+                        <Icon className={`w-4.5 h-4.5 ${active ? "text-primary" : "text-gray-500 dark:text-gray-400"}`} style={{ width: 18, height: 18 }} />
+                      </div>
+                      <span className={`text-[11px] font-semibold leading-tight text-center ${
+                        active ? "text-primary" : "text-gray-600 dark:text-gray-400"
+                      }`}>
+                        {opt.label.replace(" & ", "\n& ")}
+                      </span>
+                      {active && (
+                        <span className="absolute top-1.5 left-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+            </div>
+          </div>
+
+          {/* Image */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wide">Category Image</label>
             <SingleImageUpload
               value={image || null}
               onChange={(url) => setImage(url ?? "")}
@@ -157,20 +308,26 @@ function CategoryModal({ open, initial, parents, onClose, onSave, saving }) {
               aspectHint="Square recommended"
             />
           </div>
+        </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark disabled:opacity-60 rounded-xl transition-colors flex items-center gap-2"
-            >
-              {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              {initial ? "Save Changes" : "Create"}
-            </button>
-          </div>
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-800 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark disabled:opacity-60 rounded-xl transition-colors flex items-center gap-2 shadow-sm"
+          >
+            {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {isEditing ? "Save Changes" : "Create Category"}
+          </button>
+        </div>
         </form>
       </div>
     </div>
@@ -438,6 +595,9 @@ function CategoryRow({ c, isExpanded, onToggle, onEdit, onDelete, onAddSub, dept
         </div>
       </td>
       <td className="px-5 py-4 hidden sm:table-cell font-mono text-xs text-gray-500 dark:text-gray-400">{c.slug}</td>
+      <td className="px-5 py-4 hidden xl:table-cell">
+        <TemplateBadge template={c.template} effectiveTemplate={c.effectiveTemplate} isSubcategory={depth > 0} />
+      </td>
       <td className="px-5 py-4 text-right">
         <button
           onClick={() => onToggle(c.id)}
@@ -652,7 +812,7 @@ export default function AdminCategoriesPage() {
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => toggleExpand(parent.id)}
                             disabled={parent.productCount === 0}
@@ -668,6 +828,7 @@ export default function AdminCategoriesPage() {
                           {subs.length > 0 && (
                             <span className="text-xs text-gray-400 dark:text-gray-500">{subs.length} sub{subs.length !== 1 ? "s" : ""}</span>
                           )}
+                          <TemplateBadge template={parent.template} effectiveTemplate={parent.effectiveTemplate} isSubcategory={false} />
                         </div>
                         <div className="flex gap-1">
                           <button
@@ -723,18 +884,21 @@ export default function AdminCategoriesPage() {
                                 </div>
                               </div>
                               <div className="flex items-center justify-between mt-2">
-                                <button
-                                  onClick={() => toggleExpand(sub.id)}
-                                  disabled={sub.productCount === 0}
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold transition-colors ${
-                                    isSubExpanded
-                                      ? "bg-primary/10 text-primary dark:text-white dark:bg-primary/20"
-                                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                                  } ${sub.productCount === 0 ? "opacity-50 cursor-default pointer-events-none" : "cursor-pointer"}`}
-                                >
-                                  {isSubExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                                  {sub.productCount}
-                                </button>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <button
+                                    onClick={() => toggleExpand(sub.id)}
+                                    disabled={sub.productCount === 0}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold transition-colors ${
+                                      isSubExpanded
+                                        ? "bg-primary/10 text-primary dark:text-white dark:bg-primary/20"
+                                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                                    } ${sub.productCount === 0 ? "opacity-50 cursor-default pointer-events-none" : "cursor-pointer"}`}
+                                  >
+                                    {isSubExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                    {sub.productCount}
+                                  </button>
+                                  <TemplateBadge template={sub.template} effectiveTemplate={sub.effectiveTemplate} isSubcategory={true} />
+                                </div>
                                 <div className="flex gap-1">
                                   <button
                                     onClick={() => openModal({ category: sub })}
@@ -786,6 +950,7 @@ export default function AdminCategoriesPage() {
                   <tr>
                     <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Category</th>
                     <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Slug</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden xl:table-cell">Template</th>
                     <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Products</th>
                     <th className="px-5 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
                   </tr>
@@ -811,7 +976,7 @@ export default function AdminCategoriesPage() {
                         {/* Expanded product rows for parent */}
                         {isExpanded && (
                           <tr className="bg-gray-50/50 dark:bg-gray-900/20">
-                            <td colSpan={4} className="p-0">
+                            <td colSpan={5} className="p-0">
                               <CategoryProducts categoryId={parent.id} onDelete={setDelProduct} />
                             </td>
                           </tr>
@@ -833,7 +998,7 @@ export default function AdminCategoriesPage() {
                               />
                               {isSubExpanded && (
                                 <tr className="bg-gray-50/50 dark:bg-gray-900/20">
-                                  <td colSpan={4} className="p-0">
+                                  <td colSpan={5} className="p-0">
                                     <CategoryProducts categoryId={sub.id} onDelete={setDelProduct} />
                                   </td>
                                 </tr>
@@ -845,7 +1010,7 @@ export default function AdminCategoriesPage() {
                         {/* "Add subcategory" hint row when parent has no subs */}
                         {subs.length === 0 && (
                           <tr className="bg-gray-50/20 dark:bg-gray-900/5">
-                            <td colSpan={4} className="pl-16 pr-5 py-2.5">
+                            <td colSpan={5} className="pl-16 pr-5 py-2.5">
                               <button
                                 onClick={() => openModal({ defaultParentId: parent.id })}
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:underline transition-colors"

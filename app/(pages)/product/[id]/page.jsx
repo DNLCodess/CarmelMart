@@ -525,7 +525,7 @@ export function ProductDetailContent({ product }) {
   return (
     <>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-32">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-32">
 
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-4 sm:mb-8 flex-wrap">
@@ -1148,13 +1148,13 @@ export default function ProductDetailPage() {
 
   if (isLoading) return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"><ProductSkeleton /></div>
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8"><ProductSkeleton /></div>
     </div>
   );
 
   if (isError || !data?.product) return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
         <Package className="w-14 h-14 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
         <h2 className="font-bold text-gray-900 dark:text-gray-100 text-xl mb-2">Product not found</h2>
         <p className="text-gray-500 dark:text-gray-400 mb-6">This product may have been removed or is no longer available.</p>

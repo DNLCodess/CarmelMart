@@ -122,7 +122,7 @@ export default function CategoryPage() {
           <Image src={category.image} alt={category.name ?? slug} fill className="object-cover opacity-70" priority />
         )}
         <div className="absolute inset-0 bg-linear-to-r from-gray-800/90 to-gray-600/60" />
-        <div className="absolute inset-0 flex flex-col justify-end px-4 sm:px-8 pb-6 max-w-6xl mx-auto w-full">
+        <div className="absolute inset-0 flex flex-col justify-end px-4 sm:px-8 pb-6 max-w-7xl mx-auto w-full">
           <Link href="/" className="flex items-center gap-1.5 text-white/70 text-xs mb-3 hover:text-white transition-colors w-fit">
             <ArrowLeft className="w-3.5 h-3.5" /> Home
           </Link>
@@ -135,7 +135,7 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
         <div className="flex gap-8">
 
           {/* Sidebar filters (desktop) */}

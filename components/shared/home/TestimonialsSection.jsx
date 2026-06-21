@@ -103,7 +103,7 @@ export default function TestimonialsSection() {
   if (isLoading) {
     return (
       <section className="py-16 sm:py-24 bg-linear-to-br from-primary/5 via-white to-accent/5 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="hidden sm:grid grid-cols-3 gap-5">
             {Array.from({ length: 3 }).map((_, i) => (
               <div
@@ -132,7 +132,7 @@ export default function TestimonialsSection() {
 
   return (
     <section className="py-16 sm:py-24 bg-linear-to-br from-primary/5 via-white to-accent/5 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
           className="text-center mb-12"

@@ -8,7 +8,7 @@ export async function GET(request, { params }) {
 
     const { data, error } = await supabase
       .from("products")
-      .select(`*, categories ( id, name, slug, template )`)
+      .select(`*, categories ( id, name, slug, template, parent_id, parent:categories!parent_id ( id, template ) )`)
       .eq("id", id)
       .eq("status", "active")
       .eq("moderation_status", "approved")
@@ -70,7 +70,18 @@ export async function GET(request, { params }) {
       location: data.location,
       badge: data.badge,
       createdAt: data.created_at,
-      category: data.categories ?? null,
+      category: data.categories
+        ? {
+            id:       data.categories.id,
+            name:     data.categories.name,
+            slug:     data.categories.slug,
+            parent_id: data.categories.parent_id,
+            // Resolve effective template — null on subcategory means inherit from parent
+            template: data.categories.template
+              ?? data.categories.parent?.template
+              ?? "standard",
+          }
+        : null,
       // Books & Media metadata — null for non-media products
       mediaAuthor:      data.media_author ?? null,
       mediaIsbn:        data.media_isbn ?? null,

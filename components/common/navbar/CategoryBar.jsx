@@ -48,7 +48,7 @@ export default function CategoryBar({ categories = [], subsByParent = {}, active
       onMouseLeave={scheduleHide}
     >
       <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-3 sm:px-5 lg:px-8">
           <div className="flex items-center h-10">
             {navItems.map((cat) => {
               const Icon        = cat.icon;
@@ -111,7 +111,7 @@ export default function CategoryBar({ categories = [], subsByParent = {}, active
               onMouseEnter={clearHoverTimer}
               onMouseLeave={scheduleHide}
             >
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+              <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1">
                     {subs.map((sub) => (

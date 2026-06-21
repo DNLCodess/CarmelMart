@@ -379,7 +379,7 @@ export default function SearchPage() {
     <div className="min-h-screen bg-gray-50">
       {/* ── top bar ───────────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="max-w-screen-2xl mx-auto px-4 py-3">
           <form onSubmit={handleSearchSubmit} className="flex gap-2">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -426,7 +426,7 @@ export default function SearchPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">
+      <div className="max-w-screen-2xl mx-auto px-4 py-6 flex gap-6">
         {/* ── desktop sidebar ───────────────────────────────────────────── */}
         <aside className="hidden lg:block w-56 shrink-0">
           <div className="bg-white rounded-2xl border border-gray-100 p-4 sticky top-20">

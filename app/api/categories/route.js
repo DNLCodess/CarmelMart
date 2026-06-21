@@ -19,7 +19,11 @@ export async function GET() {
       if (p.category_id) countMap[p.category_id] = (countMap[p.category_id] || 0) + 1;
     });
 
-    // Roll up subcategory counts into each parent
+    // Index parent categories for template inheritance lookup
+    const parentMap = {};
+    (categories || []).forEach((c) => { if (!c.parent_id) parentMap[c.id] = c; });
+
+    // Roll up subcategory counts into each parent + resolve effectiveTemplate
     const result = (categories || []).map((c) => {
       let productCount = countMap[c.id] || 0;
       if (!c.parent_id) {
@@ -28,7 +32,9 @@ export async function GET() {
           if (sub.parent_id === c.id) productCount += countMap[sub.id] || 0;
         });
       }
-      return { ...c, productCount };
+      // effectiveTemplate: subcategory falls back to parent's template when its own is null
+      const effectiveTemplate = c.template ?? parentMap[c.parent_id]?.template ?? "standard";
+      return { ...c, effectiveTemplate, productCount };
     });
 
     return NextResponse.json(

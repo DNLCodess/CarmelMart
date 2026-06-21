@@ -122,7 +122,8 @@ export default function NewProductPage() {
 
   const currentSubs    = subsByParent[parentCategoryId] ?? [];
   const selectedCat    = categories.find((c) => String(c.id) === String(categoryId));
-  const categoryTemplate = selectedCat?.template ?? "standard";
+  // effectiveTemplate is resolved (inherits from parent when subcategory template is null)
+  const categoryTemplate = selectedCat?.effectiveTemplate ?? selectedCat?.template ?? "standard";
   const isMediaCategory  = categoryTemplate === "books_media";
   const template         = getTemplate(categoryTemplate);
 
