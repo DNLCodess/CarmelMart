@@ -168,19 +168,25 @@ export async function POST(request) {
 
     const admin = createAdminClient();
     const normalizedItems = items.map((item) => ({
-      productId:      item.productId,
-      quantity:       toPositiveInt(item.quantity, 1),
-      deliveryFormat: item.delivery_format === "digital" ? "digital" : "physical",
+      productId:          item.productId,
+      quantity:           toPositiveInt(item.quantity, 1),
+      deliveryFormat:     item.delivery_format === "digital" ? "digital" : "physical",
+      variantId:          item.variantId ?? null,
+      variantCombination: item.variantCombination ?? null,
+      // cartKey ensures the same product with different variants is treated as separate
+      cartKey:            item.variantId ? `${item.productId}::${item.variantId}` : item.productId,
     }));
 
-    const productIds = [...new Set(normalizedItems.map((i) => i.productId).filter(Boolean))];
-    if (productIds.length !== normalizedItems.length) {
+    const cartKeys = normalizedItems.map((i) => i.cartKey).filter(Boolean);
+    if (new Set(cartKeys).size !== normalizedItems.length) {
       return jsonError("Cart contains duplicate or invalid products.");
     }
 
+    const productIds = [...new Set(normalizedItems.map((i) => i.productId).filter(Boolean))];
+
     const { data: products, error: prodErr } = await admin
       .from("products")
-      .select("id, name, price, sale_price, stock, vendor_id, is_digital, digital_price")
+      .select("id, name, price, sale_price, stock, vendor_id, is_digital, digital_price, variant_type")
       .in("id", productIds)
       .eq("status", "active")
       .eq("moderation_status", "approved");
@@ -189,32 +195,58 @@ export async function POST(request) {
 
     const productMap = Object.fromEntries((products ?? []).map((p) => [p.id, p]));
 
+    // Fetch variant stock for items that have a variantId
+    const variantIds = normalizedItems.map((i) => i.variantId).filter(Boolean);
+    let variantMap = {};
+    if (variantIds.length > 0) {
+      const { data: variants } = await admin
+        .from("product_variants")
+        .select("id, product_id, combination, stock, price, is_active")
+        .in("id", variantIds)
+        .eq("is_active", true);
+      variantMap = Object.fromEntries((variants ?? []).map((v) => [v.id, v]));
+    }
+
     for (const item of normalizedItems) {
       const prod = productMap[item.productId];
       if (!prod) return jsonError("One or more products are no longer available.");
-      // Digital items don't need stock; physical items do
-      if (item.deliveryFormat === "physical" && prod.stock < item.quantity) {
-        return jsonError(`Insufficient stock for: ${prod.name}`);
-      }
+
       if (item.deliveryFormat === "digital" && !prod.is_digital) {
         return jsonError(`${prod.name} is not available as a digital download.`);
+      }
+
+      if (item.deliveryFormat === "physical") {
+        if (item.variantId) {
+          const variant = variantMap[item.variantId];
+          if (!variant) return jsonError(`Selected option for "${prod.name}" is no longer available.`);
+          if (variant.product_id !== item.productId) return jsonError("Invalid variant for product.");
+          if (variant.stock < item.quantity) return jsonError(`Insufficient stock for: ${prod.name} (selected option)`);
+        } else {
+          if (prod.stock < item.quantity) return jsonError(`Insufficient stock for: ${prod.name}`);
+        }
       }
     }
 
     const orderItems = normalizedItems.map((item) => {
-      const product = productMap[item.productId];
-      // Server-side authoritative price based on chosen delivery format
+      const product  = productMap[item.productId];
+      const variant  = item.variantId ? variantMap[item.variantId] : null;
+      // Use variant-level price if set; otherwise fall back to product sale/regular price
       const unitPrice = item.deliveryFormat === "digital" && product.is_digital && product.digital_price
         ? Math.round(product.digital_price)
-        : Math.round(product.sale_price ?? product.price);
+        : variant?.price != null
+          ? Math.round(variant.price)
+          : Math.round(product.sale_price ?? product.price);
       return {
-        product_id:      item.productId,
-        vendor_id:       product.vendor_id,
-        quantity:        item.quantity,
-        unit_price:      unitPrice,
-        total:           unitPrice * item.quantity,
-        name:            product.name,
-        delivery_format: item.deliveryFormat,
+        product_id:          item.productId,
+        vendor_id:           product.vendor_id,
+        quantity:            item.quantity,
+        unit_price:          unitPrice,
+        total:               unitPrice * item.quantity,
+        name:                product.name,
+        delivery_format:     item.deliveryFormat,
+        // Stored as metadata — written after RPC via post-create update
+        _variantId:          item.variantId,
+        _variantCombination: item.variantCombination,
       };
     });
 
@@ -233,9 +265,12 @@ export async function POST(request) {
 
     if (!verification.ok) return jsonError(verification.error, 400);
 
+    // Strip internal metadata keys before passing to the RPC
+    const rpcItems = orderItems.map(({ _variantId, _variantCombination, ...rest }) => rest);
+
     const { data: orderId, error: createErr } = await admin.rpc("create_customer_order_atomic", {
       p_customer_id: user.id,
-      p_items: orderItems,
+      p_items: rpcItems,
       p_delivery_address: {
         ...(delivery_address ?? {}),
         delivery_fee: deliveryFee,
@@ -251,6 +286,34 @@ export async function POST(request) {
     });
 
     if (createErr) throw createErr;
+
+    // Record variant snapshot on order_items for items that had a variant selected.
+    // Fetch the created items ordered by id (sequential insert) and match by position.
+    const itemsWithVariants = orderItems.filter((i) => i._variantId);
+    if (itemsWithVariants.length > 0) {
+      const { data: createdItems } = await admin
+        .from("order_items")
+        .select("id, product_id")
+        .eq("order_id", orderId)
+        .order("id");
+
+      if (createdItems?.length === orderItems.length) {
+        const updates = createdItems
+          .map((ci, idx) => {
+            const src = orderItems[idx];
+            if (!src?._variantId) return null;
+            return { id: ci.id, variant_id: src._variantId, variant_combination: src._variantCombination };
+          })
+          .filter(Boolean);
+
+        for (const upd of updates) {
+          await admin.from("order_items").update({
+            variant_id:          upd.variant_id,
+            variant_combination: upd.variant_combination,
+          }).eq("id", upd.id);
+        }
+      }
+    }
 
     sendOrderConfirmation({
       to: user.email,

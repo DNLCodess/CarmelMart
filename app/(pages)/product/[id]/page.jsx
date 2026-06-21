@@ -30,6 +30,7 @@ import {
   ShoppingBag,
   BookOpen,
   Download,
+  Tag,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -285,6 +286,30 @@ function StickyCTABar({ product, quantity, onAddToCart, onBuyNow, inStock }) {
   );
 }
 
+// ── Quantity tier callout ─────────────────────────────────────────────────────
+function QuantityTierCallout({ tiers, basePrice }) {
+  if (!tiers?.length) return null;
+  return (
+    <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-2">
+      <p className="text-sm font-bold text-green-800 flex items-center gap-2">
+        <Tag className="w-4 h-4" /> Bulk Discount Available
+      </p>
+      <div className="space-y-1">
+        {tiers.map((tier, idx) => (
+          <p key={idx} className="text-sm text-green-700">
+            Buy <span className="font-bold">{tier.min_qty}+</span> → ₦{Number(tier.price).toLocaleString()} each
+            {basePrice && (
+              <span className="ml-2 text-xs text-green-600 font-medium">
+                (save {Math.round(((basePrice - tier.price) / basePrice) * 100)}%)
+              </span>
+            )}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -292,6 +317,7 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [imgIndex, setImgIndex] = useState(0);
   const [selectedAttrs, setSelectedAttrs] = useState({});
+  const [selectedCombination, setSelectedCombination] = useState({});
   const [activeTab, setActiveTab] = useState("description");
   const addItem = useCartStore((s) => s.addItem);
   const addToWishlist = useUIStore((s) => s.addToWishlist);
@@ -350,6 +376,36 @@ export default function ProductDetailPage() {
     }
   }, [product]);
 
+  // Initialize selected combination from first variant
+  useEffect(() => {
+    if (product?.variantType === "variants" && product.variants?.length > 0) {
+      setSelectedCombination(product.variants[0].combination);
+    }
+  }, [product?.id]);
+
+  // Derived: variant dimensions from actual variant data
+  const variantDimensions = useMemo(() => {
+    if (product?.variantType !== "variants" || !product.variants?.length) return [];
+    const keys = Object.keys(product.variants[0].combination);
+    return keys.map((key) => ({
+      key,
+      label: key.charAt(0).toUpperCase() + key.slice(1),
+      values: [...new Set(
+        product.variants
+          .map((v) => v.combination[key])
+          .filter(Boolean)
+      )],
+    }));
+  }, [product?.variants, product?.variantType]);
+
+  // Selected variant matched from selectedCombination
+  const selectedVariant = useMemo(() => {
+    if (product?.variantType !== "variants" || !product.variants?.length) return null;
+    return product.variants.find((v) =>
+      Object.entries(selectedCombination).every(([k, val]) => v.combination[k] === val)
+    ) ?? null;
+  }, [product?.variants, product?.variantType, selectedCombination]);
+
   useEffect(() => {
     if (id) addRecentlyViewed(id);
   }, [id, addRecentlyViewed]);
@@ -376,39 +432,57 @@ export default function ProductDetailPage() {
   }, [product?.id]);
 
   const physicalPrice = product?.salePrice ?? product?.price ?? 0;
+  const variantBasePrice = selectedVariant?.price ?? physicalPrice;
   const price = deliveryFormat === "digital" && hasDigital
     ? (product.digitalPrice ?? physicalPrice)
-    : physicalPrice;
+    : variantBasePrice;
+
+  // When variants mode: stock is the selected variant's stock; otherwise product-level stock
+  const effectiveStock = product?.variantType === "variants"
+    ? (selectedVariant?.stock ?? 0)
+    : (product?.stock ?? 0);
 
   const handleAddToCart = useCallback(() => {
     if (!product) return;
+    if (product.variantType === "variants" && !selectedVariant) {
+      toast.error("Please select an option before adding to cart");
+      return;
+    }
     addItem({
-      productId:      product.id,
-      vendorId:       product.vendor?.id ?? null,
-      name:           product.name,
+      productId:          product.id,
+      vendorId:           product.vendor?.id ?? null,
+      name:               product.name,
       price,
-      image:          product.images?.[0] ?? null,
+      image:              product.images?.[0] ?? null,
       quantity,
-      isDigital:      product.isDigital ?? false,
+      isDigital:          product.isDigital ?? false,
       deliveryFormat,
+      variantId:          selectedVariant?.id ?? null,
+      variantCombination: selectedVariant ? selectedVariant.combination : null,
     });
     toast.success(`${product.name} added to cart`);
-  }, [product, price, quantity, deliveryFormat, addItem]);
+  }, [product, price, quantity, deliveryFormat, selectedVariant, addItem]);
 
   const handleBuyNow = useCallback(() => {
     if (!product) return;
+    if (product.variantType === "variants" && !selectedVariant) {
+      toast.error("Please select an option before buying");
+      return;
+    }
     addItem({
-      productId:      product.id,
-      vendorId:       product.vendor?.id ?? null,
-      name:           product.name,
+      productId:          product.id,
+      vendorId:           product.vendor?.id ?? null,
+      name:               product.name,
       price,
-      image:          product.images?.[0] ?? null,
+      image:              product.images?.[0] ?? null,
       quantity,
-      isDigital:      product.isDigital ?? false,
+      isDigital:          product.isDigital ?? false,
       deliveryFormat,
+      variantId:          selectedVariant?.id ?? null,
+      variantCombination: selectedVariant ? selectedVariant.combination : null,
     });
     router.push("/checkout");
-  }, [product, price, quantity, deliveryFormat, addItem, router]);
+  }, [product, price, quantity, deliveryFormat, selectedVariant, addItem, router]);
 
   const handleWishlist = useCallback(() => {
     if (isWishlisted) {
@@ -433,10 +507,10 @@ export default function ProductDetailPage() {
     ? product.images
     : ["/placeholder-product.jpg"];
 
-  const discount = deliveryFormat === "physical" && product?.salePrice
+  const discount = deliveryFormat === "physical" && product?.salePrice && !selectedVariant?.price
     ? Math.round(((product.price - product.salePrice) / product.price) * 100)
     : null;
-  const inStock = deliveryFormat === "digital" ? hasDigital : hasPhysical;
+  const inStock = deliveryFormat === "digital" ? hasDigital : effectiveStock > 0;
   const deliveryEstimate = getDeliveryEstimate();
 
   // Parse attributes safely
@@ -700,9 +774,9 @@ export default function ProductDetailPage() {
                         <span className="text-green-700 font-medium">
                           {deliveryFormat === "digital" ? "Available" : "In Stock"}
                         </span>
-                        {deliveryFormat === "physical" && product.stock > 0 && product.stock <= 10 && (
+                        {deliveryFormat === "physical" && effectiveStock > 0 && effectiveStock <= 10 && (
                           <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full text-xs">
-                            Only {product.stock} left!
+                            Only {effectiveStock} left!
                           </span>
                         )}
                         {product.soldToday > 0 && (
@@ -750,8 +824,35 @@ export default function ProductDetailPage() {
                   <MediaMetaCard product={product} />
                 )}
 
-                {/* Attributes (size, color, etc.) */}
-                {Object.keys(attrs).length > 0 && (
+                {/* Variant picker (real variants with individual stock/price) */}
+                {product.variantType === "variants" && variantDimensions.length > 0 && (
+                  <div className="space-y-4 pt-1">
+                    {variantDimensions.map((dim) => (
+                      <AttributeSelector
+                        key={dim.key}
+                        label={dim.label}
+                        options={dim.values}
+                        selected={selectedCombination[dim.key] ?? dim.values[0]}
+                        onChange={(val) =>
+                          setSelectedCombination((prev) => ({ ...prev, [dim.key]: val }))
+                        }
+                      />
+                    ))}
+                    {selectedVariant && selectedVariant.price && selectedVariant.price !== product.price && (
+                      <p className="text-xs text-gray-500 italic">
+                        Price adjusted for selected option.
+                      </p>
+                    )}
+                    {!selectedVariant && Object.keys(selectedCombination).length > 0 && (
+                      <p className="text-xs text-amber-600 font-medium bg-amber-50 px-3 py-2 rounded-xl">
+                        This combination is not available. Please try a different selection.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Descriptive attributes (informational only — no separate stock) */}
+                {product.variantType !== "variants" && Object.keys(attrs).length > 0 && (
                   <div className="space-y-4 pt-1">
                     {Object.entries(attrs).map(
                       ([key, vals]) =>
@@ -770,6 +871,12 @@ export default function ProductDetailPage() {
                     )}
                   </div>
                 )}
+
+                {/* Bulk / quantity discount tiers */}
+                <QuantityTierCallout
+                  tiers={product.quantityTiers}
+                  basePrice={product.salePrice ?? product.price}
+                />
 
                 {/* Quantity */}
                 {inStock && (
@@ -792,7 +899,7 @@ export default function ProductDetailPage() {
                         <button
                           onClick={() =>
                             setQuantity((q) =>
-                              Math.min(product.stock || 99, q + 1),
+                              Math.min(effectiveStock || 99, q + 1),
                             )
                           }
                           className="px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"

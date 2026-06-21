@@ -25,7 +25,7 @@ export default function CartPage() {
   const grandTotal = total + deliveryFee;
 
   const handleRemove = (item) => {
-    removeItem(item.productId);
+    removeItem(item.cartKey ?? item.productId);
     toast.success(`${item.name} removed from cart`);
   };
 
@@ -74,7 +74,7 @@ export default function CartPage() {
             <AnimatePresence initial={false}>
               {items.map((item) => (
                 <motion.div
-                  key={item.productId}
+                  key={item.cartKey ?? item.productId}
                   layout
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
@@ -101,6 +101,11 @@ export default function CartPage() {
                         {item.name}
                       </h3>
                     </Link>
+                    {item.variantCombination && (
+                      <p className="text-xs text-gray-500 mb-1">
+                        {Object.entries(item.variantCombination).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                      </p>
+                    )}
 
                     <p className="text-lg font-bold text-gray-900 mb-3">
                       ₦{item.price.toLocaleString()}
@@ -110,7 +115,7 @@ export default function CartPage() {
                       {/* Quantity control */}
                       <div className="flex items-center border-2 border-gray-200 rounded-full overflow-hidden">
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.cartKey ?? item.productId, item.quantity - 1)}
                           className="px-3 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
                           aria-label="Decrease quantity"
                         >
@@ -120,7 +125,7 @@ export default function CartPage() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.cartKey ?? item.productId, item.quantity + 1)}
                           className="px-3 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
                           aria-label="Increase quantity"
                         >
