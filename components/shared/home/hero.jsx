@@ -1,411 +1,276 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  Star,
-  Shield,
-  Package,
-  BadgeCheck,
-  Truck,
-  RotateCcw,
-  Lock,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-const Button = ({
-  children,
-  variant = "primary",
-  size = "lg",
-  className = "",
-  ...props
-}) => {
-  const baseStyles =
-    "inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed";
-  const variants = {
-    primary:
-      "gradient-primary text-white hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5",
-    outline:
-      "border-2 border-white/70 text-white hover:bg-white hover:text-primary backdrop-blur-sm",
-    white:
-      "bg-white/10 backdrop-blur-sm border border-white/25 text-white hover:bg-white hover:text-primary transition-all",
-  };
-  const sizes = { lg: "px-7 py-3.5 text-sm" };
+const BLUR =
+  "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=";
 
-  return (
-    <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
-
-const heroSlides = [
+// Parent categories sourced from DB (parent_id IS NULL). Stored locally — these don't change.
+// Slugs are the canonical DB values; note "liesure-lifestyle" is the DB slug (typo preserved).
+const categories = [
   {
-    id: 1,
+    id: "10000000-0000-0000-0000-000000000001",
+    name: "Fashion & Style",
+    href: "/shop?category=fashion-style",
     image:
-      "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1920&q=80",
-    badge: "Fashion Week",
-    title: "Dress to",
-    titleAccent: "Impress",
+      "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1400&q=85",
+    headline: "Dress to",
+    headlineAccent: "Impress",
     description:
-      "Shop the latest trends — African prints, sneakers, bags and more from verified Nigerian vendors.",
-    ctaLabel: "Shop Fashion",
-    ctaHref: "/shop?category=fashion",
-    stats: [
-      { value: "500+", label: "Verified Vendors", icon: BadgeCheck },
-      { value: "10K+", label: "Products Listed", icon: Package },
-      { value: "100%", label: "Buyer Protection", icon: Shield },
-    ],
+      "Clothing, shoes, bags and accessories — from verified Nigerian fashion vendors.",
+    cta: "Shop Fashion",
   },
   {
-    id: 2,
+    id: "10000000-0000-0000-0000-000000000002",
+    name: "Electronics",
+    href: "/shop?category=electronics",
     image:
-      "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1920&q=80",
-    badge: "Electronics Sale",
-    title: "Up to 40% Off",
-    titleAccent: "Phones & Laptops",
+      "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1400&q=85",
+    headline: "Phones, Laptops",
+    headlineAccent: "& More",
     description:
-      "Latest smartphones, laptops, earbuds and gadgets — all genuine, all delivered nationwide.",
-    ctaLabel: "Shop Electronics",
-    ctaHref: "/shop?category=electronics",
-    stats: [
-      { value: "KYC", label: "Verified Sellers", icon: BadgeCheck },
-      { value: "7-Day", label: "Easy Returns", icon: RotateCcw },
-      { value: "Secure", label: "Checkout", icon: Lock },
-    ],
+      "Latest gadgets, TVs and accessories — genuine products, delivered nationwide.",
+    cta: "Shop Electronics",
   },
   {
-    id: 3,
+    id: "10000000-0000-0000-0000-000000000003",
+    name: "Home & Living",
+    href: "/shop?category=home-living",
     image:
-      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1920&q=80",
-    badge: "Home & Living",
-    title: "Make Your Space",
-    titleAccent: "Feel Like Home",
+      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1400&q=85",
+    headline: "Your Home,",
+    headlineAccent: "Your Style",
     description:
-      "Furniture, kitchen essentials, bedding and decor — find everything to build your dream home.",
-    ctaLabel: "Shop Home & Living",
-    ctaHref: "/shop?category=home-living",
-    stats: [
-      { value: "Fast", label: "Delivery", icon: Truck },
-      { value: "Nigeria-wide", label: "Shipping", icon: Package },
-      { value: "Safe", label: "Payments", icon: Shield },
-    ],
+      "Furniture, kitchen essentials and decor — everything to transform your space.",
+    cta: "Shop Home & Living",
+  },
+  {
+    id: "10000000-0000-0000-0000-000000000008",
+    name: "Consumables",
+    href: "/shop?category=consumables",
+    image:
+      "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1400&q=85",
+    headline: "Fresh Stock,",
+    headlineAccent: "Every Day",
+    description:
+      "Groceries, beverages and pantry essentials — from local and national brands.",
+    cta: "Shop Groceries",
+  },
+  {
+    id: "10000000-0000-0000-0000-000000000005",
+    name: "Leisure & Lifestyle",
+    href: "/shop?category=liesure-lifestyle",
+    image:
+      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1400&q=85",
+    headline: "Play Hard,",
+    headlineAccent: "Live Better",
+    description:
+      "Sports gear, outdoor equipment and wellness products for every lifestyle.",
+    cta: "Explore Leisure",
+  },
+  {
+    id: "4d81e4a4-bb77-4655-9396-066449dc62e8",
+    name: "Automotive & Tools",
+    href: "/shop?category=automotive-tools",
+    image:
+      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1400&q=85",
+    headline: "Tools for",
+    headlineAccent: "Every Job",
+    description:
+      "Car parts, power tools and accessories from trusted vendors nationwide.",
+    cta: "Shop Automotive",
   },
 ];
 
 export default function HeroSection() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-
-  const { data: productsData } = useQuery({
-    queryKey: ["hero-featured-products"],
-    queryFn: () =>
-      fetch("/api/products?featured=true&per_page=2").then((r) => r.json()),
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-
-  const heroProducts = useMemo(() => {
-    return (productsData?.products ?? []).map((p) => ({
-      id: p.id,
-      name: p.name,
-      price: p.sale_price ?? p.price,
-      rating: p.avg_rating ?? 0,
-      badge: p.sale_price ? "Sale" : "Featured",
-      image: Array.isArray(p.images) ? p.images[0] : null,
-    }));
-  }, [productsData]);
+  const [current, setCurrent] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(true);
 
   useEffect(() => {
-    if (!isAutoPlaying) return;
-    const interval = setInterval(
-      () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length),
-      5000
+    if (!autoPlay) return;
+    const id = setInterval(
+      () => setCurrent((c) => (c + 1) % categories.length),
+      5000,
     );
-    return () => clearInterval(interval);
-  }, [isAutoPlaying]);
+    return () => clearInterval(id);
+  }, [autoPlay]);
 
-  const goToSlide = (index) => { setCurrentSlide(index); setIsAutoPlaying(false); };
+  const activate = (i) => {
+    setCurrent(i);
+    setAutoPlay(false);
+  };
 
-  const currentHero = heroSlides[currentSlide] ?? heroSlides[0];
+  const cat = categories[current];
 
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-primary-dark">
+    <section className="relative w-full flex flex-col bg-primary-dark overflow-hidden min-h-[58vh] sm:min-h-[92vh]">
+      {/* ── Full-bleed background image ─────────────────────────────── */}
+      <div className="absolute inset-0">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.85, ease: "easeInOut" }}
+            className="absolute inset-0"
+          >
+            <Image
+              src={cat.image}
+              alt={cat.name}
+              fill
+              className="object-cover object-center"
+              priority={current === 0}
+              placeholder="blur"
+              blurDataURL={BLUR}
+            />
+          </motion.div>
+        </AnimatePresence>
 
-      {/* ── Background image ─────────────────────────────────── */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentSlide}
-          initial={{ opacity: 0, scale: 1.04 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.9, ease: "easeInOut" }}
-          className="absolute inset-0 z-0"
-        >
-          <Image
-            src={currentHero.image}
-            alt={`${currentHero.title} ${currentHero.titleAccent}`}
-            fill
-            className="object-cover object-center"
-            priority={currentSlide === 0}
-            placeholder="blur"
-            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
-          />
-          {/* Single gradient: dark on left for text, fades out right so image shows */}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-dark/88 via-primary-dark/55 to-primary-dark/10" />
-          {/* Subtle bottom fade for the trust bar */}
-          <div className="absolute inset-0 bg-gradient-to-t from-primary-dark/60 via-transparent to-transparent" />
-        </motion.div>
-      </AnimatePresence>
+        <div className="absolute inset-0 bg-linear-to-tr from-primary-dark/90 via-primary-dark/40 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-linear-to-t from-primary-dark/80 to-transparent" />
+      </div>
 
-      {/* ── Content ──────────────────────────────────────────── */}
-      <div className="relative z-10 max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+      {/* ── Hero text ────────────────────────────────────────────────── */}
+      <div className="relative z-10 flex-1 flex flex-col justify-end px-6 sm:px-12 lg:px-16 pb-7 sm:pb-10 lg:pb-14">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current}
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {/* Category label */}
+            <p className="text-accent text-[20px] font-bold uppercase tracking-[0.28em] mb-2.5 sm:mb-4">
+              {cat.name}
+            </p>
 
-          {/* Left */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentSlide}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.5 }}
-              className="max-w-xl"
+            <h1
+              className="font-bold text-white mb-3 sm:mb-5"
+              style={{
+                fontSize: "clamp(2rem, 5.5vw, 5.5rem)",
+                lineHeight: 1.02,
+                letterSpacing: "-0.03em",
+              }}
             >
-              {/* Heading */}
-              <h1 className="text-[clamp(2.8rem,6vw,4.5rem)] font-bold text-white leading-[1.06] tracking-tight mb-5">
-                {currentHero.title}
-                <br />
-                <span className="hero-accent-text">{currentHero.titleAccent}</span>
-              </h1>
+              {cat.headline}
+              <br />
+              <span className="text-accent-light">{cat.headlineAccent}</span>
+            </h1>
 
-              {/* Description */}
-              <p className="text-[15px] text-white/65 mb-9 leading-relaxed max-w-md">
-                {currentHero.description}
-              </p>
+            <p className="text-[14px] sm:text-[15px] text-white/65 leading-relaxed mb-5 sm:mb-9 max-w-[340px]">
+              {cat.description}
+            </p>
 
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-10 w-full sm:w-auto">
-                <Link href={currentHero.ctaHref} className="w-full sm:w-auto">
-                  <Button variant="primary" size="lg" className="w-full sm:w-auto">
-                    {currentHero.ctaLabel}
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-                <Link href="/register" className="w-full sm:w-auto">
-                  <Button variant="white" size="lg" className="w-full sm:w-auto">
-                    Start Selling
-                  </Button>
-                </Link>
-              </div>
+            <Link href={cat.href}>
+              <button className="inline-flex items-center gap-2 bg-white text-primary-dark font-bold text-[12px] sm:text-[13px] px-5 sm:px-7 py-3 sm:py-3.5 rounded-full hover:bg-accent hover:text-white transition-colors duration-200 active:scale-[0.98] tracking-wide">
+                {cat.cta}
+                <ArrowRight className="w-3.5 h-3.5 sm:w-[15px] sm:h-[15px]" />
+              </button>
+            </Link>
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
-              {/* Trust bar */}
-              <div className="flex items-stretch divide-x divide-white/10 border border-white/10 rounded-2xl overflow-hidden bg-black/20 backdrop-blur-sm">
-                {currentHero.stats.map((stat, i) => {
-                  const Icon = stat.icon;
-                  return (
-                    <div key={i} className="flex-1 px-4 py-4 flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5">
-                        <Icon className="w-3.5 h-3.5 text-accent flex-shrink-0" />
-                        <span className="text-[13px] sm:text-base font-bold text-white leading-none">
-                          {stat.value}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-white/45 leading-tight">
-                        {stat.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Right — featured products OR platform trust cards */}
-          {heroProducts.length >= 2 ? (
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="hidden lg:block relative h-[600px]"
-            >
-              {/* Main Product Card */}
-              <Link
-                href={`/product/${heroProducts[0].id}`}
-                className="animate-float absolute top-0 right-0 w-80 h-96 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm border border-white/10 transform rotate-3 hover:rotate-0 transition-transform duration-500 group"
+      {/* ── Category strip ───────────────────────────────────────────── */}
+      <div
+        className="relative z-10 bg-primary-dark/92 backdrop-blur-xl border-t border-white/[0.07]"
+        onMouseLeave={() => setAutoPlay(true)}
+      >
+        {/* Desktop: equal-width strip — fixed height so all cells align regardless of name length */}
+        <div className="hidden sm:flex divide-x divide-white/6">
+          {categories.map((c, i) => {
+            const isActive = i === current;
+            return (
+              <button
+                key={c.id}
+                onClick={() => activate(i)}
+                onMouseEnter={() => activate(i)}
+                className={`flex-1 relative flex flex-col items-center justify-center gap-2.5 px-2 transition-all duration-300 cursor-pointer h-[98px] ${
+                  isActive ? "bg-white/6" : "hover:bg-white/4"
+                }`}
               >
-                {heroProducts[0].image && (
-                  <Image
-                    src={heroProducts[0].image}
-                    alt={heroProducts[0].name}
-                    fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-700"
-                    placeholder="blur"
-                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                  <span className="inline-block gradient-accent px-3 py-1 rounded-full text-xs font-semibold mb-3">
-                    {heroProducts[0].badge}
-                  </span>
-                  <h3 className="text-xl font-bold mb-2">{heroProducts[0].name}</h3>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold">
-                      ₦{heroProducts[0].price.toLocaleString()}
-                    </span>
-                    {heroProducts[0].rating > 0 && (
-                      <div className="flex items-center gap-1 bg-white/15 backdrop-blur-sm px-2 py-1 rounded-full">
-                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-semibold">
-                          {heroProducts[0].rating.toFixed(1)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Link>
+                {/* Active top bar */}
+                <div
+                  className={`absolute top-0 left-0 right-0 h-[2.5px] bg-accent transition-opacity duration-300 ${
+                    isActive ? "opacity-100" : "opacity-0"
+                  }`}
+                />
 
-              {/* Secondary Product Card */}
-              <Link
-                href={`/product/${heroProducts[1].id}`}
-                className="animate-float-reverse absolute bottom-0 left-0 w-64 h-80 rounded-3xl overflow-hidden shadow-xl backdrop-blur-sm border border-white/10 transform -rotate-6 hover:rotate-0 transition-transform duration-500 group"
-              >
-                {heroProducts[1].image && (
-                  <Image
-                    src={heroProducts[1].image}
-                    alt={heroProducts[1].name}
-                    fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-700"
-                    placeholder="blur"
-                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                  <span className="inline-block gradient-primary px-3 py-1 rounded-full text-xs font-semibold mb-2">
-                    {heroProducts[1].badge}
-                  </span>
-                  <h3 className="text-lg font-bold mb-2 line-clamp-2">
-                    {heroProducts[1].name}
-                  </h3>
-                  <span className="text-xl font-bold">
-                    ₦{heroProducts[1].price.toLocaleString()}
-                  </span>
-                </div>
-              </Link>
-
-              {/* Floating protection badge */}
-              <div className="animate-float-sm absolute top-1/2 left-0 bg-black/30 backdrop-blur-xl rounded-2xl p-4 w-48 border border-white/15">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-base font-bold text-white leading-none">100%</div>
-                    <div className="text-[11px] text-white/50 mt-0.5">Buyer Protection</div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ) : (
-            /* Fallback bento when no featured products */
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="hidden lg:flex flex-col gap-3 h-[460px]"
-            >
-              {/* Large top card */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="flex-1 bg-black/25 backdrop-blur-md rounded-3xl border border-white/10 p-7 flex flex-col justify-between relative overflow-hidden"
-              >
-                <div className="absolute -top-8 -right-8 w-40 h-40 bg-accent/15 rounded-full blur-2xl pointer-events-none" />
-                <div className="relative z-10">
-                  <div className="w-11 h-11 rounded-2xl gradient-accent flex items-center justify-center mb-5">
-                    <BadgeCheck className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-4xl font-bold text-white mb-1">500+</div>
-                  <div className="text-sm text-white/50">KYC Verified Vendors</div>
-                </div>
-                <p className="text-white/55 text-sm leading-relaxed relative z-10">
-                  Every seller is identity-verified and approved before listing products on Carmel Mart.
-                </p>
-              </motion.div>
-
-              {/* Two smaller cards */}
-              <div className="grid grid-cols-2 gap-3">
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.45 }}
-                  className="bg-black/25 backdrop-blur-md rounded-2xl border border-white/10 p-5"
+                {/* Thumbnail */}
+                <div
+                  className={`relative w-[52px] h-[52px] rounded-xl overflow-hidden shrink-0 transition-all duration-300 ${
+                    isActive
+                      ? "ring-2 ring-accent/60 ring-offset-2 ring-offset-primary-dark scale-[1.06]"
+                      : "opacity-55 grayscale-40"
+                  }`}
                 >
-                  <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center mb-4">
-                    <Shield className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="text-2xl font-bold text-white mb-0.5">100%</div>
-                  <div className="text-[11px] text-white/45 leading-tight">Buyer Protection</div>
-                </motion.div>
+                  <Image
+                    src={c.image}
+                    alt={c.name}
+                    fill
+                    className="object-cover"
+                    placeholder="blur"
+                    blurDataURL={BLUR}
+                  />
+                </div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.52 }}
-                  className="bg-black/25 backdrop-blur-md rounded-2xl border border-white/10 p-5"
+                {/* Name — fixed 2-line height so all cells are the same regardless of wrapping */}
+                <span
+                  className={`text-[10px] font-bold text-center tracking-wide transition-colors duration-300 leading-[1.3] line-clamp-2 px-1 w-full h-[2.6em] flex items-center justify-center ${
+                    isActive ? "text-white" : "text-white/45"
+                  }`}
                 >
-                  <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center mb-4">
-                    <Truck className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="text-2xl font-bold text-white mb-0.5">Fast</div>
-                  <div className="text-[11px] text-white/45 leading-tight">Nationwide Delivery</div>
-                </motion.div>
-              </div>
-            </motion.div>
-          )}
+                  {c.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Mobile: scrollable strip */}
+        <div className="sm:hidden flex overflow-x-auto [&::-webkit-scrollbar]:hidden px-4 gap-1">
+          {categories.map((c, i) => {
+            const isActive = i === current;
+            return (
+              <button
+                key={c.id}
+                onClick={() => activate(i)}
+                className={`relative flex flex-col items-center gap-2 py-3 px-3 shrink-0 transition-all duration-300 rounded-xl ${
+                  isActive ? "bg-white/8" : ""
+                }`}
+              >
+                <div
+                  className={`relative w-12 h-12 rounded-lg overflow-hidden shrink-0 transition-all duration-300 ${
+                    isActive ? "ring-2 ring-accent/50" : "opacity-55"
+                  }`}
+                >
+                  <Image
+                    src={c.image}
+                    alt={c.name}
+                    fill
+                    className="object-cover"
+                    placeholder="blur"
+                    blurDataURL={BLUR}
+                  />
+                </div>
+                <span
+                  className={`text-[10px] font-semibold leading-tight transition-colors duration-300 ${
+                    isActive ? "text-white" : "text-white/40"
+                  }`}
+                >
+                  {c.name}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
-
-      {/* ── Slide indicators ─────────────────────────────────── */}
-      <div
-        className="absolute bottom-7 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5"
-        role="tablist"
-        aria-label="Hero slides"
-      >
-        {heroSlides.map((_, index) => (
-          <button
-            key={index}
-            role="tab"
-            onClick={() => goToSlide(index)}
-            aria-selected={index === currentSlide}
-            aria-label={`Go to slide ${index + 1}`}
-            className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-full"
-          >
-            <div
-              className={`h-[3px] rounded-full transition-all duration-300 ${
-                index === currentSlide
-                  ? "w-8 bg-white"
-                  : "w-4 bg-white/25 hover:bg-white/40"
-              }`}
-            />
-          </button>
-        ))}
-      </div>
-
-      <style jsx>{`
-        .hero-accent-text {
-          color: var(--color-accent-light);
-        }
-      `}</style>
     </section>
   );
 }
