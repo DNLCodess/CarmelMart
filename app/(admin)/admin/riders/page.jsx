@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   UserPlus, X, Loader2, Bike, Phone, Mail,
   ShieldOff, ShieldCheck, Trash2, Eye, EyeOff, RefreshCw,
+  Store, Car, MapPin, Map, HelpCircle, Truck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -13,6 +14,13 @@ import toast from "react-hot-toast";
 
 const fetchRiders = () =>
   fetch("/api/admin/riders").then(async (r) => {
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error ?? "Failed to load");
+    return d;
+  });
+
+const fetchVendorRiders = () =>
+  fetch("/api/admin/vendor-riders").then(async (r) => {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error ?? "Failed to load");
     return d;
@@ -286,10 +294,162 @@ function inputCls(error) {
   } rounded-xl focus:outline-none focus:ring-2 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500`;
 }
 
+// ── Vendor delivery capacity (vendor self-reported) ────────────────────────────
+
+const VEHICLE_CFG = {
+  bike:    { label: "Bike",    icon: Bike },
+  vehicle: { label: "Vehicle", icon: Car  },
+};
+
+const COVERAGE_CFG = {
+  intrastate: { label: "Within state", icon: MapPin, cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400" },
+  interstate: { label: "Interstate",   icon: Map,    cls: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400" },
+};
+
+function RiderBadge({ hasRider }) {
+  if (hasRider === true)  return <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Has rider</span>;
+  if (hasRider === false) return <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">No rider</span>;
+  return <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Awaiting response</span>;
+}
+
+function VehicleCoverage({ vehicle, coverage }) {
+  const V = vehicle  ? VEHICLE_CFG[vehicle]   : null;
+  const C = coverage ? COVERAGE_CFG[coverage] : null;
+  if (!V && !C) return <span className="text-xs text-gray-400 dark:text-gray-500">—</span>;
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {V && (
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+          <V.icon className="w-3 h-3" /> {V.label}
+        </span>
+      )}
+      {C && (
+        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${C.cls}`}>
+          <C.icon className="w-3 h-3" /> {C.label}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function VendorDeliverySection() {
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["admin-vendor-riders"],
+    queryFn:  fetchVendorRiders,
+    staleTime: 30_000,
+    retry:    false,
+  });
+
+  const vendors = data?.vendors ?? [];
+  const s       = data?.summary ?? { total: 0, withRider: 0, withoutRider: 0, pending: 0 };
+
+  return (
+    <div className="space-y-6">
+      {/* Info banner */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl px-4 py-3 flex items-start gap-3">
+        <Truck className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+        <p className="text-sm text-blue-800 dark:text-blue-300">
+          Vendors are asked, on their dashboard, whether they have their own delivery rider — and if so, the
+          vehicle type and whether they cover deliveries <strong>interstate</strong> or <strong>within the same state</strong>.
+          Their answers appear here.
+        </p>
+      </div>
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: "Total vendors", value: s.total,        cls: "text-gray-900 dark:text-gray-100" },
+          { label: "Have a rider",  value: s.withRider,    cls: "text-emerald-600 dark:text-emerald-400" },
+          { label: "No rider",      value: s.withoutRider, cls: "text-gray-500 dark:text-gray-400" },
+          { label: "Awaiting",      value: s.pending,      cls: "text-amber-600 dark:text-amber-400" },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 px-4 py-3">
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{stat.label}</p>
+            <p className={`text-2xl font-extrabold mt-0.5 ${stat.cls}`}>{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-8 h-8 text-gray-300 dark:text-gray-600 animate-spin" />
+        </div>
+      ) : isError ? (
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-red-100 dark:border-red-900/30">
+          <p className="font-semibold text-red-500 dark:text-red-400 mb-1">Failed to load</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">{error?.message}</p>
+          <button onClick={() => refetch()} className="px-4 py-2 text-sm font-semibold border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+            Retry
+          </button>
+        </div>
+      ) : vendors.length === 0 ? (
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+          <Store className="w-12 h-12 text-gray-200 dark:text-gray-600 mx-auto mb-4" />
+          <p className="font-semibold text-gray-500 dark:text-gray-400">No vendors yet</p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="lg:hidden grid sm:grid-cols-2 gap-4">
+            {vendors.map((v) => (
+              <div key={v.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-gray-900 dark:text-gray-100 truncate">{v.business_name}</p>
+                    {v.location && <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{v.location}</p>}
+                  </div>
+                  <RiderBadge hasRider={v.hasRider} />
+                </div>
+                {v.hasRider === true && <VehicleCoverage vehicle={v.vehicle} coverage={v.coverage} />}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                <tr>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Vendor</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Location</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Own rider?</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Vehicle &amp; coverage</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                {vendors.map((v) => (
+                  <tr key={v.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <Store className="w-4 h-4 text-primary" />
+                        </div>
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">{v.business_name}</p>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{v.location || "—"}</td>
+                    <td className="px-5 py-4"><RiderBadge hasRider={v.hasRider} /></td>
+                    <td className="px-5 py-4">
+                      {v.hasRider === true
+                        ? <VehicleCoverage vehicle={v.vehicle} coverage={v.coverage} />
+                        : <span className="text-xs text-gray-400 dark:text-gray-500">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function RidersPage() {
   const qc = useQueryClient();
+  const [tab,               setTab]               = useState("platform");
   const [showCreate,        setShowCreate]        = useState(false);
   const [deactivateTarget,  setDeactivateTarget]  = useState(null);
   const [loadingId,         setLoadingId]         = useState(null);
@@ -343,6 +503,28 @@ export default function RidersPage() {
 
   return (
     <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
+        {[
+          { id: "platform", label: "Platform Riders" },
+          { id: "vendors",  label: "Vendor Delivery Capacity" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+              tab === t.id
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "vendors" ? <VendorDeliverySection /> : (
+      <>
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -499,6 +681,8 @@ export default function RidersPage() {
             </table>
           </div>
         </>
+      )}
+      </>
       )}
 
       {/* Modals */}

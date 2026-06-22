@@ -60,9 +60,6 @@ export async function POST(request) {
       case "charge.completed":
         await handleChargeCompleted(data);
         break;
-      case "transfer.completed":
-        await handleTransferCompleted(data);
-        break;
       default:
         // Silently ignore unhandled event types
         break;
@@ -250,43 +247,6 @@ async function completeVendorRegistration({ payment, flwTransactionId, tx_ref, a
     }
   } catch (err) {
     console.error(`[flw-webhook] completeVendorRegistration error for tx_ref=${tx_ref}:`, err);
-  }
-}
-
-// ── transfer.completed ────────────────────────────────────────────────────────
-
-async function handleTransferCompleted(data) {
-  /**
-   * Flutterwave sends transfer.completed for both successful and failed transfers.
-   * The `data.status` field will be "SUCCESSFUL" or "FAILED".
-   * We update vendor_payouts to reflect the final state so the UI stays accurate.
-   */
-  const { reference, status } = data;
-
-  if (!reference) {
-    console.warn("[flw-webhook] transfer.completed event missing reference — skipping");
-    return;
-  }
-
-  const admin        = createAdminClient();
-  const finalStatus  = status === "SUCCESSFUL" ? "completed" : "failed";
-  const errorMessage = status !== "SUCCESSFUL" ? (data.complete_message ?? "Transfer failed") : null;
-
-  try {
-    const { error } = await admin
-      .from("vendor_payouts")
-      .update({
-        status:     finalStatus,
-        ...(errorMessage && { error: errorMessage }),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("reference", reference);
-
-    if (error) {
-      console.error(`[flw-webhook] vendor_payouts update error for ref=${reference}:`, error);
-    }
-  } catch (err) {
-    console.error(`[flw-webhook] handleTransferCompleted error for ref=${reference}:`, err);
   }
 }
 

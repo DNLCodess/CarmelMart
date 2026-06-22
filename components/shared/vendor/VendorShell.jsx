@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import SubscriptionBadge from "@/components/shared/vendor/SubscriptionBadge";
 import VendorKYCWall from "@/components/shared/vendor/VendorKYCWall";
+import DeliveryRiderPrompt from "@/components/shared/vendor/DeliveryRiderPrompt";
 import { useAuth } from "@/lib/auth-context";
 import { logoutAction } from "@/app/actions/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -338,6 +339,9 @@ export default function VendorShell({ children }) {
           {kycIncomplete ? <VendorKYCWall kycData={kycData} /> : children}
         </main>
       </div>
+
+      {/* Delivery-rider prompt — only once KYC is complete so it never stacks on the wall */}
+      <DeliveryRiderPrompt enabled={!!kycData && !kycIncomplete} />
 
       {/* ── Mobile bottom tab bar ────────────────────────────────────────── */}
       <nav

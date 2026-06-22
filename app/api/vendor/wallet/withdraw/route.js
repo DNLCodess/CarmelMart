@@ -1,18 +1,9 @@
 /**
  * POST /api/vendor/wallet/withdraw
  *
- * Initiates a vendor self-service withdrawal via Flutterwave Transfers.
- *
- * Reliability / security improvements:
- *   1. Atomic wallet debit via decrement_wallet_safe() RPC — eliminates the
- *      TOCTOU race condition from read-then-write.
- *   2. vendor_payouts record created for every withdrawal so the
- *      transfer.completed webhook can update the final status.
- *   3. Correct sequence: validate → create payouts record → call Flutterwave
- *      → if Flutterwave fails, mark payouts as failed (no wallet change yet)
- *      → if Flutterwave accepts, atomically debit wallet + mark processing.
- *   4. Rate limited: 3 withdrawals per hour per vendor.
- *   5. 10-second timeout on the upstream Flutterwave call.
+ * Queues a vendor withdrawal request for manual processing by admin/accountant.
+ * Funds are reserved immediately via atomic wallet debit — the payout record
+ * stays "pending" until an admin or accountant marks it as completed or rejected.
  */
 
 import { NextResponse } from "next/server";
@@ -21,7 +12,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit, retryAfterSeconds } from "@/lib/rateLimit";
 
 const MIN_WITHDRAWAL = 5_000;
-const FLW_TIMEOUT_MS = 10_000;
 
 export async function POST(request) {
   try {
@@ -32,15 +22,15 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ── Rate limit ────────────────────────────────────────────────────────────
+    // ── Rate limit: 3 requests per hour ──────────────────────────────────────
     const rl = rateLimit(`withdraw:${user.id}`, { limit: 3, windowMs: 60 * 60 * 1000 });
     if (!rl.allowed) {
       return NextResponse.json(
-        { error: "Too many withdrawal requests. You can withdraw up to 3 times per hour." },
+        { error: "Too many withdrawal requests. You can submit up to 3 per hour." },
         {
           status: 429,
           headers: { "Retry-After": String(retryAfterSeconds(rl.resetAt)) },
-        }
+        },
       );
     }
 
@@ -67,7 +57,7 @@ export async function POST(request) {
     if (!vendorData?.bank_account_number || !vendorData?.bank_code) {
       return NextResponse.json(
         { error: "No bank account on file. Please add your bank details in Settings before withdrawing." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -78,7 +68,7 @@ export async function POST(request) {
     if (!amountNum || isNaN(amountNum) || amountNum < MIN_WITHDRAWAL) {
       return NextResponse.json(
         { error: `Minimum withdrawal is ₦${MIN_WITHDRAWAL.toLocaleString()}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -93,165 +83,47 @@ export async function POST(request) {
       .slice(0, 7)
       .toUpperCase()}`;
 
-    // ── Create vendor_payouts record (status: pending) ────────────────────────
-    // This allows the transfer.completed webhook to find and update the record
-    // regardless of whether it originated from self-service or admin approval.
-    const { error: payoutInsertErr } = await admin.from("vendor_payouts").insert({
-      vendor_id:    user.id,
-      amount:       amountNum,
-      status:       "pending",
-      reference,
-      bank_name:    vendorData.bank_name    ?? null,
-      bank_account: vendorData.bank_account_number,
-      created_at:   new Date().toISOString(),
-      updated_at:   new Date().toISOString(),
-    });
-
-    if (payoutInsertErr) throw payoutInsertErr;
-
-    // ── Call Flutterwave Transfers API (with timeout) ─────────────────────────
-    // When PROXY_URL + PROXY_SECRET are set (Hetzner VPS), the request is
-    // forwarded through the proxy so it originates from a whitelisted fixed IP.
-    // Without those env vars the call goes direct — behaviour is unchanged from
-    // before the proxy was introduced, so missing envs never break production.
-    let fwData;
-    try {
-      const transferPayload = {
-        account_bank:    vendorData.bank_code,
-        account_number:  vendorData.bank_account_number,
-        amount:          amountNum,
-        narration:       `CarmelMart payout — ${reference}`,
-        currency:        "NGN",
-        reference,
-        callback_url:    `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/webhooks/flutterwave`,
-        debit_currency:  "NGN",
-      };
-
-      let fwRes;
-      if (process.env.PROXY_URL && process.env.PROXY_SECRET) {
-        // Route through the fixed-IP VPS proxy
-        fwRes = await fetch(`${process.env.PROXY_URL}/flw-transfer`, {
-          method:  "POST",
-          headers: {
-            "x-proxy-secret": process.env.PROXY_SECRET,
-            "Content-Type":   "application/json",
-          },
-          body:   JSON.stringify(transferPayload),
-          signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
-        });
-      } else {
-        // No proxy configured — call Flutterwave directly
-        fwRes = await fetch("https://api.flutterwave.com/v3/transfers", {
-          method:  "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
-            "Content-Type":  "application/json",
-          },
-          body:   JSON.stringify(transferPayload),
-          signal: AbortSignal.timeout(FLW_TIMEOUT_MS),
-        });
-      }
-      fwData = await fwRes.json();
-    } catch (fetchErr) {
-      // Flutterwave unreachable — mark payout as failed, no wallet change
-      await admin
-        .from("vendor_payouts")
-        .update({ status: "failed", error: "Payment provider unreachable", updated_at: new Date().toISOString() })
-        .eq("reference", reference);
-
-      const isTimeout = fetchErr.name === "TimeoutError" || fetchErr.name === "AbortError";
-      return NextResponse.json(
-        { error: isTimeout ? "Payment provider timed out. Please try again." : "Transfer failed. Please try again or contact support." },
-        { status: 502 }
-      );
-    }
-
-    if (!fwData || fwData.status !== "success") {
-      const rawError = fwData?.message ?? "Transfer rejected by payment provider";
-
-      // Sanitise Flutterwave internal errors before surfacing to the vendor
-      const userFacingError = rawError.toLowerCase().includes("whitelist")
-        ? "Withdrawals are temporarily unavailable due to a payment configuration issue. Please contact support."
-        : rawError;
-
-      await admin
-        .from("vendor_payouts")
-        .update({
-          status:     "failed",
-          error:      rawError,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("reference", reference);
-
-      return NextResponse.json(
-        { error: userFacingError },
-        { status: 502 }
-      );
-    }
-
-    // ── Flutterwave accepted — atomically debit wallet ────────────────────────
-    // decrement_wallet_safe raises INSUFFICIENT_BALANCE if balance dropped
-    // between our earlier read and now (concurrent request guard).
+    // ── Atomically debit wallet (reserves funds) ──────────────────────────────
     const { error: debitErr } = await admin.rpc("decrement_wallet_safe", {
       p_user_id: user.id,
       p_amount:  amountNum,
     });
 
     if (debitErr) {
-      // If debit fails the transfer is already queued at Flutterwave.
-      // Mark payout as "processing" and log for manual reconciliation.
-      // Do NOT mark as failed — the money is moving.
-      await admin
-        .from("vendor_payouts")
-        .update({
-          status:     "processing",
-          error:      "Wallet debit failed — manual reconciliation required",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("reference", reference);
-
-      console.error(
-        `[withdraw] Wallet debit failed after Flutterwave accepted transfer. ` +
-        `user=${user.id} reference=${reference} amount=${amountNum}. Manual reconciliation needed.`,
-        debitErr
+      const isInsufficient = debitErr.message?.includes("INSUFFICIENT_BALANCE");
+      return NextResponse.json(
+        { error: isInsufficient ? "Insufficient wallet balance" : "Failed to process withdrawal. Please try again." },
+        { status: isInsufficient ? 400 : 500 },
       );
-
-      // Still tell the user it's processing — the money will arrive regardless
-      return NextResponse.json({
-        success:     true,
-        reference,
-        new_balance: userData.wallet_balance, // stale, but debit failed anyway
-        message:     "Withdrawal initiated. Funds will arrive within 1–2 business days.",
-      });
     }
 
-    // ── Mark payout as processing + store wallet transaction ──────────────────
+    // ── Create payout record + wallet transaction ─────────────────────────────
     await Promise.all([
-      admin
-        .from("vendor_payouts")
-        .update({
-          status:     "processing",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("reference", reference),
+      admin.from("vendor_payouts").insert({
+        vendor_id:    user.id,
+        amount:       amountNum,
+        status:       "pending",
+        reference,
+        bank_name:    vendorData.bank_name    ?? null,
+        bank_account: vendorData.bank_account_number,
+      }),
 
       admin.from("wallet_transactions").insert({
         user_id:     user.id,
         type:        "debit",
         amount:      amountNum,
-        description: `Withdrawal to ${vendorData.bank_name ?? "bank account"} — ${vendorData.bank_account_number}`,
+        description: `Withdrawal request to ${vendorData.bank_name ?? "bank"} — ${vendorData.bank_account_number}`,
         reference,
       }),
     ]);
 
-    // New balance = old balance - amount (debit succeeded)
     const newBalance = (userData.wallet_balance ?? 0) - amountNum;
 
     return NextResponse.json({
       success:     true,
       reference,
       new_balance: newBalance,
-      message:     "Withdrawal initiated. Funds will arrive within 1–2 business days.",
+      message:     "Withdrawal request submitted. Our team will process your transfer within 1–2 business days.",
     });
   } catch (error) {
     console.error("[POST /api/vendor/wallet/withdraw]", error);

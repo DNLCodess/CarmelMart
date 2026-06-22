@@ -256,3 +256,11 @@ button {
 .animate-slide-up {
   animation: slide-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+@keyframes ken-burns {
+  from { transform: scale(1); }
+  to   { transform: scale(1.06); }
+}
+.animate-ken-burns {
+  animation: ken-burns 6s ease-out forwards;
+}

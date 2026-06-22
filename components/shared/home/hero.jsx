@@ -3,7 +3,16 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowRight,
+  Star,
+  Shield,
+  Package,
+  BadgeCheck,
+  Truck,
+  RotateCcw,
+  Lock,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -20,13 +29,11 @@ const Button = ({
     primary:
       "gradient-primary text-white hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5",
     outline:
-      "border-2 border-white text-white hover:bg-white hover:text-primary backdrop-blur-sm",
+      "border-2 border-white/70 text-white hover:bg-white hover:text-primary backdrop-blur-sm",
     white:
-      "bg-white text-primary hover:bg-primary hover:text-white shadow-lg hover:shadow-xl backdrop-blur-sm",
+      "bg-white/10 backdrop-blur-sm border border-white/25 text-white hover:bg-white hover:text-primary transition-all",
   };
-  const sizes = {
-    lg: "px-8 py-4 text-base",
-  };
+  const sizes = { lg: "px-7 py-3.5 text-sm" };
 
   return (
     <button
@@ -47,15 +54,14 @@ const heroSlides = [
     title: "Dress to",
     titleAccent: "Impress",
     description:
-      "Shop the latest trends in fashion — African prints, sneakers, bags and more from verified Nigerian vendors.",
+      "Shop the latest trends — African prints, sneakers, bags and more from verified Nigerian vendors.",
     ctaLabel: "Shop Fashion",
     ctaHref: "/shop?category=fashion",
-    stats: { vendors: "Verified", products: "Authentic", satisfaction: "100%" },
-    statLabels: {
-      vendors: "Vendors Only",
-      products: "Products",
-      satisfaction: "Buyer Protection",
-    },
+    stats: [
+      { value: "500+", label: "Verified Vendors", icon: BadgeCheck },
+      { value: "10K+", label: "Products Listed", icon: Package },
+      { value: "100%", label: "Buyer Protection", icon: Shield },
+    ],
   },
   {
     id: 2,
@@ -68,12 +74,11 @@ const heroSlides = [
       "Latest smartphones, laptops, earbuds and gadgets — all genuine, all delivered nationwide.",
     ctaLabel: "Shop Electronics",
     ctaHref: "/shop?category=electronics",
-    stats: { vendors: "KYC", products: "7-Day", satisfaction: "Secure" },
-    statLabels: {
-      vendors: "Verified Sellers",
-      products: "Easy Returns",
-      satisfaction: "Checkout",
-    },
+    stats: [
+      { value: "KYC", label: "Verified Sellers", icon: BadgeCheck },
+      { value: "7-Day", label: "Easy Returns", icon: RotateCcw },
+      { value: "Secure", label: "Checkout", icon: Lock },
+    ],
   },
   {
     id: 3,
@@ -86,15 +91,13 @@ const heroSlides = [
       "Furniture, kitchen essentials, bedding and decor — find everything to build your dream home.",
     ctaLabel: "Shop Home & Living",
     ctaHref: "/shop?category=home-living",
-    stats: { vendors: "Fast", products: "Nationwide", satisfaction: "Safe" },
-    statLabels: {
-      vendors: "Delivery",
-      products: "Shipping",
-      satisfaction: "Payments",
-    },
+    stats: [
+      { value: "Fast", label: "Delivery", icon: Truck },
+      { value: "Nigeria-wide", label: "Shipping", icon: Package },
+      { value: "Safe", label: "Payments", icon: Shield },
+    ],
   },
 ];
-
 
 export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -119,153 +122,113 @@ export default function HeroSection() {
     }));
   }, [productsData]);
 
-  const slides = heroSlides;
-
   useEffect(() => {
     if (!isAutoPlaying) return;
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    const interval = setInterval(
+      () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length),
+      5000
+    );
     return () => clearInterval(interval);
-  }, [isAutoPlaying, slides.length]);
+  }, [isAutoPlaying]);
 
-  const goToSlide = (index) => {
-    setCurrentSlide(index);
-    setIsAutoPlaying(false);
-  };
+  const goToSlide = (index) => { setCurrentSlide(index); setIsAutoPlaying(false); };
 
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-    setIsAutoPlaying(false);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-    setIsAutoPlaying(false);
-  };
-
-  const currentHero =
-    slides[Math.min(currentSlide, slides.length - 1)] ?? slides[0];
+  const currentHero = heroSlides[currentSlide] ?? heroSlides[0];
 
   return (
     <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-primary-dark">
-      {/* Animated Background Images */}
+
+      {/* ── Background image ─────────────────────────────────── */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentSlide}
-          initial={{ opacity: 0, scale: 1.1 }}
+          initial={{ opacity: 0, scale: 1.04 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.7 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.9, ease: "easeInOut" }}
           className="absolute inset-0 z-0"
         >
           <Image
             src={currentHero.image}
             alt={`${currentHero.title} ${currentHero.titleAccent}`}
             fill
-            className="object-cover"
+            className="object-cover object-center"
             priority={currentSlide === 0}
             placeholder="blur"
             blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
           />
-          {/* Gradient overlay — left side dark for text legibility, image shows through on right */}
-          <div className="absolute inset-0 bg-linear-to-r from-primary-dark/95 via-primary-dark/80 to-primary-dark/30" />
-          <div className="absolute inset-0 bg-linear-to-t from-primary-dark/90 via-transparent to-transparent" />
+          {/* Single gradient: dark on left for text, fades out right so image shows */}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-dark/88 via-primary-dark/55 to-primary-dark/10" />
+          {/* Subtle bottom fade for the trust bar */}
+          <div className="absolute inset-0 bg-gradient-to-t from-primary-dark/60 via-transparent to-transparent" />
         </motion.div>
       </AnimatePresence>
 
-      {/* Ambient Glow */}
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/25 rounded-full blur-3xl animate-pulse" />
-
-      {/* Navigation Arrows */}
-      <button
-        onClick={prevSlide}
-        className="hidden xl:flex absolute left-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
-        aria-label="Previous slide"
-      >
-        <ChevronLeft className="w-6 h-6" />
-      </button>
-      <button
-        onClick={nextSlide}
-        className="hidden xl:flex absolute right-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 items-center justify-center text-white hover:bg-white/20 transition-all duration-300 hover:scale-110"
-        aria-label="Next slide"
-      >
-        <ChevronRight className="w-6 h-6" />
-      </button>
-
+      {/* ── Content ──────────────────────────────────────────── */}
       <div className="relative z-10 max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Content */}
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+
+          {/* Left */}
           <AnimatePresence mode="wait">
             <motion.div
               key={currentSlide}
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 30 }}
-              transition={{ duration: 0.6 }}
-              className="max-w-2xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.5 }}
+              className="max-w-xl"
             >
               {/* Heading */}
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6">
+              <h1 className="text-[clamp(2.8rem,6vw,4.5rem)] font-bold text-white leading-[1.06] tracking-tight mb-5">
                 {currentHero.title}
                 <br />
-                <span className="gradient-text-hero">
-                  {currentHero.titleAccent}
-                </span>
+                <span className="hero-accent-text">{currentHero.titleAccent}</span>
               </h1>
 
               {/* Description */}
-              <p className="text-lg sm:text-xl text-gray-300 mb-10 leading-relaxed max-w-xl">
+              <p className="text-[15px] text-white/65 mb-9 leading-relaxed max-w-md">
                 {currentHero.description}
               </p>
 
-              {/* CTA Buttons */}
-              <div className="flex flex-col items-center sm:flex-row gap-4 mb-16">
-                <Link href={currentHero.ctaHref} className="w-[75%] sm:w-auto">
-                  <Button variant="primary" size="lg" className="w-full">
+              {/* CTAs */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-10 w-full sm:w-auto">
+                <Link href={currentHero.ctaHref} className="w-full sm:w-auto">
+                  <Button variant="primary" size="lg" className="w-full sm:w-auto">
                     {currentHero.ctaLabel}
-                    <ArrowRight className="w-5 h-5" />
+                    <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>
-                <Link href="/register" className="w-[75%] sm:w-auto">
-                  <Button variant="white" size="lg" className="w-full">
+                <Link href="/register" className="w-full sm:w-auto">
+                  <Button variant="white" size="lg" className="w-full sm:w-auto">
                     Start Selling
                   </Button>
                 </Link>
               </div>
 
-              {/* Trust Indicators with Glass Effect */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-6 p-4 sm:p-6 bg-primary/10 backdrop-blur-xl rounded-2xl border border-white/10">
-                <div>
-                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
-                    {currentHero.stats.vendors}
-                  </div>
-                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
-                    {currentHero.statLabels?.vendors ?? "Verified Vendors"}
-                  </div>
-                </div>
-                <div className="border-x border-white/10 px-2 sm:px-0">
-                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
-                    {currentHero.stats.products}
-                  </div>
-                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
-                    {currentHero.statLabels?.products ?? "Products"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-lg sm:text-3xl font-bold text-white mb-0.5 sm:mb-1 leading-none">
-                    {currentHero.stats.satisfaction}
-                  </div>
-                  <div className="text-[10px] sm:text-sm text-gray-400 leading-tight">
-                    {currentHero.statLabels?.satisfaction ?? "Satisfaction"}
-                  </div>
-                </div>
+              {/* Trust bar */}
+              <div className="flex items-stretch divide-x divide-white/10 border border-white/10 rounded-2xl overflow-hidden bg-black/20 backdrop-blur-sm">
+                {currentHero.stats.map((stat, i) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div key={i} className="flex-1 px-4 py-4 flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <Icon className="w-3.5 h-3.5 text-accent flex-shrink-0" />
+                        <span className="text-[13px] sm:text-base font-bold text-white leading-none">
+                          {stat.value}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-white/45 leading-tight">
+                        {stat.label}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
           </AnimatePresence>
 
-          {/* Right - Featured Products Showcase */}
-          {heroProducts.length >= 2 && (
+          {/* Right — featured products OR platform trust cards */}
+          {heroProducts.length >= 2 ? (
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -287,21 +250,19 @@ export default function HeroSection() {
                     blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
                   />
                 )}
-                <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                  <div className="inline-block gradient-accent px-3 py-1 rounded-full text-xs font-semibold mb-3 text-white">
+                  <span className="inline-block gradient-accent px-3 py-1 rounded-full text-xs font-semibold mb-3">
                     {heroProducts[0].badge}
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">
-                    {heroProducts[0].name}
-                  </h3>
+                  </span>
+                  <h3 className="text-xl font-bold mb-2">{heroProducts[0].name}</h3>
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold">
                       ₦{heroProducts[0].price.toLocaleString()}
                     </span>
                     {heroProducts[0].rating > 0 && (
-                      <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      <div className="flex items-center gap-1 bg-white/15 backdrop-blur-sm px-2 py-1 rounded-full">
+                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
                         <span className="text-sm font-semibold">
                           {heroProducts[0].rating.toFixed(1)}
                         </span>
@@ -326,11 +287,11 @@ export default function HeroSection() {
                     blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k="
                   />
                 )}
-                <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                  <div className="inline-block gradient-primary px-3 py-1 rounded-full text-xs font-semibold mb-2 text-white">
+                  <span className="inline-block gradient-primary px-3 py-1 rounded-full text-xs font-semibold mb-2">
                     {heroProducts[1].badge}
-                  </div>
+                  </span>
                   <h3 className="text-lg font-bold mb-2 line-clamp-2">
                     {heroProducts[1].name}
                   </h3>
@@ -340,44 +301,100 @@ export default function HeroSection() {
                 </div>
               </Link>
 
-              {/* Floating Stats Card */}
-              <div className="animate-float-sm absolute top-1/2 left-0 bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-52 border border-white/20">
+              {/* Floating protection badge */}
+              <div className="animate-float-sm absolute top-1/2 left-0 bg-black/30 backdrop-blur-xl rounded-2xl p-4 w-48 border border-white/15">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full gradient-accent flex items-center justify-center shadow-lg">
-                    <span className="text-2xl text-white">✓</span>
+                  <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <div className="text-xl font-bold text-white">100%</div>
-                    <div className="text-xs text-gray-400">Buyer Protection</div>
+                    <div className="text-base font-bold text-white leading-none">100%</div>
+                    <div className="text-[11px] text-white/50 mt-0.5">Buyer Protection</div>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          ) : (
+            /* Fallback bento when no featured products */
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+              className="hidden lg:flex flex-col gap-3 h-[460px]"
+            >
+              {/* Large top card */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="flex-1 bg-black/25 backdrop-blur-md rounded-3xl border border-white/10 p-7 flex flex-col justify-between relative overflow-hidden"
+              >
+                <div className="absolute -top-8 -right-8 w-40 h-40 bg-accent/15 rounded-full blur-2xl pointer-events-none" />
+                <div className="relative z-10">
+                  <div className="w-11 h-11 rounded-2xl gradient-accent flex items-center justify-center mb-5">
+                    <BadgeCheck className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="text-4xl font-bold text-white mb-1">500+</div>
+                  <div className="text-sm text-white/50">KYC Verified Vendors</div>
+                </div>
+                <p className="text-white/55 text-sm leading-relaxed relative z-10">
+                  Every seller is identity-verified and approved before listing products on Carmel Mart.
+                </p>
+              </motion.div>
+
+              {/* Two smaller cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.45 }}
+                  className="bg-black/25 backdrop-blur-md rounded-2xl border border-white/10 p-5"
+                >
+                  <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center mb-4">
+                    <Shield className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-2xl font-bold text-white mb-0.5">100%</div>
+                  <div className="text-[11px] text-white/45 leading-tight">Buyer Protection</div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.52 }}
+                  className="bg-black/25 backdrop-blur-md rounded-2xl border border-white/10 p-5"
+                >
+                  <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center mb-4">
+                    <Truck className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-2xl font-bold text-white mb-0.5">Fast</div>
+                  <div className="text-[11px] text-white/45 leading-tight">Nationwide Delivery</div>
+                </motion.div>
               </div>
             </motion.div>
           )}
         </div>
       </div>
 
-      {/* Slide Indicators */}
+      {/* ── Slide indicators ─────────────────────────────────── */}
       <div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3"
+        className="absolute bottom-7 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5"
         role="tablist"
         aria-label="Hero slides"
       >
-        {slides.map((_, index) => (
+        {heroSlides.map((_, index) => (
           <button
             key={index}
             role="tab"
             onClick={() => goToSlide(index)}
             aria-selected={index === currentSlide}
-            aria-current={index === currentSlide ? "true" : undefined}
             aria-label={`Go to slide ${index + 1}`}
-            className="group relative focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-full"
+            className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-full"
           >
             <div
-              className={`h-1.5 rounded-full transition-all duration-300 ${
+              className={`h-[3px] rounded-full transition-all duration-300 ${
                 index === currentSlide
-                  ? "w-12 bg-white"
-                  : "w-8 bg-white/40 hover:bg-white/60"
+                  ? "w-8 bg-white"
+                  : "w-4 bg-white/25 hover:bg-white/40"
               }`}
             />
           </button>
@@ -385,27 +402,8 @@ export default function HeroSection() {
       </div>
 
       <style jsx>{`
-        @keyframes gradient {
-          0%,
-          100% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-        }
-        .gradient-text-hero {
-          background: linear-gradient(
-            to right,
-            var(--color-accent),
-            var(--color-accent-light),
-            var(--color-primary-light)
-          );
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
+        .hero-accent-text {
+          color: var(--color-accent-light);
         }
       `}</style>
     </section>

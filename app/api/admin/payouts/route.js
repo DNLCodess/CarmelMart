@@ -1,79 +1,93 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendVendorPayoutProcessed } from "@/lib/email";
 
-async function getAdmin() {
+async function authorise() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const admin = createAdminClient();
   const { data: p } = await admin.from("users").select("role").eq("id", user.id).single();
-  if (!p || p.role !== "admin") return null;
+  if (!p || !["admin", "accountant"].includes(p.role)) return null;
   return { user, admin };
 }
 
-// GET /api/admin/payouts — list vendor payout requests
+// GET /api/admin/payouts — list vendor payout requests (admin + accountant)
 export async function GET(request) {
   try {
-    const ctx = await getAdmin();
+    const ctx = await authorise();
     if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "pending";
 
-    // vendor_payouts.vendor_id → vendors.id; vendors.id === users.id (auth.users FK, not public.users)
-    // Use separate queries to avoid cross-schema join failures
     const { data: payoutRows, error } = await ctx.admin
       .from("vendor_payouts")
-      .select("id, vendor_id, amount, status, reference, flw_ref, created_at")
+      .select("id, vendor_id, amount, status, reference, bank_name, bank_account, error, resolved_at, resolved_by, transfer_reference, notes, created_at")
       .eq("status", status)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    const vendorIds = [...new Set((payoutRows ?? []).map((p) => p.vendor_id).filter(Boolean))];
-    let vendorInfoMap = {};
+    const vendorIds    = [...new Set((payoutRows ?? []).map((p) => p.vendor_id).filter(Boolean))];
+    const resolverIds  = [...new Set((payoutRows ?? []).map((p) => p.resolved_by).filter(Boolean))];
+    const allUserIds   = [...new Set([...vendorIds, ...resolverIds])];
+
+    let vendorInfoMap  = {};
+    let resolverMap    = {};
+
     if (vendorIds.length > 0) {
       const [{ data: vendorRows }, { data: userRows }] = await Promise.all([
         ctx.admin.from("vendors").select("id, business_name, bank_account_number, bank_code, subscription_tier").in("id", vendorIds),
-        ctx.admin.from("users").select("id, email").in("id", vendorIds),
+        ctx.admin.from("users").select("id, email, first_name, last_name").in("id", allUserIds),
       ]);
       const vMap = Object.fromEntries((vendorRows ?? []).map((v) => [v.id, v]));
-      const uMap = Object.fromEntries((userRows ?? []).map((u) => [u.id, u]));
+      const uMap = Object.fromEntries((userRows  ?? []).map((u) => [u.id, u]));
+
       for (const vid of vendorIds) {
-        vendorInfoMap[vid] = { ...vMap[vid], email: uMap[vid]?.email };
+        vendorInfoMap[vid] = { ...vMap[vid], ...uMap[vid] };
+      }
+      for (const rid of resolverIds) {
+        const u = uMap[rid];
+        resolverMap[rid] = u ? ([u.first_name, u.last_name].filter(Boolean).join(" ") || u.email) : null;
       }
     }
 
     const payouts = (payoutRows || []).map((p) => {
       const v = vendorInfoMap[p.vendor_id] ?? {};
       return {
-        id:        p.id,
-        vendorId:  p.vendor_id,
-        amount:    p.amount,
-        status:    p.status,
-        reference: p.reference,
-        flwRef:    p.flw_ref,
-        createdAt: new Date(p.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
+        id:                p.id,
+        vendorId:          p.vendor_id,
+        amount:            p.amount,
+        status:            p.status,
+        reference:         p.reference,
+        bankName:          p.bank_name    ?? v.bank_name    ?? null,
+        bankAccount:       p.bank_account ?? v.bank_account_number ?? null,
+        error:             p.error        ?? null,
+        resolvedAt:        p.resolved_at  ?? null,
+        resolvedBy:        p.resolved_by  ? (resolverMap[p.resolved_by] ?? null) : null,
+        transferReference: p.transfer_reference ?? null,
+        notes:             p.notes        ?? null,
+        createdAt:         new Date(p.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }),
+        resolvedAtLabel:   p.resolved_at
+          ? new Date(p.resolved_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+          : null,
         vendor: {
-          email:        v.email ?? null,
-          name:         v.email ?? "Vendor",
+          email:        v.email        ?? null,
+          name:         [v.first_name, v.last_name].filter(Boolean).join(" ") || v.email || "Vendor",
           businessName: v.business_name ?? null,
-          bankAccount:  v.bank_account_number ?? null,
-          bankCode:     v.bank_code ?? null,
+          bankAccount:  v.bank_account_number ?? p.bank_account ?? null,
+          bankCode:     v.bank_code     ?? null,
           tier:         v.subscription_tier ?? "free",
         },
       };
     });
 
-    // VIP and Premium vendors surface first in the pending queue
+    // VIP and Premium surface first in the pending queue
     const TIER_RANK = { vip: 0, premium: 1, free: 2 };
     if (status === "pending") {
-      payouts.sort((a, b) => {
-        const ra = TIER_RANK[a.vendor.tier] ?? 2;
-        const rb = TIER_RANK[b.vendor.tier] ?? 2;
-        return ra - rb;
-      });
+      payouts.sort((a, b) => (TIER_RANK[a.vendor.tier] ?? 2) - (TIER_RANK[b.vendor.tier] ?? 2));
     }
 
     return NextResponse.json({ payouts });
@@ -82,84 +96,97 @@ export async function GET(request) {
   }
 }
 
-// POST /api/admin/payouts — approve a payout (trigger Flutterwave transfer)
+// POST /api/admin/payouts — manually resolve a payout (admin + accountant)
+// Body: { payoutId, action: "complete"|"reject", transferReference?, notes?, sendEmail? }
 export async function POST(request) {
   try {
-    const ctx = await getAdmin();
+    const ctx = await authorise();
     if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { payoutId } = await request.json();
-    if (!payoutId) return NextResponse.json({ error: "payoutId required" }, { status: 400 });
+    const { payoutId, action, transferReference, notes, sendEmail } = await request.json();
 
-    // Fetch payout row (vendor_payouts.vendor_id FKs to users, not vendors — separate query needed)
+    if (!payoutId)                          return NextResponse.json({ error: "payoutId required" }, { status: 400 });
+    if (!["complete", "reject"].includes(action)) return NextResponse.json({ error: "action must be complete or reject" }, { status: 400 });
+    if (action === "complete" && !transferReference?.trim())
+      return NextResponse.json({ error: "transferReference is required when completing a payout" }, { status: 400 });
+
+    // Fetch payout
     const { data: payout, error: fetchErr } = await ctx.admin
       .from("vendor_payouts")
-      .select("id, vendor_id, amount, status, reference")
+      .select("id, vendor_id, amount, status, reference, bank_name, bank_account")
       .eq("id", payoutId)
       .single();
 
     if (fetchErr || !payout) return NextResponse.json({ error: "Payout not found" }, { status: 404 });
-    if (payout.status !== "pending") return NextResponse.json({ error: "Payout already processed" }, { status: 400 });
+    if (payout.status !== "pending")
+      return NextResponse.json({ error: `Payout is already ${payout.status}` }, { status: 400 });
 
-    // Fetch vendor bank details separately (vendors.id === vendor_payouts.vendor_id)
-    const { data: vendorRow } = await ctx.admin
-      .from("vendors")
-      .select("bank_account_number, bank_code, business_name")
-      .eq("id", payout.vendor_id)
-      .single();
+    const now = new Date().toISOString();
 
-    const { bank_account_number, bank_code, business_name } = vendorRow ?? {};
-    if (!bank_account_number || !bank_code)
-      return NextResponse.json({ error: "Vendor has no bank details on file" }, { status: 400 });
+    if (action === "complete") {
+      // Mark completed — wallet was already debited at request time
+      await ctx.admin.from("vendor_payouts").update({
+        status:             "completed",
+        transfer_reference: transferReference.trim(),
+        notes:              notes?.trim() || null,
+        resolved_at:        now,
+        resolved_by:        ctx.user.id,
+        updated_at:         now,
+      }).eq("id", payoutId);
 
-    // Mark as processing immediately to prevent double-approvals
-    await ctx.admin.from("vendor_payouts").update({ status: "processing" }).eq("id", payoutId);
+      // Optionally email the vendor
+      if (sendEmail) {
+        const [{ data: userRow }, { data: vendorRow }] = await Promise.all([
+          ctx.admin.from("users").select("email, first_name, last_name").eq("id", payout.vendor_id).single(),
+          ctx.admin.from("vendors").select("business_name").eq("id", payout.vendor_id).single(),
+        ]);
 
-    // Initiate Flutterwave transfer (10-second timeout)
-    let flwData;
-    try {
-      const flwRes = await fetch("https://api.flutterwave.com/v3/transfers", {
-        method: "POST",
-        headers: {
-          "Content-Type":  "application/json",
-          "Authorization": `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
-        },
-        body: JSON.stringify({
-          account_bank:    bank_code,
-          account_number:  bank_account_number,
-          amount:          payout.amount,
-          currency:        "NGN",
-          narration:       `CarmelMart payout – ${business_name}`,
-          reference:       payout.reference,
-          callback_url:    `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/webhooks/flutterwave`,
-        }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      flwData = await flwRes.json();
-    } catch (fetchErr) {
-      // Revert to pending on network/timeout errors
-      await ctx.admin.from("vendor_payouts").update({ status: "pending" }).eq("id", payoutId);
-      const isTimeout = fetchErr.name === "TimeoutError" || fetchErr.name === "AbortError";
-      return NextResponse.json(
-        { error: isTimeout ? "Payment provider timed out. Please try again." : "Transfer failed. Please try again." },
-        { status: 502 }
-      );
+        if (userRow?.email) {
+          const vendorName = vendorRow?.business_name
+            || [userRow.first_name, userRow.last_name].filter(Boolean).join(" ")
+            || userRow.email;
+
+          await sendVendorPayoutProcessed({
+            to:        userRow.email,
+            vendorName,
+            amount:    payout.amount,
+            reference: transferReference.trim(),
+          }).catch((err) => console.error("[payouts] email send failed:", err));
+        }
+      }
+
+      return NextResponse.json({ success: true, status: "completed" });
     }
 
-    if (flwData.status !== "success") {
-      // Revert to pending if FLW rejected it
-      await ctx.admin.from("vendor_payouts").update({ status: "pending" }).eq("id", payoutId);
-      return NextResponse.json({ error: flwData.message ?? "Transfer failed" }, { status: 502 });
-    }
-
-    // Mark as processing — the transfer.completed webhook will set it to "completed"
-    // when Flutterwave confirms delivery (1-2 business days).
+    // action === "reject" — refund vendor's wallet
     await ctx.admin.from("vendor_payouts").update({
-      status:  "processing",
-      flw_ref: flwData.data?.id?.toString() ?? null,
+      status:      "failed",
+      notes:       notes?.trim() || null,
+      resolved_at: now,
+      resolved_by: ctx.user.id,
+      updated_at:  now,
     }).eq("id", payoutId);
 
-    return NextResponse.json({ success: true, flwRef: flwData.data?.id });
+    // Refund wallet
+    await ctx.admin.rpc("increment_wallet", {
+      p_user_id: payout.vendor_id,
+      p_amount:  payout.amount,
+    }).catch(async () => {
+      // Fallback: direct increment if RPC unavailable
+      const { data: u } = await ctx.admin.from("users").select("wallet_balance").eq("id", payout.vendor_id).single();
+      await ctx.admin.from("users").update({ wallet_balance: (u?.wallet_balance ?? 0) + payout.amount }).eq("id", payout.vendor_id);
+    });
+
+    // Wallet transaction for the refund
+    await ctx.admin.from("wallet_transactions").insert({
+      user_id:     payout.vendor_id,
+      type:        "credit",
+      amount:      payout.amount,
+      description: `Withdrawal rejected — refund for ${payout.reference}`,
+      reference:   payout.reference,
+    });
+
+    return NextResponse.json({ success: true, status: "failed" });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
