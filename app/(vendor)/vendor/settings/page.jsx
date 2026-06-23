@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, AlertTriangle, RefreshCw } from "lucide-react";
 import { NIGERIAN_BANKS, getBankName } from "@/lib/nigerian-banks";
+import VariantPresetsManager from "@/components/shared/vendor/VariantPresetsManager";
 import { useAuth } from "@/lib/auth-context";
 import { updatePasswordAction } from "@/app/actions/auth";
 import toast from "react-hot-toast";
@@ -403,6 +404,9 @@ export default function VendorSettingsPage() {
           ))}
         </div>
       </Section>
+
+      {/* Size & option presets */}
+      <VariantPresetsManager />
 
       <PasswordSection />
 

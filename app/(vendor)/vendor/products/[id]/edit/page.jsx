@@ -13,7 +13,15 @@ import {
 import Link from "next/link";
 import toast from "react-hot-toast";
 import ProductImageUploader from "@/components/shared/vendor/ProductImageUploader";
+import VariantOptionPicker from "@/components/shared/vendor/VariantOptionPicker";
 import { getTemplate } from "@/lib/product-templates";
+
+async function fetchVariantPresets() {
+  const r = await fetch("/api/vendor/variant-presets");
+  if (!r.ok) return [];
+  const d = await r.json();
+  return d.presets ?? [];
+}
 
 const MEDIA_FORMATS = [
   "Hardcover", "Paperback", "eBook", "Audiobook",
@@ -69,6 +77,13 @@ export default function EditProductPage() {
   const [descriptiveOptions, setDescriptiveOptions] = useState({});
   const [selectedDimOptions, setSelectedDimOptions] = useState({});
   const [variantRows, setVariantRows]               = useState([]);
+
+  // Vendor's saved option presets (custom sizes, colours…)
+  const { data: variantPresets = [] } = useQuery({
+    queryKey: ["vendor-variant-presets"],
+    queryFn: fetchVariantPresets,
+    staleTime: 60_000,
+  });
 
   // Quantity / bulk pricing state
   const [enableQtyPricing, setEnableQtyPricing] = useState(false);
@@ -186,6 +201,17 @@ export default function EditProductPage() {
       return { ...prev, [dimKey]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
     });
   };
+
+  // Merge a saved preset's values into the current selection for a dimension
+  const mergeValues = (cur, values) => {
+    const next = [...cur];
+    for (const v of values) if (!next.includes(v)) next.push(v);
+    return next;
+  };
+  const applyPresetToDescriptive = (dimKey, values) =>
+    setDescriptiveOptions((prev) => ({ ...prev, [dimKey]: mergeValues(prev[dimKey] ?? [], values) }));
+  const applyPresetToVariants = (dimKey, values) =>
+    setSelectedDimOptions((prev) => ({ ...prev, [dimKey]: mergeValues(prev[dimKey] ?? [], values) }));
 
   const generateCombinations = useCallback(() => {
     const activeDims = template.variantDimensions.filter(
@@ -768,17 +794,17 @@ export default function EditProductPage() {
         {categoryId && !isMediaCategory && template.supportsVariants && (
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-5">
             <div>
-              <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Options & Variants</h2>
+              <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Sizes, Colours & Options</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Does this product come in different colours, sizes, or other options?
+                Does this product come in different colours, sizes, or other choices?
               </p>
             </div>
 
             <div className="grid sm:grid-cols-3 gap-3">
               {[
-                { value: "none",        title: "No options",               desc: "One version only — no sizes, colours, or variations." },
-                { value: "descriptive", title: "Just show options",        desc: "List what options are available. One stock total." },
-                { value: "variants",    title: "Separate stock per option", desc: "Track stock and set a different price for each combination." },
+                { value: "none",        title: "No choices",          desc: "Just one version. No sizes or colours." },
+                { value: "descriptive", title: "Show choices only",   desc: "List what's available. You keep one stock count." },
+                { value: "variants",    title: "Count stock per choice", desc: "Set the stock and price for each one (like Red / Small)." },
               ].map(({ value, title, desc }) => {
                 const active = variantType === value;
                 return (
@@ -801,34 +827,21 @@ export default function EditProductPage() {
             {variantType === "descriptive" && (
               <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-700">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-                  Which options do you offer?
+                  Which choices do you have?
                 </p>
                 {template.variantDimensions.map((dim) => (
-                  <div key={dim.key}>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{dim.label}</label>
-                    <div className="flex flex-wrap gap-2">
-                      {dim.options.map((opt) => {
-                        const checked = (descriptiveOptions[dim.key] ?? []).includes(opt);
-                        return (
-                          <button
-                            type="button" key={opt}
-                            onClick={() => toggleDescriptiveOption(dim.key, opt)}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 transition-all ${
-                              checked
-                                ? "border-primary bg-primary/10 text-primary"
-                                : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <VariantOptionPicker
+                    key={dim.key}
+                    dim={dim}
+                    selectedValues={descriptiveOptions[dim.key] ?? []}
+                    onToggle={(opt) => toggleDescriptiveOption(dim.key, opt)}
+                    presets={variantPresets}
+                    onApplyPreset={applyPresetToDescriptive}
+                  />
                 ))}
                 <p className="text-xs text-gray-400 dark:text-gray-500 italic flex items-start gap-1">
                   <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  Customers will see these as information. You manage one single stock number above.
+                  Shoppers just see these listed. You keep one stock count above.
                 </p>
               </div>
             )}
@@ -837,29 +850,17 @@ export default function EditProductPage() {
               <div className="space-y-5 pt-2 border-t border-gray-100 dark:border-gray-700">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                    Step 1 — Select the options you offer
+                    Step 1 — Pick the choices you have
                   </p>
                   {template.variantDimensions.map((dim) => (
                     <div key={dim.key} className="mb-4">
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{dim.label}</label>
-                      <div className="flex flex-wrap gap-2">
-                        {dim.options.map((opt) => {
-                          const checked = (selectedDimOptions[dim.key] ?? []).includes(opt);
-                          return (
-                            <button
-                              type="button" key={opt}
-                              onClick={() => toggleSelectedDimOption(dim.key, opt)}
-                              className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 transition-all ${
-                                checked
-                                  ? "border-primary bg-primary/10 text-primary"
-                                  : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300"
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <VariantOptionPicker
+                        dim={dim}
+                        selectedValues={selectedDimOptions[dim.key] ?? []}
+                        onToggle={(opt) => toggleSelectedDimOption(dim.key, opt)}
+                        presets={variantPresets}
+                        onApplyPreset={applyPresetToVariants}
+                      />
                     </div>
                   ))}
                   <button
@@ -867,20 +868,20 @@ export default function EditProductPage() {
                     onClick={generateCombinations}
                     className="mt-1 px-5 py-2 bg-primary text-white text-sm font-bold rounded-full hover:opacity-90 transition-opacity"
                   >
-                    Generate combinations
+                    Show all options
                   </button>
                 </div>
 
                 {variantRows.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                      Step 2 — Set stock (and optional price) for each combination
+                      Step 2 — Add stock (and price) for each one
                     </p>
                     <div className="rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden">
                       <div className="grid grid-cols-[1fr_80px_120px_36px] gap-0 bg-gray-50 dark:bg-gray-700 px-3 py-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                        <span>Option</span>
+                        <span>Choice</span>
                         <span className="text-center">Stock</span>
-                        <span className="text-center">Custom price</span>
+                        <span className="text-center">Price</span>
                         <span />
                       </div>
                       {variantRows.map((row) => (
@@ -916,7 +917,7 @@ export default function EditProductPage() {
                       ))}
                     </div>
                     <p className="mt-2 text-xs text-gray-400 dark:text-gray-500 italic">
-                      Leave "Custom price" blank to use the main price above.
+                      Leave the price empty to use the main price.
                     </p>
                   </div>
                 )}
