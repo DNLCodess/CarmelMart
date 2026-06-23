@@ -39,7 +39,7 @@ export async function GET(request) {
 
     if (vendorIds.length > 0) {
       const [{ data: vendorRows }, { data: userRows }] = await Promise.all([
-        ctx.admin.from("vendors").select("id, business_name, bank_account_number, bank_code, subscription_tier").in("id", vendorIds),
+        ctx.admin.from("vendors").select("id, business_name, bank_name, bank_account_number, bank_code, subscription_tier").in("id", vendorIds),
         ctx.admin.from("users").select("id, email, first_name, last_name").in("id", allUserIds),
       ]);
       const vMap = Object.fromEntries((vendorRows ?? []).map((v) => [v.id, v]));
@@ -77,6 +77,7 @@ export async function GET(request) {
           email:        v.email        ?? null,
           name:         [v.first_name, v.last_name].filter(Boolean).join(" ") || v.email || "Vendor",
           businessName: v.business_name ?? null,
+          bankName:     v.bank_name     ?? p.bank_name    ?? null,
           bankAccount:  v.bank_account_number ?? p.bank_account ?? null,
           bankCode:     v.bank_code     ?? null,
           tier:         v.subscription_tier ?? "free",

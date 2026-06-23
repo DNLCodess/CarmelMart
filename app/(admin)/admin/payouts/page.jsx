@@ -91,7 +91,7 @@ function ResolveModal({ payout, onClose, onSubmit, saving }) {
 
             {/* Payout summary */}
             <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 space-y-2.5 text-sm">
-              <Row label="Bank"    value={payout.bankName    ?? payout.vendor.bankAccount ?? "—"} />
+              <Row label="Bank"    value={payout.bankName    ?? payout.vendor.bankName ?? "—"} />
               <Row label="Account" value={payout.bankAccount ?? payout.vendor.bankAccount ?? "—"} mono />
               <Row label="Amount"  value={`₦${payout.amount.toLocaleString()}`} bold />
               <Row label="Ref"     value={payout.reference} mono small />
@@ -344,7 +344,10 @@ export default function AdminPayoutsPage() {
                     <StatusBadge status={p.status} />
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500">{p.vendor.email}</p>
-                  <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-0.5">{p.bankAccount ?? p.vendor.bankAccount}</p>
+                  <div className="mt-1.5 flex items-baseline gap-1.5">
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{p.bankName ?? p.vendor.bankName ?? "—"}</span>
+                    <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{p.bankAccount ?? p.vendor.bankAccount ?? "—"}</span>
+                  </div>
                   <p className="text-xs font-mono text-gray-400 dark:text-gray-500 mt-0.5 truncate">{p.reference}</p>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
                     <div>
@@ -397,7 +400,7 @@ export default function AdminPayoutsPage() {
                         ₦{p.amount.toLocaleString()}
                       </td>
                       <td className="px-5 py-4">
-                        <p className="text-sm text-gray-700 dark:text-gray-300">{p.bankName ?? "—"}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">{p.bankName ?? p.vendor.bankName ?? "—"}</p>
                         <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-0.5">{p.bankAccount ?? p.vendor.bankAccount ?? "—"}</p>
                       </td>
                       <td className="px-5 py-4">
