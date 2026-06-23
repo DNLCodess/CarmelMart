@@ -24,7 +24,7 @@ export async function GET(request) {
 
     const { data: payoutRows, error } = await ctx.admin
       .from("vendor_payouts")
-      .select("id, vendor_id, amount, status, reference, bank_name, bank_account, error, resolved_at, resolved_by, transfer_reference, notes, created_at")
+      .select("id, vendor_id, amount, status, reference, bank_name, bank_account, bank_account_name, error, resolved_at, resolved_by, transfer_reference, notes, created_at")
       .eq("status", status)
       .order("created_at", { ascending: false });
 
@@ -39,7 +39,7 @@ export async function GET(request) {
 
     if (vendorIds.length > 0) {
       const [{ data: vendorRows }, { data: userRows }] = await Promise.all([
-        ctx.admin.from("vendors").select("id, business_name, bank_name, bank_account_number, bank_code, subscription_tier").in("id", vendorIds),
+        ctx.admin.from("vendors").select("id, business_name, bank_name, bank_account_number, bank_account_name, bank_code, subscription_tier").in("id", vendorIds),
         ctx.admin.from("users").select("id, email, first_name, last_name").in("id", allUserIds),
       ]);
       const vMap = Object.fromEntries((vendorRows ?? []).map((v) => [v.id, v]));
@@ -64,6 +64,7 @@ export async function GET(request) {
         reference:         p.reference,
         bankName:          p.bank_name    ?? v.bank_name    ?? null,
         bankAccount:       p.bank_account ?? v.bank_account_number ?? null,
+        accountName:       p.bank_account_name ?? v.bank_account_name ?? null,
         error:             p.error        ?? null,
         resolvedAt:        p.resolved_at  ?? null,
         resolvedBy:        p.resolved_by  ? (resolverMap[p.resolved_by] ?? null) : null,
@@ -77,6 +78,7 @@ export async function GET(request) {
           email:        v.email        ?? null,
           name:         [v.first_name, v.last_name].filter(Boolean).join(" ") || v.email || "Vendor",
           businessName: v.business_name ?? null,
+          accountName:  v.bank_account_name ?? p.bank_account_name ?? null,
           bankName:     v.bank_name     ?? p.bank_name    ?? null,
           bankAccount:  v.bank_account_number ?? p.bank_account ?? null,
           bankCode:     v.bank_code     ?? null,

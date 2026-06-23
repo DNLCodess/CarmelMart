@@ -14,7 +14,7 @@ export async function GET() {
       .from("vendors")
       .select(`
         id, business_name, description, return_policy, vacation_mode,
-        phone, city, state, bank_account_number, bank_code, bank_name,
+        phone, city, state, bank_account_number, bank_code, bank_name, bank_account_name,
         notification_preferences
       `)
       .eq("id", user.id)
@@ -109,6 +109,9 @@ export async function PATCH(request) {
           { status: 400 }
         );
       }
+
+      // Persist the verified account holder name so admins know who to pay.
+      update.bank_account_name = flwData.data.account_name;
     }
     const { error: upErr } = await admin.from("vendors").update(update).eq("id", user.id);
     if (upErr) throw upErr;

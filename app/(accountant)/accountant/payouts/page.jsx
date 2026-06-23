@@ -82,10 +82,11 @@ function ResolveModal({ payout, onClose, onSubmit, saving }) {
             {/* Summary */}
             <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 space-y-2.5 text-sm">
               {[
-                { label: "Bank",    value: payout.bankName,    mono: false },
-                { label: "Account", value: payout.bankAccount, mono: true  },
-                { label: "Amount",  value: `₦${payout.amount.toLocaleString()}`, bold: true },
-                { label: "Ref",     value: payout.reference,   mono: true, small: true },
+                { label: "Account Name",   value: payout.accountName,  mono: false },
+                { label: "Account Number", value: payout.bankAccount,  mono: true  },
+                { label: "Bank",           value: payout.bankName,     mono: false },
+                { label: "Amount",         value: `₦${payout.amount.toLocaleString()}`, bold: true },
+                { label: "Ref",            value: payout.reference,    mono: true, small: true },
               ].map(({ label, value, mono, bold, small }) => (
                 <div key={label} className="flex items-start justify-between gap-3">
                   <span className="text-gray-400 dark:text-gray-500 shrink-0">{label}</span>
@@ -385,8 +386,16 @@ export default function AccountantPayoutsPage() {
                   <p className="font-bold text-gray-900 dark:text-gray-100 mt-0.5 text-base">{fmtN(p.amount)}</p>
                 </div>
                 <div>
+                  <p className="text-gray-400 dark:text-gray-500">Account Name</p>
+                  <p className="font-semibold text-gray-700 dark:text-gray-300 mt-0.5 truncate">{p.accountName}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 dark:text-gray-500">Account Number</p>
+                  <p className="font-mono text-gray-700 dark:text-gray-300 mt-0.5">{p.bankAccount}</p>
+                </div>
+                <div>
                   <p className="text-gray-400 dark:text-gray-500">Bank</p>
-                  <p className="font-semibold text-gray-700 dark:text-gray-300 mt-0.5">{p.bankName}</p>
+                  <p className="font-semibold text-gray-700 dark:text-gray-300 mt-0.5 truncate">{p.bankName}</p>
                 </div>
                 {p.reference && (
                   <div className="col-span-2">
@@ -419,8 +428,7 @@ export default function AccountantPayoutsPage() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 pt-1 border-t border-gray-50 dark:border-gray-700/60">
-                <span>{p.bankAccount}</span>
+              <div className="flex items-center justify-end text-xs text-gray-400 dark:text-gray-500 pt-1 border-t border-gray-50 dark:border-gray-700/60">
                 <div className="flex items-center gap-2">
                   <span>{p.date}</span>
                   {p.status === "pending" && (
@@ -445,7 +453,7 @@ export default function AccountantPayoutsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-700/30">
-                {["Vendor", "Amount", "Status", "Bank", "Account", "Request Ref / Transfer Ref", "Resolved", "Date"].map((h) => (
+                {["Vendor", "Amount", "Status", "Account Name", "Account No.", "Bank", "Request Ref / Transfer Ref", "Resolved", "Date"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -457,7 +465,7 @@ export default function AccountantPayoutsPage() {
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    {Array.from({ length: 9 }).map((_, j) => (
+                    {Array.from({ length: 10 }).map((_, j) => (
                       <td key={j} className="px-4 py-3.5">
                         <div className="h-3.5 bg-gray-100 dark:bg-gray-700 rounded w-24" />
                       </td>
@@ -466,7 +474,7 @@ export default function AccountantPayoutsPage() {
                 ))
               ) : payouts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
                     No payouts found
                   </td>
                 </tr>
@@ -479,8 +487,9 @@ export default function AccountantPayoutsPage() {
                     </td>
                     <td className="px-4 py-3.5 font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">{fmtN(p.amount)}</td>
                     <td className="px-4 py-3.5"><StatusBadge status={p.status} /></td>
-                    <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300">{p.bankName}</td>
+                    <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300">{p.accountName}</td>
                     <td className="px-4 py-3.5 font-mono text-xs text-gray-600 dark:text-gray-400">{p.bankAccount}</td>
+                    <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300">{p.bankName}</td>
                     <td className="px-4 py-3.5">
                       {p.reference && (
                         <span className="font-mono text-xs text-gray-400 dark:text-gray-500 max-w-[140px] truncate block">{p.reference}</span>

@@ -50,7 +50,7 @@ export async function POST(request) {
     // ── Bank details ──────────────────────────────────────────────────────────
     const { data: vendorData } = await admin
       .from("vendors")
-      .select("bank_account_number, bank_code, bank_name")
+      .select("bank_account_number, bank_code, bank_name, bank_account_name")
       .eq("id", user.id)
       .single();
 
@@ -102,10 +102,11 @@ export async function POST(request) {
       admin.from("vendor_payouts").insert({
         vendor_id:    user.id,
         amount:       amountNum,
-        status:       "pending",
+        status:            "pending",
         reference,
-        bank_name:    vendorData.bank_name    ?? null,
-        bank_account: vendorData.bank_account_number,
+        bank_name:         vendorData.bank_name    ?? null,
+        bank_account:      vendorData.bank_account_number,
+        bank_account_name: vendorData.bank_account_name ?? null,
       }),
 
       admin.from("wallet_transactions").insert({

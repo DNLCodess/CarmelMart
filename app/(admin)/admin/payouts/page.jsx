@@ -91,10 +91,11 @@ function ResolveModal({ payout, onClose, onSubmit, saving }) {
 
             {/* Payout summary */}
             <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 space-y-2.5 text-sm">
-              <Row label="Bank"    value={payout.bankName    ?? payout.vendor.bankName ?? "—"} />
-              <Row label="Account" value={payout.bankAccount ?? payout.vendor.bankAccount ?? "—"} mono />
-              <Row label="Amount"  value={`₦${payout.amount.toLocaleString()}`} bold />
-              <Row label="Ref"     value={payout.reference} mono small />
+              <Row label="Account Name"   value={payout.accountName ?? payout.vendor.accountName ?? "—"} />
+              <Row label="Account Number" value={payout.bankAccount ?? payout.vendor.bankAccount ?? "—"} mono />
+              <Row label="Bank"           value={payout.bankName    ?? payout.vendor.bankName ?? "—"} />
+              <Row label="Amount"         value={`₦${payout.amount.toLocaleString()}`} bold />
+              <Row label="Ref"            value={payout.reference} mono small />
             </div>
 
             {/* Action toggle */}
@@ -252,6 +253,13 @@ export default function AdminPayoutsPage() {
 
   const payouts = data?.payouts ?? [];
 
+  const { data: bankIssuesData } = useQuery({
+    queryKey: ["admin-bank-issues"],
+    queryFn:  () => fetch("/api/admin/vendors/bank-issues").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+  const bankIssues = bankIssuesData?.issues ?? [];
+
   const resolveMutation = useMutation({
     mutationFn: async (payload) => {
       const r = await fetch("/api/admin/payouts", {
@@ -306,6 +314,33 @@ export default function AdminPayoutsPage() {
         ))}
       </div>
 
+      {/* Unverified bank details — vendors who can't be paid until they fix their account */}
+      {bankIssues.length > 0 && (
+        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-red-800 dark:text-red-300">
+                {bankIssues.length} vendor{bankIssues.length > 1 ? "s have" : " has"} unverified bank details
+              </p>
+              <p className="text-xs text-red-700/80 dark:text-red-400/80 mt-0.5">
+                Their saved bank account couldn&apos;t be verified (usually a wrong bank code), so payouts will fail.
+                They&apos;ll be prompted to fix it on their dashboard.
+              </p>
+              <ul className="mt-2 space-y-1">
+                {bankIssues.map((v) => (
+                  <li key={v.id} className="text-xs text-red-800 dark:text-red-300 flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-semibold">{v.businessName}</span>
+                    <span className="text-red-700/70 dark:text-red-400/70">{v.email}</span>
+                    <span className="font-mono text-red-700/70 dark:text-red-400/70">{v.bankName} · {v.bankAccount}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Priority note */}
       {tab === "pending" && payouts.length > 0 && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-300 font-medium">
@@ -344,11 +379,21 @@ export default function AdminPayoutsPage() {
                     <StatusBadge status={p.status} />
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500">{p.vendor.email}</p>
-                  <div className="mt-1.5 flex items-baseline gap-1.5">
-                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{p.bankName ?? p.vendor.bankName ?? "—"}</span>
-                    <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{p.bankAccount ?? p.vendor.bankAccount ?? "—"}</span>
+                  <div className="mt-2 rounded-lg bg-gray-50 dark:bg-gray-700/40 px-2.5 py-2 space-y-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 shrink-0">Account Name</span>
+                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 text-right truncate">{p.accountName ?? p.vendor.accountName ?? "—"}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 shrink-0">Account No.</span>
+                      <span className="text-xs font-mono text-gray-700 dark:text-gray-300 text-right">{p.bankAccount ?? p.vendor.bankAccount ?? "—"}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 shrink-0">Bank</span>
+                      <span className="text-xs text-gray-700 dark:text-gray-300 text-right truncate">{p.bankName ?? p.vendor.bankName ?? "—"}</span>
+                    </div>
                   </div>
-                  <p className="text-xs font-mono text-gray-400 dark:text-gray-500 mt-0.5 truncate">{p.reference}</p>
+                  <p className="text-xs font-mono text-gray-400 dark:text-gray-500 mt-1 truncate">{p.reference}</p>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 dark:border-gray-700/60">
                     <div>
                       <p className="font-bold text-gray-900 dark:text-gray-100">₦{p.amount.toLocaleString()}</p>
@@ -375,7 +420,7 @@ export default function AdminPayoutsPage() {
                   <tr className="border-b border-gray-100 dark:border-gray-700 text-left bg-gray-50/60 dark:bg-gray-700/20">
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Vendor</th>
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
-                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Bank / Account</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Bank Details</th>
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reference</th>
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
@@ -399,9 +444,15 @@ export default function AdminPayoutsPage() {
                       <td className="px-5 py-4 font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
                         ₦{p.amount.toLocaleString()}
                       </td>
-                      <td className="px-5 py-4">
-                        <p className="text-sm text-gray-700 dark:text-gray-300">{p.bankName ?? p.vendor.bankName ?? "—"}</p>
-                        <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-0.5">{p.bankAccount ?? p.vendor.bankAccount ?? "—"}</p>
+                      <td className="px-5 py-4 min-w-[200px]">
+                        <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 items-baseline">
+                          <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Name</span>
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{p.accountName ?? p.vendor.accountName ?? "—"}</span>
+                          <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Acct</span>
+                          <span className="font-mono text-xs text-gray-700 dark:text-gray-300">{p.bankAccount ?? p.vendor.bankAccount ?? "—"}</span>
+                          <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Bank</span>
+                          <span className="text-xs text-gray-700 dark:text-gray-300 truncate">{p.bankName ?? p.vendor.bankName ?? "—"}</span>
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         <p className="font-mono text-xs text-gray-500 dark:text-gray-400 max-w-[150px] truncate">{p.reference}</p>

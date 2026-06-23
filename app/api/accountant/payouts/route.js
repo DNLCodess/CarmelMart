@@ -32,7 +32,7 @@ export async function GET(request) {
     let q = ctx.admin
       .from("vendor_payouts")
       .select(
-        "id, vendor_id, amount, status, reference, bank_name, bank_account, error, resolved_at, resolved_by, transfer_reference, notes, created_at",
+        "id, vendor_id, amount, status, reference, bank_name, bank_account, bank_account_name, error, resolved_at, resolved_by, transfer_reference, notes, created_at",
         { count: "exact" },
       )
       .order("created_at", { ascending: false })
@@ -78,6 +78,7 @@ export async function GET(request) {
         reference:         r.reference         ?? null,
         bankName:          r.bank_name          ?? "—",
         bankAccount:       r.bank_account       ?? "—",
+        accountName:       r.bank_account_name  ?? "—",
         error:             r.error              ?? null,
         resolvedAt:        r.resolved_at        ?? null,
         resolvedBy:        r.resolved_by ? (resolverMap[r.resolved_by] ?? null) : null,
