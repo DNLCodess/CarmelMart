@@ -26,6 +26,7 @@ import {
   updateVendorPaymentStatusAction,
   completeVendorPaymentAction,
   completeFreeTierRegistrationAction,
+  switchToFreeTierAction,
 } from "@/app/actions/vendor";
 import toast from "react-hot-toast";
 import Input from "@/components/ui/Input";
@@ -240,6 +241,20 @@ export default function VendorVerification({
     } catch (error) {
       setVerificationStatus((prev) => ({ ...prev, cac: { verified: false, loading: false } }));
       toast.error(error.message || "CAC verification failed");
+    }
+  };
+
+  // ── Escape hatch: switch to free plan instead of paying ───────────────────
+  const [switchingToFree, setSwitchingToFree] = useState(false);
+  const handleSwitchToFree = async () => {
+    setSwitchingToFree(true);
+    try {
+      await switchToFreeTierAction();
+      toast.success("Switched to the free plan — completing registration…");
+      router.push("/vendor-pending");
+    } catch (error) {
+      toast.error(error.message || "Could not switch to the free plan. Please try again.");
+      setSwitchingToFree(false);
     }
   };
 
@@ -979,6 +994,18 @@ export default function VendorVerification({
                   <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
                     <Shield className="w-3.5 h-3.5" />
                     Secure payment powered by Flutterwave
+                  </div>
+
+                  {/* Escape hatch — changed your mind? Start free instead */}
+                  <div className="pt-1 text-center">
+                    <button
+                      type="button"
+                      onClick={handleSwitchToFree}
+                      disabled={switchingToFree || verificationStatus.payment.loading}
+                      className="text-xs font-medium text-gray-500 hover:text-primary underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {switchingToFree ? "Switching…" : "Not ready to pay? Continue with the free plan instead"}
+                    </button>
                   </div>
                 </div>
               )}

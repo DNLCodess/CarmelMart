@@ -64,6 +64,36 @@ export async function completeFreeTierRegistrationAction() {
   if (error) throw new Error("Failed to complete registration");
 }
 
+/**
+ * Escape hatch — switch a vendor who picked a paid tier (nin / nin_cac) over to
+ * the free plan and complete registration without payment. Lets vendors who
+ * change their mind at the payment step avoid being permanently stuck on it.
+ * Requires NIN to already be verified (free tier's only identity requirement).
+ */
+export async function switchToFreeTierAction() {
+  const userId = await getAuthenticatedUserId();
+  const admin = createAdminClient();
+
+  const { data: vendor } = await admin
+    .from("vendors")
+    .select("nin_verified")
+    .eq("id", userId)
+    .single();
+  if (!vendor?.nin_verified) {
+    throw new Error("Verify your NIN before switching to the free plan");
+  }
+
+  const { error } = await admin
+    .from("vendors")
+    .update({
+      verification_type: "free",
+      payment_verified:  true,
+      updated_at:        new Date().toISOString(),
+    })
+    .eq("id", userId);
+  if (error) throw new Error("Failed to switch to the free plan");
+}
+
 /** Payment step — create a pending payment record before opening Flutterwave */
 export async function createVendorPaymentRecordAction({ reference, amount, verificationType }) {
   const userId = await getAuthenticatedUserId();
